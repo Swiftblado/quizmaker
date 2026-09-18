@@ -1,0 +1,21 @@
+# Netlify picks this up on import, so the build settings in the UI arrive
+# already filled in. index.html is the source; docs/ is what build.js makes.
+
+[build]
+  command = "npm run build"
+  publish = "docs"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# The service worker decides when everyone else's cached copy expires, so it
+# must never be served stale itself.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

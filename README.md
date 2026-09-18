@@ -30,8 +30,14 @@ wiped on the next build.
 
 To move the site to a custom domain, set the `DOMAIN` constant at the top of
 `build.js` and rebuild. That one line repoints the canonical URL, the `og:`
-tags and the sitemap, and writes the `CNAME` file GitHub Pages reads to claim
-the domain; point the domain's DNS at `swiftblado.github.io` and it is done.
+tags and the sitemap, and writes a `CNAME` file. Then, at the host:
+
+- **GitHub Pages** reads that `CNAME` file to claim the domain — point the
+  domain's DNS at `swiftblado.github.io` and it is done.
+- **Netlify** ignores the file and takes the domain from its own dashboard
+  instead; `netlify.toml` already carries the build settings, so an import
+  needs no configuring. Setting `DOMAIN` still matters there, because the
+  canonical and `og:` URLs are baked into the page at build time.
 
 ## The photo reader (optional, local only)
 
