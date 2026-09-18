@@ -1,0 +1,2198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* The artifact host supplied these; standing alone we supply them ourselves. */
+:root{color-scheme:light dark}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none !important}
+</style>
+<title>QuizPhoto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap">
+<style>
+:root{
+  --ground:#EDF0F5;
+  --surface:#FFFFFF;
+  --surface-2:#F5F7FA;
+  --ink:#141A2B;
+  --muted:#5B6478;
+  --faint:#8B94A8;
+  --rule:#D3DAE6;
+  --rule-soft:#E3E8F0;
+  --accent:#2B4ACB;
+  --accent-soft:#DDE3FA;
+  --accent-ink:#1B3299;
+  --on-accent:#FFFFFF;
+  --ok:#0E7C5A;
+  --ok-soft:#D6EFE5;
+  --almost:#B87503;
+  --almost-soft:#FBEBCF;
+  --bad:#B23A2E;
+  --bad-soft:#F8DFDB;
+  --shadow:0 1px 2px rgba(20,26,43,.06),0 8px 24px -12px rgba(20,26,43,.18);
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --serif:"Newsreader",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F131C;
+    --surface:#171D29;
+    --surface-2:#1E2532;
+    --ink:#E7EBF3;
+    --muted:#98A2B8;
+    --faint:#6B7488;
+    --rule:#28303F;
+    --rule-soft:#212836;
+    --accent:#7C93FF;
+    --accent-soft:#232C4D;
+    --accent-ink:#A9B9FF;
+    --on-accent:#0F131C;
+    --ok:#3DBB8E;
+    --ok-soft:#12332A;
+    --almost:#E8A72C;
+    --almost-soft:#3A2E12;
+    --bad:#E4796B;
+    --bad-soft:#3A1F1B;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F131C;
+  --surface:#171D29;
+  --surface-2:#1E2532;
+  --ink:#E7EBF3;
+  --muted:#98A2B8;
+  --faint:#6B7488;
+  --rule:#28303F;
+  --rule-soft:#212836;
+  --accent:#7C93FF;
+  --accent-soft:#232C4D;
+  --accent-ink:#A9B9FF;
+  --on-accent:#0F131C;
+  --ok:#3DBB8E;
+  --ok-soft:#12332A;
+  --almost:#E8A72C;
+  --almost-soft:#3A2E12;
+  --bad:#E4796B;
+  --bad-soft:#3A1F1B;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:660px;margin:0 auto;padding-inline:20px;padding-block:28px 64px;transition:max-width .2s ease}
+/* The results screen earns the extra width: it carries the log alongside. */
+.wrap.wide{max-width:1010px}
+h1,h2,h3{margin:0;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+
+.mast{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.mast h1{font-family:var(--serif);font-size:29px;font-weight:600;letter-spacing:-.015em}
+.mast .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+.mast .sp{flex:1}
+.tagline{color:var(--muted);font-size:14.5px;margin-bottom:26px;max-width:46ch}
+
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;box-shadow:var(--shadow)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:11px 18px;border-radius:8px;border:1px solid var(--rule);
+  background:var(--surface);font-size:14.5px;font-weight:600;cursor:pointer;
+  transition:background .13s,border-color .13s,transform .06s;
+}
+.btn:hover:not(:disabled){background:var(--surface-2);border-color:var(--faint)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn-primary:hover:not(:disabled){background:var(--accent-ink);border-color:var(--accent-ink);color:var(--on-accent)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--muted);padding:8px 10px}
+.btn-ghost:hover:not(:disabled){background:var(--surface-2);color:var(--ink);border-color:transparent}
+.btn-sm{padding:7px 12px;font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+
+.drop{
+  padding:30px 22px;text-align:center;border:1.5px dashed var(--rule);
+  border-radius:14px;background:var(--surface);transition:border-color .15s,background .15s;
+}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+/* Photos unavailable in this view: the panel stays, explaining itself,
+   but stops competing with the route that does work. */
+.drop.muted{background:var(--surface-2);border-style:solid}
+.drop.muted .lens{border-color:var(--rule);background:transparent;color:var(--faint)}
+.drop.muted h2,.drop.muted p{color:var(--muted)}
+.drop h2{font-family:var(--serif);font-size:22px;font-weight:600;margin-bottom:7px}
+.drop p{color:var(--muted);font-size:14px;max-width:40ch;margin:0 auto 18px}
+.drop .row{justify-content:center}
+.lens{
+  width:44px;height:44px;margin:0 auto 14px;border:1.5px solid var(--accent);
+  border-radius:10px;display:grid;place-items:center;color:var(--accent);background:var(--accent-soft);
+}
+.hint{font-size:12.5px;color:var(--faint);margin-top:16px}
+/* Says plainly whether this view can reach Claude, so a failure to read a
+   photo is never a mystery. */
+.cap{
+  display:inline-flex;align-items:center;gap:7px;margin-top:14px;
+  font-size:12px;font-weight:500;padding:4px 10px;border-radius:20px;
+  background:var(--surface-2);border:1px solid var(--rule-soft);color:var(--muted);
+}
+.cap .led{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:none}
+.cap[data-cap="ready"]{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+.cap[data-cap="ready"] .led{background:var(--ok)}
+.cap[data-cap="off"]{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+.cap[data-cap="off"] .led{background:var(--bad)}
+.err-code{
+  display:block;margin-top:6px;font-family:var(--mono);font-size:11.5px;
+  opacity:.8;overflow-wrap:anywhere;
+}
+.why{
+  width:19px;height:19px;flex:none;padding:0;border-radius:50%;
+  border:1.5px solid currentColor;background:transparent;color:inherit;
+  font-size:11px;font-weight:700;line-height:1;cursor:pointer;
+  display:grid;place-items:center;opacity:.75;
+}
+.why:hover{opacity:1}
+
+/* Explainer frame */
+dialog.sheet{
+  border:1px solid var(--rule);border-radius:14px;padding:0;
+  background:var(--surface);color:var(--ink);
+  max-width:540px;width:calc(100% - 32px);
+  box-shadow:0 24px 70px -24px rgba(0,0,0,.55);
+}
+dialog.sheet::backdrop{background:rgba(12,16,24,.6)}
+.sheet-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  padding:18px 20px 12px;border-bottom:1px solid var(--rule-soft);
+}
+.sheet-head h3{font-family:var(--serif);font-size:20px;font-weight:600}
+.sheet-body{padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px}
+.sheet-body p{font-size:14px;color:var(--muted);max-width:60ch}
+.reason{display:flex;gap:11px;align-items:flex-start}
+.reason .led{width:8px;height:8px;border-radius:50%;flex:none;margin-top:6px;background:var(--faint)}
+.reason[data-kind="view"] .led{background:var(--bad)}
+.reason[data-kind="plan"] .led{background:var(--almost)}
+.reason[data-kind="consent"] .led{background:var(--accent)}
+.reason h4{font-size:13.5px;font-weight:600;margin-bottom:2px}
+.reason p{font-size:13px;margin:0}
+.sheet-foot{
+  padding:13px 20px;border-top:1px solid var(--rule-soft);
+  display:flex;justify-content:flex-end;gap:10px;background:var(--surface-2);
+  border-radius:0 0 13px 13px;
+}
+.sheet-close{
+  border:none;background:transparent;color:var(--faint);cursor:pointer;
+  font-size:20px;line-height:1;padding:2px 6px;border-radius:6px;
+}
+.sheet-close:hover{background:var(--surface-2);color:var(--ink)}
+.or{
+  display:flex;align-items:center;gap:14px;margin:22px 0;color:var(--faint);
+  font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+}
+.or::before,.or::after{content:"";height:1px;background:var(--rule);flex:1}
+
+/* Ready-made decks. Sized so the word count is the first thing read --
+   it is what you choose on when you just want a quick round. */
+.starters{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
+.starter{
+  display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  padding:12px 13px;border:1px solid var(--rule);border-radius:10px;
+  background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:inherit;
+  transition:border-color .13s,background .13s,transform .06s;
+}
+.starter:hover{border-color:var(--accent);background:var(--accent-soft)}
+.starter:active{transform:translateY(1px)}
+.starter-n{
+  font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--accent);
+  letter-spacing:.06em;text-transform:uppercase;
+}
+.starter-name{font-family:var(--serif);font-size:16.5px;font-weight:600;line-height:1.25}
+.starter-lang{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+.shots{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;justify-content:center}
+.shot{position:relative;width:62px;height:62px;border-radius:8px;overflow:hidden;border:1px solid var(--rule)}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+.shot button{
+  position:absolute;top:2px;right:2px;width:19px;height:19px;padding:0;border-radius:50%;
+  border:none;background:rgba(20,26,43,.78);color:#fff;font-size:13px;line-height:1;
+  cursor:pointer;display:grid;place-items:center;
+}
+
+.deck-head{padding:16px 18px;border-bottom:1px solid var(--rule-soft)}
+.deck-title{font-family:var(--serif);font-size:20px;font-weight:600}
+.deck-meta{font-size:13px;color:var(--muted);margin-top:2px}
+.pairs{list-style:none;margin:0;padding:0;max-height:min(52vh,420px);overflow-y:auto}
+.pair{
+  display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:start;
+  padding:11px 18px;border-bottom:1px solid var(--rule-soft);
+}
+.pair:last-child{border-bottom:none}
+.pair input{
+  width:100%;padding:7px 9px;font:inherit;font-size:14.5px;background:var(--surface-2);
+  color:var(--ink);border:1px solid transparent;border-radius:6px;
+}
+.pair input:hover{border-color:var(--rule)}
+.pair input:focus{background:var(--surface);border-color:var(--accent);outline:none}
+.pair input.term{font-family:var(--serif);font-size:16px}
+.pair .kill{
+  padding:6px 8px;border:none;background:transparent;color:var(--faint);
+  cursor:pointer;border-radius:6px;font-size:15px;line-height:1;
+}
+.pair .kill:hover{background:var(--bad-soft);color:var(--bad)}
+.note-chip{
+  display:inline-block;margin-top:4px;font-size:11px;color:var(--muted);
+  background:var(--surface-2);border:1px solid var(--rule-soft);padding:1px 6px;border-radius:4px;
+}
+.deck-foot{padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--rule-soft)}
+
+.opts{margin-top:16px;padding:6px 18px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule-soft);flex-wrap:wrap}
+.opt:last-child{border-bottom:none}
+.opt-label{font-size:14px;font-weight:500}
+.opt-desc{font-size:12.5px;color:var(--muted);margin-top:1px;max-width:38ch}
+.switch{
+  position:relative;flex:none;width:42px;height:24px;border-radius:12px;
+  background:var(--rule);border:none;cursor:pointer;transition:background .16s;
+}
+.switch::after{
+  content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
+  background:var(--surface);transition:transform .16s;box-shadow:0 1px 2px rgba(0,0,0,.25);
+}
+.switch[aria-checked="true"]{background:var(--accent)}
+.switch[aria-checked="true"]::after{transform:translateX(18px)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;flex:none}
+.seg button{padding:7px 13px;border:none;background:var(--surface);font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-ink)}
+
+.hud{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.hud .left{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;gap:9px;align-items:center}
+.hud .right{display:flex;gap:12px;align-items:center}
+.total-clock{font-family:var(--mono);font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+/* Question clock. Counting up it is just information; counting down it
+   earns colour as it runs out. */
+.clock{
+  font-family:var(--mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;
+  padding:3px 9px;border-radius:6px;background:var(--surface-2);
+  border:1px solid var(--rule-soft);color:var(--muted);
+  transition:color .2s,background .2s,border-color .2s;
+}
+.clock.warn{color:var(--almost);background:var(--almost-soft);border-color:var(--almost)}
+.clock.urgent{color:var(--bad);background:var(--bad-soft);border-color:var(--bad)}
+/* Held: both clocks stop while a verdict is up, and say so rather than
+   sitting there looking like they might still be running. */
+.clock.held,.total-clock.held{opacity:.5}
+.clock.held::after{content:" hold";font-size:10px;font-weight:600;letter-spacing:.06em}
+.score{font-family:var(--mono);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.streak{font-size:12.5px;font-weight:600;color:var(--faint);font-variant-numeric:tabular-nums}
+.streak.hot{color:var(--almost)}
+.track{height:3px;background:var(--rule);border-radius:2px;overflow:hidden;margin-bottom:22px}
+.track span{display:block;height:100%;background:var(--accent);width:0;transition:width .3s ease}
+
+.stage{padding:30px 24px 24px;text-align:center}
+.ask{font-size:12px;color:var(--faint);letter-spacing:.09em;text-transform:uppercase;font-weight:600;margin-bottom:14px}
+.word{font-family:var(--serif);font-size:clamp(34px,9vw,50px);font-weight:500;line-height:1.12;letter-spacing:-.02em;overflow-wrap:anywhere}
+.word-note{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--muted);margin-top:6px}
+.answer-wrap{margin-top:24px}
+#answer{
+  width:100%;padding:14px 15px;font-family:var(--mono);font-size:19px;text-align:center;
+  background:var(--surface-2);color:var(--ink);border:1.5px solid var(--rule);border-radius:9px;
+  transition:border-color .14s,background .14s;
+}
+#answer::placeholder{color:var(--faint);font-size:15px;font-family:var(--sans)}
+#answer:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+#answer:disabled{opacity:1}
+
+/* The whole card turns over to the verdict: a tinted ground, a matching
+   edge, and one ripple outward so the change is felt, not just read. */
+.stage{transition:background .16s ease,border-color .16s ease}
+.stage[data-state] #answer{background:var(--surface)}
+.stage[data-state="ok"]{background:var(--ok-soft);border-color:var(--ok);animation:ripple-ok .55s ease-out}
+.stage[data-state="almost"]{background:var(--almost-soft);border-color:var(--almost);animation:ripple-almost .55s ease-out}
+.stage[data-state="bad"]{background:var(--bad-soft);border-color:var(--bad);animation:ripple-bad .55s ease-out}
+.stage[data-state="ok"] #answer{border-color:var(--ok)}
+.stage[data-state="almost"] #answer{border-color:var(--almost)}
+.stage[data-state="bad"] #answer{border-color:var(--bad)}
+@keyframes ripple-ok{from{box-shadow:0 0 0 0 var(--ok)}to{box-shadow:0 0 0 16px transparent}}
+@keyframes ripple-almost{from{box-shadow:0 0 0 0 var(--almost)}to{box-shadow:0 0 0 16px transparent}}
+@keyframes ripple-bad{from{box-shadow:0 0 0 0 var(--bad)}to{box-shadow:0 0 0 16px transparent}}
+
+/* ---- multiple choice ----
+   The answer tiles keep one fixed palette in both themes: a rainbow is its
+   own visual world, and re-tinting it per theme would only muddy the hues.
+   Each swatch carries the text colour that actually reads on it, which is
+   why orange and yellow take dark text where the rest take white. */
+/* In choice mode the card becomes a column and the tiles take every pixel
+   left under the verdict, so they always run to the bottom edge. The
+   verdict and the Next button move ABOVE the tiles -- directly under the
+   word, where the eye already is -- and both keep a reserved height so
+   answering never resizes the tiles under the cursor. */
+.stage[data-mode="choice"]{
+  display:flex;flex-direction:column;
+  min-height:clamp(520px,68vh,620px);
+}
+.stage[data-mode="choice"] .verdict{order:4;min-height:46px;margin-top:14px}
+.stage[data-mode="choice"] .stage-foot{order:5;min-height:34px;margin-top:4px}
+.stage[data-mode="choice"] .choices{order:6;flex:1 1 auto;margin-top:6px}
+
+.choices{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-auto-rows:1fr;gap:10px;min-height:0;
+}
+.choices[data-odd="1"] .choice:last-child{grid-column:1 / -1}
+.choice{
+  position:relative;display:flex;align-items:center;justify-content:center;gap:9px;
+  min-height:0;padding:15px 16px 13px;border:none;border-radius:10px;
+  font-family:var(--sans);font-size:clamp(16px,3.9vw,19px);font-weight:600;line-height:1.25;
+  cursor:pointer;text-align:center;overflow-wrap:anywhere;overflow:hidden;
+  transition:opacity .18s,filter .13s,transform .07s;
+}
+/* Inherits each tile's own text colour, so it reads on white-on-red and
+   dark-on-yellow alike without introducing another colour. */
+.choice-num{
+  position:absolute;top:7px;left:10px;
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  line-height:1;opacity:.62;
+}
+.choice:hover:not(:disabled){filter:brightness(1.08)}
+.choice:active:not(:disabled){transform:translateY(1px)}
+.choice:disabled{cursor:default}
+.choice[data-hue="0"]{background:#CE2B37;color:#FFFFFF}
+.choice[data-hue="1"]{background:#E07A00;color:#1A1205}
+.choice[data-hue="2"]{background:#F0C808;color:#1A1205}
+.choice[data-hue="3"]{background:#178A4C;color:#FFFFFF}
+.choice[data-hue="4"]{background:#1667D4;color:#FFFFFF}
+.choice[data-hue="5"]{background:#6C3BC4;color:#FFFFFF}
+.choice[data-state="dim"]{opacity:.28}
+.choice[data-state="wrong"]{filter:saturate(.5) brightness(.85)}
+.choice-mark{font-size:18px;font-weight:700;flex:none;line-height:1}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
+
+.verdict{margin-top:16px;min-height:66px;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center}
+.verdict-head{font-size:14px;font-weight:700}
+.verdict-body{font-size:14.5px;color:var(--muted)}
+.verdict-body b{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink)}
+.stage[data-state="ok"] .verdict-head{color:var(--ok)}
+.stage[data-state="almost"] .verdict-head{color:var(--almost)}
+.stage[data-state="bad"] .verdict-head{color:var(--bad)}
+.gain{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--ok)}
+.diff{font-family:var(--mono);font-size:15px}
+.diff s{text-decoration:none;color:var(--bad);background:var(--bad-soft);border-radius:2px}
+.diff u{text-decoration:none;color:var(--ok);background:var(--ok-soft);border-radius:2px}
+.stage-foot{margin-top:10px;display:flex;justify-content:center;gap:10px;align-items:center;min-height:30px}
+.kbd{font-family:var(--mono);font-size:11px;padding:2px 5px;border:1px solid var(--rule);border-radius:4px;color:var(--muted);background:var(--surface-2)}
+
+.result{padding:28px 24px;text-align:center;overflow-y:auto}
+.result h2{font-family:var(--serif);font-size:26px;font-weight:600;margin-bottom:4px}
+.final{font-family:var(--mono);font-size:44px;font-weight:600;letter-spacing:-.02em;color:var(--accent);font-variant-numeric:tabular-nums}
+.stats{display:flex;justify-content:center;gap:26px;margin-top:18px;flex-wrap:wrap}
+.stat b{display:block;font-family:var(--mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat span{font-size:11.5px;color:var(--faint);letter-spacing:.07em;text-transform:uppercase;font-weight:600}
+.missed{margin-top:22px;text-align:left;border-top:1px solid var(--rule-soft);padding-top:16px}
+.missed ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.missed li{display:flex;justify-content:space-between;gap:14px;font-size:14.5px;padding-bottom:7px;border-bottom:1px solid var(--rule-soft)}
+.missed li:last-child{border-bottom:none;padding-bottom:0}
+.missed .m-term{font-family:var(--serif);font-size:16px;font-weight:500}
+.missed .m-ans{color:var(--muted);text-align:right}
+
+/* ---- round log ----
+   Sits beside the score on wide screens, under it on narrow ones. Each
+   row carries its verdict as a left stripe, so the shape of the round is
+   readable down the edge before any word is. */
+/* The log is cut to exactly five rows and the score card is matched to it.
+   Both heights are measured at render time, in sizeFrames() -- row heights
+   change with the sort (a missed word carries a second line) and with the
+   serif once it loads, so a hard-coded pixel height would drift. */
+.done-grid{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,370px);
+  gap:18px;align-items:start;
+}
+.log-card{display:flex;flex-direction:column;overflow:hidden}
+.log-list{list-style:none;margin:0;padding:0;flex:none;overflow-y:auto}
+@media (max-width:800px){
+  .done-grid{grid-template-columns:minmax(0,1fr)}
+}
+.log-head{padding:14px 16px 12px;border-bottom:1px solid var(--rule-soft);flex:none}
+.log-count{font-size:11px;color:var(--faint);font-weight:600;font-variant-numeric:tabular-nums}
+.log-controls{display:flex;gap:8px;margin-top:9px;align-items:stretch}
+.log-controls .seg{flex:1}
+.log-controls .seg button{flex:1;padding-inline:8px}
+.log-dir{
+  flex:none;padding:7px 10px;font-family:var(--mono);font-size:13px;
+  font-weight:600;line-height:1;min-width:36px;
+}
+.log-toggle{flex:none;padding:7px 11px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap}
+.log-toggle[aria-pressed="true"]{
+  background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);
+}
+.log-toggle[aria-pressed="true"]:hover{background:var(--accent-soft);border-color:var(--accent)}
+.log-note{font-size:12px;color:var(--faint);margin-top:8px}
+.log-row{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:baseline;
+  padding:9px 14px 9px 11px;border-bottom:1px solid var(--rule-soft);
+  border-left:3px solid var(--rule);
+}
+.log-row:last-child{border-bottom:none}
+.log-row[data-v="ok"]{border-left-color:var(--ok)}
+.log-row[data-v="almost"]{border-left-color:var(--almost)}
+.log-row[data-v="bad"]{border-left-color:var(--bad)}
+.log-n{font-family:var(--mono);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.log-term{font-family:var(--serif);font-size:15.5px;font-weight:500;overflow-wrap:anywhere}
+.log-sub{font-size:12.5px;color:var(--muted);margin-top:1px;overflow-wrap:anywhere}
+.log-sub b{font-weight:600;color:var(--ink)}
+.log-sub s{text-decoration:line-through;text-decoration-thickness:1px;opacity:.75}
+.log-ms{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.log-row[data-slow="1"] .log-ms{color:var(--almost);font-weight:600}
+.log-empty{padding:22px 16px;text-align:center;color:var(--faint);font-size:13.5px}
+
+.busy{display:flex;align-items:center;gap:11px;padding:18px;justify-content:center;color:var(--muted);font-size:14px}
+.spin{width:16px;height:16px;flex:none;border-radius:50%;border:2px solid var(--rule);border-top-color:var(--accent);animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.alert{margin-top:14px;padding:11px 14px;border-radius:8px;font-size:13.5px;background:var(--bad-soft);color:var(--bad)}
+.alert.info{background:var(--accent-soft);color:var(--accent-ink)}
+.sample-flag{
+  display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--almost);background:var(--almost-soft);padding:2px 7px;border-radius:4px;
+}
+textarea#paste{
+  width:100%;min-height:120px;padding:12px;font-family:var(--mono);font-size:13.5px;
+  background:var(--surface-2);color:var(--ink);border:1px solid var(--rule);border-radius:8px;resize:vertical;
+}
+textarea#paste:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.foot{margin-top:26px;font-size:12.5px;color:var(--faint);text-align:center}
+@media (max-width:430px){
+  .pair{grid-template-columns:1fr auto}
+  .pair .b-cell{grid-column:1/2}
+  .stats{gap:18px}
+  .stage{padding:24px 16px 20px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="mast">
+    <span class="dot"></span>
+    <h1>QuizPhoto</h1>
+    <span class="sp"></span>
+    <button class="btn btn-ghost btn-sm" id="theme-btn" type="button" title="Switch theme">Theme</button>
+  </div>
+  <p class="tagline">Photograph a vocabulary sheet. Type the translations from memory. One point per word you get exactly right.</p>
+
+  <!-- ============ INTAKE ============ -->
+  <section id="scr-intake">
+    <div class="drop" id="drop">
+      <div class="lens" aria-hidden="true">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2l1.1-1.8A1 1 0 0 1 8.7 4.7h6.6a1 1 0 0 1 .9.5L17.3 7h2.2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"></path>
+          <circle cx="12" cy="12.8" r="3.4"></circle>
+        </svg>
+      </div>
+      <h2>Snap your vocab sheet</h2>
+      <p>Printed or handwritten, one column or two. Claude reads the page and pulls out every word pair.</p>
+      <div class="row">
+        <button class="btn btn-primary" id="btn-camera" type="button">Take photo</button>
+        <button class="btn" id="btn-file" type="button">Choose image</button>
+      </div>
+      <div class="shots" id="shots"></div>
+      <p class="hint" id="drop-hint">You can also drag an image here, or paste one with Ctrl+V.</p>
+      <div class="cap" id="cap" data-cap="wait">
+        <span class="led"></span>
+        <span id="cap-text">Connecting to Claude…</span>
+        <button class="why" id="cap-why" type="button" aria-label="Why can't this view read photos?" hidden>?</button>
+      </div>
+      <input type="file" id="in-camera" accept="image/*" capture="environment" multiple hidden>
+      <input type="file" id="in-file" accept="image/*" multiple hidden>
+    </div>
+
+    <div id="read-box" hidden></div>
+
+    <div class="or">or pick a ready-made deck</div>
+
+    <div class="starters" id="starters"></div>
+
+    <div class="or">or type them in</div>
+
+    <div class="card" style="padding:16px 18px">
+      <label class="eyebrow" for="paste">One pair per line</label>
+      <p style="font-size:13px;color:var(--muted);margin:6px 0 10px">Separate the word from its meaning with a comma, a dash, a tab, or an equals sign.</p>
+      <textarea id="paste" spellcheck="false" placeholder="hacer = to do&#10;decir = to say&#10;ser = to be"></textarea>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="btn-paste" type="button">Build deck</button>
+      </div>
+    </div>
+
+    <div id="saved-box" style="margin-top:22px" hidden>
+      <div class="eyebrow" style="margin-bottom:9px">Your decks</div>
+      <div class="card" id="saved-list"></div>
+    </div>
+  </section>
+
+  <!-- ============ DECK REVIEW ============ -->
+  <section id="scr-deck" hidden>
+    <div class="card">
+      <div class="deck-head spread">
+        <div>
+          <div class="deck-title" id="deck-title">Deck</div>
+          <div class="deck-meta" id="deck-meta"></div>
+        </div>
+        <span class="sample-flag" id="deck-flag" hidden>Sample</span>
+      </div>
+      <ul class="pairs" id="pair-list"></ul>
+      <div class="deck-foot">
+        <button class="btn btn-sm" id="btn-add" type="button">Add a word</button>
+        <span class="sp" style="flex:1"></span>
+        <button class="btn btn-ghost btn-sm" id="btn-back" type="button">Start over</button>
+      </div>
+    </div>
+
+    <div class="card opts">
+      <div class="opt">
+        <div>
+          <div class="opt-label">Ask me in</div>
+          <div class="opt-desc" id="dir-desc">Shown the foreign word, you type the meaning.</div>
+        </div>
+        <div class="seg" id="dir-seg" role="group" aria-label="Quiz direction">
+          <button type="button" data-dir="ab" aria-pressed="true">A &rarr; B</button>
+          <button type="button" data-dir="ba" aria-pressed="false">B &rarr; A</button>
+        </div>
+      </div>
+      <div class="opt">
+        <div>
+          <div class="opt-label">Answer style</div>
+          <div class="opt-desc" id="mode-desc">Type the translation from memory.</div>
+        </div>
+        <div class="seg" id="mode-seg" role="group" aria-label="Answer style">
+          <button type="button" data-mode="type" aria-pressed="true">Typing</button>
+          <button type="button" data-mode="choice" aria-pressed="false">Choices</button>
+        </div>
+      </div>
+      <div class="opt" id="opt-choices" hidden>
+        <div>
+          <div class="opt-label">Answer choices</div>
+          <div class="opt-desc" id="choices-desc">One right answer; the rest are answers to other words in the deck.</div>
+        </div>
+        <div class="seg" id="choices-seg" role="group" aria-label="Number of answer choices">
+          <button type="button" data-n="2">2</button>
+          <button type="button" data-n="3">3</button>
+          <button type="button" data-n="4" aria-pressed="true">4</button>
+          <button type="button" data-n="5">5</button>
+          <button type="button" data-n="6">6</button>
+        </div>
+      </div>
+      <div class="opt">
+        <div>
+          <div class="opt-label">Time per word</div>
+          <div class="opt-desc">Run the clock out and the word is marked incorrect. Off, the clock counts up and nothing is at stake.</div>
+        </div>
+        <div class="seg" id="limit-seg" role="group" aria-label="Time per word">
+          <button type="button" data-limit="0" aria-pressed="true">Off</button>
+          <button type="button" data-limit="10" aria-pressed="false">10s</button>
+          <button type="button" data-limit="20" aria-pressed="false">20s</button>
+          <button type="button" data-limit="30" aria-pressed="false">30s</button>
+        </div>
+      </div>
+      <div class="opt" id="opt-accents">
+        <div>
+          <div class="opt-label">Require accents</div>
+          <div class="opt-desc">Off, <i>esta</i> passes for <i>está</i>. The ñ always counts as its own letter.</div>
+        </div>
+        <button class="switch" id="sw-accents" role="switch" aria-checked="false" aria-label="Require accents"></button>
+      </div>
+      <div class="opt" id="opt-typo">
+        <div>
+          <div class="opt-label">Forgive one typo</div>
+          <div class="opt-desc">One wrong letter, or two swapped, scores as &ldquo;almost&rdquo; rather than incorrect. No point either way.</div>
+        </div>
+        <button class="switch" id="sw-typo" role="switch" aria-checked="true" aria-label="Forgive one typo"></button>
+      </div>
+      <div class="opt">
+        <div>
+          <div class="opt-label">Retry incorrect words</div>
+          <div class="opt-desc">Words you got wrong come round once more before the round ends.</div>
+        </div>
+        <button class="switch" id="sw-retry" role="switch" aria-checked="true" aria-label="Retry missed words"></button>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:18px">
+      <button class="btn btn-primary" id="btn-play" type="button" style="flex:1;min-width:180px">Start quiz</button>
+      <button class="btn" id="btn-save" type="button">Save deck</button>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section id="scr-quiz" hidden>
+    <div class="hud">
+      <div class="left">
+        <span id="hud-left">Word 1 of 12</span>
+        <span class="total-clock" id="total-clock" title="Time this round">0:00</span>
+      </div>
+      <div class="right">
+        <span class="clock" id="clock" title="Time on this word">0:00</span>
+        <span class="streak" id="hud-streak">&nbsp;</span>
+        <span class="score" id="hud-score">0</span>
+      </div>
+    </div>
+    <div class="track"><span id="track-fill"></span></div>
+
+    <div class="card stage" id="stage">
+      <div class="ask" id="ask">Translate to English</div>
+      <div class="word" id="word">&nbsp;</div>
+      <div class="word-note" id="word-note" hidden></div>
+      <div class="answer-wrap" id="answer-wrap">
+        <input type="text" id="answer" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="type the translation">
+      </div>
+      <div class="choices" id="choices" hidden></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="stage-foot" id="stage-foot"></div>
+    </div>
+
+    <div class="row" style="margin-top:16px;justify-content:center">
+      <button class="btn btn-ghost btn-sm" id="btn-quit" type="button">End round</button>
+    </div>
+  </section>
+
+  <!-- ============ RESULTS ============ -->
+  <section id="scr-done" hidden>
+    <div class="done-grid">
+    <div class="card result">
+      <div class="eyebrow">Round complete</div>
+      <h2 id="done-title">Nicely done</h2>
+      <div class="final" id="done-score">0</div>
+      <div class="stats">
+        <div class="stat"><b id="st-right">0</b><span>Right</span></div>
+        <div class="stat"><b id="st-acc">0%</b><span>Accuracy</span></div>
+        <div class="stat"><b id="st-streak">0</b><span>Best streak</span></div>
+        <div class="stat"><b id="st-time">0:00</b><span>Time</span></div>
+        <div class="stat"><b id="st-avg">0.0s</b><span>Per word</span></div>
+        <div class="stat"><b id="st-best">0</b><span>Deck best</span></div>
+      </div>
+      <div class="missed" id="missed-box" hidden>
+        <div class="eyebrow">Worth another look</div>
+        <ul id="missed-list"></ul>
+      </div>
+    </div>
+
+    <div class="card log-card">
+      <div class="log-head">
+        <div class="spread">
+          <span class="eyebrow">Every word you answered</span>
+          <span class="log-count" id="log-count"></span>
+        </div>
+        <div class="log-controls">
+          <div class="seg" id="log-sort" role="group" aria-label="Sort the round log">
+            <button type="button" data-sort="order" aria-pressed="true">Order</button>
+            <button type="button" data-sort="time" aria-pressed="false">Time</button>
+          </div>
+          <button class="btn btn-sm log-dir" id="log-dir" type="button" aria-label="Reverse the order" title="Reverse the order">&uarr;</button>
+          <button class="btn btn-sm log-toggle" id="log-acc" type="button" aria-pressed="false" title="Group the words you missed together">Misses</button>
+        </div>
+        <div class="log-note" id="log-note">First asked first.</div>
+      </div>
+      <ol class="log-list" id="log-list"></ol>
+    </div>
+    </div>
+
+    <div class="row" style="margin-top:18px">
+      <button class="btn btn-primary" id="btn-again" type="button" style="flex:1;min-width:150px">Play again</button>
+      <button class="btn" id="btn-drill" type="button" hidden>Drill the misses</button>
+      <button class="btn" id="btn-newdeck" type="button">New sheet</button>
+    </div>
+  </section>
+
+  <p class="foot">Answers are checked against your sheet, not a dictionary &mdash; edit any pair before you play.</p>
+</div>
+
+<dialog class="sheet" id="why-sheet" aria-labelledby="why-title">
+  <div class="sheet-head">
+    <h3 id="why-title">Why photos can&rsquo;t be read here</h3>
+    <button class="sheet-close" id="why-close" type="button" aria-label="Close">&times;</button>
+  </div>
+  <div class="sheet-body">
+    <p id="why-lead">Reading a sheet means handing the image to Claude from inside this page. Three things have to line up, and one of them isn&rsquo;t.</p>
+
+    <div class="reason" data-kind="view">
+      <span class="led"></span>
+      <div>
+        <h4>The page has to run inside Claude</h4>
+        <p>The photo is read by Claude itself, not by code in this page &mdash; there is no OCR here and the page&rsquo;s own network access is blocked, so it cannot send the image anywhere on its own. That channel only exists when the page is opened through claude.ai. A copy served on its own &mdash; popped out to a bare URL, saved to disk, or opened from another host &mdash; has no channel to Claude at all.</p>
+      </div>
+    </div>
+
+    <div class="reason" data-kind="plan">
+      <span class="led"></span>
+      <div>
+        <h4>Image input has to be available to your account</h4>
+        <p>Even with Claude reachable, sending <em>images</em> is a separate capability that depends on your Claude account and the client you&rsquo;re using. When text would work but images won&rsquo;t, this is why. Nothing in the page can turn it on.</p>
+      </div>
+    </div>
+
+    <div class="reason" data-kind="consent">
+      <span class="led"></span>
+      <div>
+        <h4>You have to allow it, once per visit</h4>
+        <p>The first read asks your permission, because it runs on your Claude account. Declining is final for that visit &mdash; reload the page to be asked again.</p>
+      </div>
+    </div>
+
+    <p><b>What still works:</b> type or paste your word list into the box below the photo panel &mdash; one pair per line, separated by a comma, dash, tab or equals sign. Everything after that, the quiz included, runs entirely in your browser and needs none of the above.</p>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn-sm btn-primary" id="why-ok" type="button">Got it</button>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------------------------------------------------------------
+     Sample deck. Shown at rest so the page opens on something real.
+     Spanish irregular verbs, the classic first sheet.
+  ---------------------------------------------------------------- */
+  var DECKS = [
+    {
+      title: "Greetings",
+      langA: "Spanish", langB: "English", sample: true,
+      pairs: [
+        { a: "hola",   b: "hello",   alt: ["hi"], note: "" },
+        { a: "adiós",  b: "goodbye", alt: ["bye", "farewell"], note: "" }
+      ]
+    },
+    {
+      title: "Everyday verbs",
+      langA: "French", langB: "English", sample: true,
+      pairs: [
+        { a: "être",  b: "to be",   alt: [],                   note: "irregular" },
+        { a: "avoir", b: "to have", alt: [],                   note: "irregular" },
+        { a: "aller", b: "to go",   alt: [],                   note: "irregular" },
+        { a: "faire", b: "to do",   alt: ["to make"],          note: "irregular" },
+        { a: "dire",  b: "to say",  alt: ["to tell"],          note: "irregular" }
+      ]
+    },
+    {
+      title: "Days of the week",
+      langA: "Spanish", langB: "English", sample: true,
+      pairs: [
+        { a: "lunes",     b: "Monday",    alt: [], note: "" },
+        { a: "martes",    b: "Tuesday",   alt: [], note: "" },
+        { a: "miércoles", b: "Wednesday", alt: [], note: "" },
+        { a: "jueves",    b: "Thursday",  alt: [], note: "" },
+        { a: "viernes",   b: "Friday",    alt: [], note: "" },
+        { a: "sábado",    b: "Saturday",  alt: [], note: "" },
+        { a: "domingo",   b: "Sunday",    alt: [], note: "" }
+      ]
+    },
+    {
+      title: "Irregular verbs",
+      langA: "Spanish", langB: "English", sample: true,
+      pairs: [
+        { a: "hacer",  b: "to do",      alt: ["to make"],              note: "irregular yo" },
+        { a: "decir",  b: "to say",     alt: ["to tell"],              note: "e → i" },
+        { a: "ser",    b: "to be",      alt: [],                       note: "permanent" },
+        { a: "estar",  b: "to be",      alt: [],                       note: "temporary" },
+        { a: "tener",  b: "to have",    alt: ["to hold"],              note: "e → ie" },
+        { a: "poder",  b: "to be able", alt: ["can", "to be able to"], note: "o → ue" },
+        { a: "ir",     b: "to go",      alt: [],                       note: "" },
+        { a: "venir",  b: "to come",    alt: [],                       note: "e → ie" },
+        { a: "poner",  b: "to put",     alt: ["to place", "to set"],   note: "irregular yo" },
+        { a: "salir",  b: "to leave",   alt: ["to go out", "to exit"], note: "irregular yo" }
+      ]
+    },
+    {
+      title: "Everyday nouns",
+      langA: "German", langB: "English", sample: true,
+      pairs: [
+        { a: "das Haus",   b: "house",  alt: [],                  note: "neuter" },
+        { a: "die Zeit",   b: "time",   alt: [],                  note: "feminine" },
+        { a: "der Mann",   b: "man",    alt: [],                  note: "masculine" },
+        { a: "die Frau",   b: "woman",  alt: [],                  note: "feminine" },
+        { a: "das Kind",   b: "child",  alt: [],                  note: "neuter" },
+        { a: "der Tag",    b: "day",    alt: [],                  note: "masculine" },
+        { a: "die Nacht",  b: "night",  alt: [],                  note: "feminine" },
+        { a: "das Wasser", b: "water",  alt: [],                  note: "neuter" },
+        { a: "das Buch",   b: "book",   alt: [],                  note: "neuter" },
+        { a: "die Stadt",  b: "city",   alt: ["town"],            note: "feminine" },
+        { a: "der Freund", b: "friend", alt: [],                  note: "masculine" },
+        { a: "die Schule", b: "school", alt: [],                  note: "feminine" },
+        { a: "das Jahr",   b: "year",   alt: [],                  note: "neuter" },
+        { a: "der Weg",    b: "way",    alt: ["path", "road"],    note: "masculine" },
+        { a: "die Hand",   b: "hand",   alt: [],                  note: "feminine" }
+      ]
+    }
+  ];
+
+  var SAMPLE = DECKS[3];   // the ten-word deck opens the page
+
+  /* ---------------- state ---------------- */
+  var deck = null;
+  var opts = { dir: "ab", accents: false, typo: true, retry: true, limit: 0,
+               mode: "type", choices: 4 };
+  var game = null;
+  var ticker = null;
+  var shots = [];        // {file, url}
+  var MAX_SHOTS = 4;        // pages sent in one request
+  var sampleReady = null;   // resolves once the server has answered, or failed to
+
+  /* ---------------- storage (best-effort) ---------------- */
+  function readStore(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) { return fallback; }
+  }
+  function writeStore(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* private mode */ }
+  }
+
+  /* ---------------- text normalising ----------------
+     Diacritics are stripped for comparison, but the Spanish enye is
+     a letter of the alphabet in its own right, not an accented n --
+     so it survives. "ano" never passes for "anio".
+  --------------------------------------------------- */
+  var LEADING = /^(?:to |the |a |an |el |la |los |las |un |una |unos |unas |le |les |der |die |das |ein |eine |il |lo |gli |i )/;
+
+  function fold(s, keepAccents) {
+    var t = String(s == null ? "" : s).toLowerCase().trim();
+    t = t.replace(/[‘’ʼ]/g, "'").replace(/[“”]/g, '"');
+    if (!keepAccents) {
+      // Decompose, strip combining marks -- but park the enye first. In
+      // Spanish it is its own letter, not an accented n: never let "ano"
+      // pass for "a\u00f1o".
+      t = t.normalize("NFD")
+           .replace(/ñ/g, "\u0001")
+           .replace(/[̀-ͯ]/g, "")
+           .replace(/\u0001/g, "ñ");
+    } else {
+      t = t.normalize("NFC");
+    }
+    t = t.replace(/[.,;:!?¡¿"'()\[\]\/]/g, " ");
+    return t.replace(/\s+/g, " ").trim();
+  }
+
+  // Every spelling we will accept for one answer.
+  function variants(s, keepAccents) {
+    var base = fold(s, keepAccents);
+    var out = [base];
+    var trimmed = base.replace(LEADING, "");
+    if (trimmed && trimmed !== base) out.push(trimmed);
+    if (base.indexOf(",") >= 0) {
+      base.split(",").forEach(function (p) {
+        var v = p.trim();
+        if (v) { out.push(v); out.push(v.replace(LEADING, "")); }
+      });
+    }
+    return out.filter(function (v, i, arr) { return v && arr.indexOf(v) === i; });
+  }
+
+  // Damerau-Levenshtein: a swapped pair of letters counts as ONE mistake,
+  // not two. Typing "recieve" for "receive" is the commonest slip there is,
+  // and plain Levenshtein scores it the same as getting the word wrong.
+  function editDistance(a, b, cap) {
+    if (a === b) return 0;
+    if (Math.abs(a.length - b.length) > cap) return cap + 1;
+    var prevPrev = null, prev = [], cur, i, j;
+    for (j = 0; j <= b.length; j++) prev[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      cur = [i];
+      var best = cur[0];
+      for (j = 1; j <= b.length; j++) {
+        var cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+        var v = Math.min(cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+        if (prevPrev && i > 1 && j > 1 &&
+            a.charAt(i - 1) === b.charAt(j - 2) &&
+            a.charAt(i - 2) === b.charAt(j - 1)) {
+          v = Math.min(v, prevPrev[j - 2] + 1);
+        }
+        cur[j] = v;
+        if (v < best) best = v;
+      }
+      if (best > cap) return cap + 1;
+      prevPrev = prev;
+      prev = cur.slice();
+    }
+    return prev[b.length];
+  }
+
+  // -> {verdict: "ok"|"almost"|"bad", target: <the answer we matched or expect>}
+  function judge(typed, accepted) {
+    var got = fold(typed, opts.accents);
+    var gotTrim = got.replace(LEADING, "");
+    var i, k, pool;
+    for (i = 0; i < accepted.length; i++) {
+      pool = variants(accepted[i], opts.accents);
+      for (k = 0; k < pool.length; k++) {
+        if (got === pool[k] || gotTrim === pool[k]) return { verdict: "ok", target: accepted[i] };
+      }
+    }
+    if (opts.typo && got.length >= 3) {
+      for (i = 0; i < accepted.length; i++) {
+        pool = variants(accepted[i], opts.accents);
+        for (k = 0; k < pool.length; k++) {
+          var cap = pool[k].length >= 8 ? 2 : 1;
+          if (editDistance(got, pool[k], cap) <= cap) return { verdict: "almost", target: accepted[i] };
+        }
+      }
+    }
+    return { verdict: "bad", target: accepted[0] };
+  }
+
+  // Character-level diff, for showing what they nearly had.
+  function spellOut(typed, target) {
+    var a = String(typed), b = String(target);
+    var head = 0;
+    while (head < a.length && head < b.length && a.charAt(head).toLowerCase() === b.charAt(head).toLowerCase()) head++;
+    var tail = 0;
+    while (tail < a.length - head && tail < b.length - head &&
+           a.charAt(a.length - 1 - tail).toLowerCase() === b.charAt(b.length - 1 - tail).toLowerCase()) tail++;
+    var aMid = a.slice(head, a.length - tail);
+    var bMid = b.slice(head, b.length - tail);
+    var esc = function (s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); };
+    return esc(b.slice(0, head)) +
+           (aMid ? "<s>" + esc(aMid) + "</s>" : "") +
+           (bMid ? "<u>" + esc(bMid) + "</u>" : "") +
+           esc(b.slice(b.length - tail));
+  }
+
+  /* ---------------- screens ---------------- */
+  function show(name) {
+    if (name !== "quiz") stopClock();
+    document.querySelector(".wrap").classList.toggle("wide", name === "done");
+    ["intake", "deck", "quiz", "done"].forEach(function (s) {
+      $("scr-" + s).hidden = (s !== name);
+    });
+    if (name !== "quiz") window.scrollTo(0, 0);
+  }
+
+  /* ---------------- theme ---------------- */
+  $("theme-btn").addEventListener("click", function () {
+    var root = document.documentElement;
+    var now = root.getAttribute("data-theme");
+    var dark = now ? now === "dark"
+      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.setAttribute("data-theme", dark ? "light" : "dark");
+  });
+
+  /* ---------------- deck plumbing ---------------- */
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  /* ---------------- multiple choice ----------------
+     Wrong options are the answers to other words in the round. Two guards
+     matter: a distractor must not match ANY answer this word accepts (a
+     deck holding both "ser" and "estar" would otherwise offer "to be"
+     twice, one of them scored wrong), and where a deck cannot supply
+     enough distinct ones, the question simply offers fewer tiles.
+  -------------------------------------------------- */
+
+  // Spread the tiles across the rainbow rather than taking the first n, so
+  // two choices are red and violet, not two neighbouring reds.
+  function hueFor(i, n) {
+    return n < 2 ? 0 : Math.round(i * 5 / (n - 1));
+  }
+
+  function buildOptions(pair) {
+    var accepted = acceptedFor(pair);
+    var correct = accepted[0];
+    var taken = {};
+    accepted.forEach(function (a) { taken[fold(a, opts.accents)] = true; });
+
+    var pool = [];
+    (game.pool || []).forEach(function (other) {
+      if (other === pair) return;
+      var text = opts.dir === "ab" ? other.b : other.a;
+      if (!text || !String(text).trim()) return;
+      var key = fold(text, opts.accents);
+      if (taken[key]) return;
+      taken[key] = true;
+      pool.push(String(text).trim());
+    });
+
+    shuffle(pool);
+    var want = Math.min(opts.choices, 1 + pool.length);
+    return { correct: correct, options: shuffle([correct].concat(pool.slice(0, want - 1))) };
+  }
+
+  function renderChoices(pair) {
+    var built = buildOptions(pair);
+    game.correctOption = built.correct;
+
+    var host = $("choices");
+    host.textContent = "";
+    host.hidden = false;
+    host.setAttribute("data-odd", built.options.length % 2 ? "1" : "0");
+
+    built.options.forEach(function (text, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "choice";
+      b.setAttribute("data-hue", hueFor(i, built.options.length));
+      b.setAttribute("data-option", text);
+
+      var num = document.createElement("span");
+      num.className = "choice-num";
+      num.textContent = (i + 1) + ".";
+      num.setAttribute("aria-hidden", "true");
+      b.appendChild(num);
+
+      var label = document.createElement("span");
+      label.textContent = text;
+      b.appendChild(label);
+      // The badge is decorative; the key it names belongs in the label.
+      b.setAttribute("aria-label", text + " (press " + (i + 1) + ")");
+      b.addEventListener("click", function () { submit(false, text); });
+      host.appendChild(b);
+    });
+  }
+
+  // Freeze the tiles and show what was right: the answer stays lit, the
+  // tile that was picked is marked, everything else recedes.
+  function lockChoices(chosen) {
+    Array.prototype.forEach.call($("choices").children, function (b) {
+      b.disabled = true;
+      var text = b.getAttribute("data-option");
+      var mark = document.createElement("span");
+      mark.className = "choice-mark";
+      if (text === game.correctOption) {
+        b.setAttribute("data-state", "right");
+        mark.textContent = "✓";
+        b.appendChild(mark);
+      } else if (chosen != null && text === chosen) {
+        b.setAttribute("data-state", "wrong");
+        mark.textContent = "✕";
+        b.appendChild(mark);
+      } else {
+        b.setAttribute("data-state", "dim");
+      }
+    });
+  }
+
+  function acceptedFor(pair) {
+    var side = opts.dir === "ab" ? "b" : "a";
+    var list = [pair[side]];
+    if (side === "b" && pair.alt && pair.alt.length) list = list.concat(pair.alt);
+    return list.filter(function (x) { return x && String(x).trim(); });
+  }
+
+  function renderDeck() {
+    $("deck-title").textContent = deck.title || "Your deck";
+    var langs = (deck.langA || "Column A") + " → " + (deck.langB || "Column B");
+    $("deck-meta").textContent = deck.pairs.length + " words · " + langs;
+    $("deck-flag").hidden = !deck.sample;
+
+    var list = $("pair-list");
+    list.textContent = "";
+    deck.pairs.forEach(function (p, idx) {
+      var li = document.createElement("li");
+      li.className = "pair";
+
+      var ia = document.createElement("input");
+      ia.className = "term";
+      ia.value = p.a;
+      ia.id = "pair-a-" + idx;
+      ia.setAttribute("aria-label", "Word " + (idx + 1));
+      ia.addEventListener("input", function () { p.a = ia.value; deck.sample = false; });
+
+      var bCell = document.createElement("div");
+      bCell.className = "b-cell";
+      var ib = document.createElement("input");
+      ib.value = p.b;
+      ib.id = "pair-b-" + idx;
+      ib.setAttribute("aria-label", "Meaning " + (idx + 1));
+      ib.addEventListener("input", function () { p.b = ib.value; deck.sample = false; });
+      bCell.appendChild(ib);
+      if (p.note) {
+        var chip = document.createElement("span");
+        chip.className = "note-chip";
+        chip.textContent = p.note;
+        bCell.appendChild(chip);
+      }
+
+      var kill = document.createElement("button");
+      kill.type = "button";
+      kill.className = "kill";
+      kill.setAttribute("aria-label", "Remove " + p.a);
+      kill.textContent = "✕";
+      kill.addEventListener("click", function () {
+        deck.pairs.splice(idx, 1);
+        deck.sample = false;
+        renderDeck();
+      });
+
+      li.appendChild(ia);
+      li.appendChild(bCell);
+      li.appendChild(kill);
+      list.appendChild(li);
+    });
+
+    $("btn-play").disabled = deck.pairs.length < 2;
+    $("btn-play").textContent = deck.pairs.length < 2 ? "Add at least 2 words" : "Start quiz";
+    if (opts.mode === "choice") syncChoiceLimits();
+    $("dir-desc").textContent = opts.dir === "ab"
+      ? "Shown the " + (deck.langA || "column A") + " word, you type the " + (deck.langB || "column B") + " meaning."
+      : "Shown the " + (deck.langB || "column B") + " meaning, you type the " + (deck.langA || "column A") + " word.";
+  }
+
+  function loadDeck(d) {
+    deck = d;
+    renderDeck();
+    show("deck");
+  }
+
+  $("btn-add").addEventListener("click", function () {
+    deck.pairs.push({ a: "", b: "", alt: [], note: "" });
+    deck.sample = false;
+    renderDeck();
+    var last = $("pair-a-" + (deck.pairs.length - 1));
+    if (last) last.focus();
+  });
+  $("btn-back").addEventListener("click", function () { show("intake"); });
+
+  /* ---------------- options ---------------- */
+  function bindSwitch(id, key) {
+    $(id).addEventListener("click", function () {
+      opts[key] = !opts[key];
+      $(id).setAttribute("aria-checked", String(opts[key]));
+      writeStore("qp:opts", opts);
+    });
+  }
+  bindSwitch("sw-accents", "accents");
+  bindSwitch("sw-typo", "typo");
+  bindSwitch("sw-retry", "retry");
+
+  $("dir-seg").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-dir]");
+    if (!b) return;
+    opts.dir = b.getAttribute("data-dir");
+    Array.prototype.forEach.call($("dir-seg").children, function (c) {
+      c.setAttribute("aria-pressed", String(c === b));
+    });
+    writeStore("qp:opts", opts);
+    renderDeck();
+  });
+
+  $("mode-seg").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-mode]");
+    if (!b) return;
+    opts.mode = b.getAttribute("data-mode");
+    Array.prototype.forEach.call($("mode-seg").children, function (c) {
+      c.setAttribute("aria-pressed", String(c === b));
+    });
+    writeStore("qp:opts", opts);
+    applyMode();
+  });
+
+  $("choices-seg").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-n]");
+    if (!b || b.disabled) return;
+    opts.choices = parseInt(b.getAttribute("data-n"), 10) || 4;
+    writeStore("qp:opts", opts);
+    syncChoiceLimits();
+  });
+
+  // Show only what the chosen answer style actually uses.
+  function applyMode() {
+    var choosing = opts.mode === "choice";
+    $("opt-choices").hidden = !choosing;
+    $("opt-accents").hidden = choosing;
+    $("opt-typo").hidden = choosing;
+    $("mode-desc").textContent = choosing
+      ? "Pick the right answer from coloured tiles."
+      : "Type the translation from memory.";
+    if (choosing) syncChoiceLimits();
+  }
+
+  // You cannot offer more tiles than the round has words: every wrong tile
+  // is another word's answer, so a deck of four words tops out at four.
+  function syncChoiceLimits() {
+    var max = deck ? deck.pairs.filter(function (p) {
+      return String(p.a).trim() && String(p.b).trim();
+    }).length : 6;
+    max = Math.max(2, Math.min(6, max));
+    if (opts.choices > max) { opts.choices = max; writeStore("qp:opts", opts); }
+    Array.prototype.forEach.call($("choices-seg").children, function (c) {
+      var n = parseInt(c.getAttribute("data-n"), 10);
+      c.disabled = n > max;
+      c.setAttribute("aria-pressed", String(n === opts.choices));
+    });
+    $("choices-desc").textContent = max < 6
+      ? "One right answer; the rest are answers to other words. This deck has " + max + ", which is the most tiles it can fill."
+      : "One right answer; the rest are answers to other words in the deck.";
+  }
+
+  $("limit-seg").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-limit]");
+    if (!b) return;
+    opts.limit = parseInt(b.getAttribute("data-limit"), 10) || 0;
+    Array.prototype.forEach.call($("limit-seg").children, function (c) {
+      c.setAttribute("aria-pressed", String(c === b));
+    });
+    writeStore("qp:opts", opts);
+  });
+
+  function applyOpts() {
+    $("sw-accents").setAttribute("aria-checked", String(opts.accents));
+    $("sw-typo").setAttribute("aria-checked", String(opts.typo));
+    $("sw-retry").setAttribute("aria-checked", String(opts.retry));
+    Array.prototype.forEach.call($("dir-seg").children, function (c) {
+      c.setAttribute("aria-pressed", String(c.getAttribute("data-dir") === opts.dir));
+    });
+    Array.prototype.forEach.call($("limit-seg").children, function (c) {
+      c.setAttribute("aria-pressed", String(parseInt(c.getAttribute("data-limit"), 10) === opts.limit));
+    });
+    Array.prototype.forEach.call($("mode-seg").children, function (c) {
+      c.setAttribute("aria-pressed", String(c.getAttribute("data-mode") === opts.mode));
+    });
+    applyMode();
+  }
+
+  /* ---------------- the game ---------------- */
+  function deckKey(d) {
+    return "qp:best:" + (d.title || "deck") + ":" + d.pairs.length;
+  }
+
+  /* ---------------- clocks ----------------
+     One interval drives both readouts. The question clock counts up when
+     no limit is set and down when one is; the round clock always counts up.
+  ----------------------------------------- */
+  function clockText(ms) {
+    var s = Math.max(0, Math.round(ms / 1000));
+    return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2);
+  }
+
+  function stopClock() {
+    if (ticker) { clearInterval(ticker); ticker = null; }
+  }
+
+  // Bank the time spent on the word just answered and hold both clocks.
+  // Reading a verdict is not answering, and must not be charged as if it were.
+  function holdClock(record) {
+    stopClock();
+    if (!game || !game.live) return 0;
+    var spent = Date.now() - game.questionStart;
+    game.elapsed += spent;
+    // A word abandoned by ending the round early counts toward the total
+    // but is not a per-word time, or it would skew the average.
+    if (record !== false) game.times.push(spent);
+    game.live = false;
+    $("clock").classList.add("held");
+    $("clock").classList.remove("warn", "urgent");
+    $("total-clock").classList.add("held");
+    return spent;
+  }
+
+  function startClock() {
+    stopClock();
+    game.questionStart = Date.now();
+    game.live = true;
+    $("clock").classList.remove("held");
+    $("total-clock").classList.remove("held");
+    tick();
+    ticker = setInterval(tick, 200);
+  }
+
+  function tick() {
+    if (!game) { stopClock(); return; }
+    var el = $("clock");
+    var spent = game.live ? Date.now() - game.questionStart : 0;
+    $("total-clock").textContent = clockText(game.elapsed + spent);
+    if (opts.limit) {
+      var cap = opts.limit * 1000;
+      var left = Math.max(0, cap - spent);
+      el.textContent = clockText(left);
+      el.classList.toggle("warn", left <= cap * 0.5 && left > cap * 0.2);
+      el.classList.toggle("urgent", left <= cap * 0.2);
+      if (left <= 0 && !game.locked) submit(true);
+    } else {
+      el.textContent = clockText(spent);
+      el.classList.remove("warn", "urgent");
+    }
+  }
+
+  function startGame(pairs) {
+    var queue = shuffle(pairs.slice());
+    game = {
+      queue: queue,
+      total: queue.length,
+      done: 0,
+      score: 0,
+      streak: 0,
+      bestStreak: 0,
+      right: 0,
+      asked: 0,
+      review: [],   // every miss, for the results list
+      isRetry: false,
+      locked: false,
+      current: null,
+      pool: pairs.slice(),  // where multiple-choice distractors come from
+      correctOption: null,
+      elapsed: 0,          // ms with a question actually live
+      questionStart: Date.now(),
+      live: false,
+      times: [],           // ms spent on each word answered
+      log: []              // one entry per answer, for the round log
+    };
+    show("quiz");
+    nextWord();
+  }
+
+  function nextWord() {
+    if (!game.queue.length) return finish();
+    game.current = game.queue.shift();
+    game.locked = false;
+
+    var stage = $("stage");
+    stage.removeAttribute("data-state");
+    $("verdict").textContent = "";
+    $("stage-foot").textContent = "";
+
+    var p = game.current;
+    var prompt = opts.dir === "ab" ? p.a : p.b;
+    var target = opts.dir === "ab" ? (deck.langB || "the meaning") : (deck.langA || "the word");
+    $("ask").textContent = "Translate to " + target;
+    $("word").textContent = prompt;
+    var noteEl = $("word-note");
+    if (p.note && opts.dir === "ab") { noteEl.textContent = p.note; noteEl.hidden = false; }
+    else { noteEl.hidden = true; }
+
+    var input = $("answer");
+    input.value = "";
+    input.disabled = false;
+    input.placeholder = "type the translation";
+
+    if (opts.mode === "choice") {
+      stage.setAttribute("data-mode", "choice");
+      $("answer-wrap").hidden = true;
+      renderChoices(p);
+    } else {
+      stage.setAttribute("data-mode", "type");
+      $("answer-wrap").hidden = false;
+      $("choices").hidden = true;
+      $("choices").textContent = "";
+      input.focus();
+    }
+
+    $("hud-left").textContent = "Word " + (game.done + 1) + " of " + game.total;
+    $("hud-score").textContent = game.score;
+    $("track-fill").style.width = (game.done / game.total * 100) + "%";
+    var st = $("hud-streak");
+    if (game.streak >= 2) { st.textContent = game.streak + " in a row"; st.classList.add("hot"); }
+    else { st.innerHTML = "&nbsp;"; st.classList.remove("hot"); }
+
+    startClock();
+  }
+
+  // The one way out of a verdict screen. Guarded on `locked` so that a
+  // single Enter on the focused Next button -- which fires both a click
+  // and the document handler -- moves on by exactly one word.
+  function advance() {
+    if (!game || !game.locked) return;
+    nextWord();
+  }
+
+  function submit(timedOut, chosen) {
+    if (game.locked) { advance(); return; }
+    var choosing = opts.mode === "choice";
+    var input = $("answer");
+    var typed = choosing ? (chosen == null ? "" : chosen) : input.value.trim();
+    if (!timedOut && !typed) return;
+
+    var spent = holdClock();
+    game.locked = true;
+    game.asked++;
+    if (choosing) lockChoices(chosen); else input.disabled = true;
+
+    var p = game.current;
+    var accepted = acceptedFor(p);
+    // Running the clock out is a miss, whatever is half-typed in the box.
+    // A picked tile is right or wrong outright -- there is no near miss to
+    // be had when you did not spell anything.
+    var res = timedOut ? { verdict: "bad", target: choosing ? game.correctOption : accepted[0] }
+            : choosing ? { verdict: chosen === game.correctOption ? "ok" : "bad", target: game.correctOption }
+            : judge(typed, accepted);
+    var stage = $("stage");
+    var verdict = $("verdict");
+    verdict.textContent = "";
+
+    var head = document.createElement("div");
+    head.className = "verdict-head";
+    verdict.appendChild(head);
+
+    // "The answer is X" -- shown on every miss, near or not.
+    function answerLine() {
+      var line = document.createElement("div");
+      line.className = "verdict-body";
+      line.appendChild(document.createTextNode("The answer is "));
+      var strong = document.createElement("b");
+      strong.textContent = res.target;
+      line.appendChild(strong);
+      if (accepted.length > 1) {
+        line.appendChild(document.createTextNode(" · also " + accepted.slice(1).join(", ")));
+      }
+      verdict.appendChild(line);
+    }
+
+    if (res.verdict === "ok") {
+      game.right++;
+      game.streak++;
+      if (game.streak > game.bestStreak) game.bestStreak = game.streak;
+      var gain = 100 + Math.min(game.streak - 1, 5) * 20;
+      game.score += gain;
+      stage.setAttribute("data-state", "ok");
+      head.textContent = game.streak >= 3 ? "Correct · " + game.streak + " in a row" : "Correct";
+      var body = document.createElement("div");
+      body.className = "verdict-body";
+      var g = document.createElement("span");
+      g.className = "gain";
+      g.textContent = "+" + gain;
+      body.appendChild(g);
+      if (fold(typed, opts.accents) !== fold(res.target, opts.accents)) {
+        body.appendChild(document.createTextNode(" · " + res.target + " also accepted"));
+      }
+      verdict.appendChild(body);
+    } else if (res.verdict === "almost") {
+      game.streak = 0;
+      stage.setAttribute("data-state", "almost");
+      head.textContent = "Almost";
+      answerLine();
+      var d = document.createElement("div");
+      d.className = "diff";
+      d.innerHTML = spellOut(typed, res.target);
+      verdict.appendChild(d);
+      game.review.push({ pair: p, typed: typed, target: res.target, near: true });
+    } else {
+      game.streak = 0;
+      stage.setAttribute("data-state", "bad");
+      head.textContent = timedOut ? "Time's up" : "Incorrect";
+      answerLine();
+      game.review.push({ pair: p, typed: typed, target: res.target, near: false });
+    }
+
+    game.log.push({
+      n: game.asked,
+      prompt: opts.dir === "ab" ? p.a : p.b,
+      typed: typed,
+      target: res.target,
+      verdict: res.verdict,
+      timedOut: !!timedOut,
+      ms: spent
+    });
+
+    game.done++;
+    $("hud-score").textContent = game.score;
+    $("track-fill").style.width = (game.done / game.total * 100) + "%";
+
+    var foot = $("stage-foot");
+    foot.textContent = "";
+    var next = document.createElement("button");
+    next.type = "button";
+    next.className = "btn btn-sm";
+    // The queue emptying is not the end of the round: incorrect words are
+    // about to come back. Ask finish() what it will actually do, or the
+    // button promises results and delivers another word.
+    next.textContent = moreWordsComing() ? "Next word" : "See results";
+    next.addEventListener("click", advance);
+    foot.appendChild(next);
+    var kb = document.createElement("span");
+    kb.className = "kbd";
+    kb.textContent = "Enter";
+    foot.appendChild(kb);
+    next.focus();
+  }
+
+  // Enter in the answer box submits, and stops there. Without the
+  // stopPropagation the very same keypress reaches the document handler
+  // below, which sees a locked game and advances -- tearing the verdict
+  // down in the tick it was drawn.
+  $("answer").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    e.stopPropagation();
+    submit();
+  });
+  document.addEventListener("keydown", function (e) {
+    if ($("scr-quiz").hidden) return;
+
+    // 1-6 pick a tile, matching the badge on it. Only while a question is
+    // still open -- once it is answered the keyboard belongs to Enter.
+    if (opts.mode === "choice" && game && !game.locked &&
+        !e.ctrlKey && !e.metaKey && !e.altKey && /^[1-6]$/.test(e.key)) {
+      var tile = $("choices").children[parseInt(e.key, 10) - 1];
+      if (tile && !tile.disabled) { e.preventDefault(); tile.click(); }
+      return;
+    }
+
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    advance();
+  });
+
+  // Will another word be asked after this verdict? True while the queue
+  // still holds words, and also when the retry round is still to come.
+  // finish() below must stay in step with this.
+  function moreWordsComing() {
+    if (game.queue.length) return true;
+    if (!opts.retry || game.isRetry) return false;
+    return game.review.some(function (m) { return !m.near; });
+  }
+
+  function finish() {
+    holdClock(false);   // bank an abandoned word, but not as a per-word time
+    // Incorrect words come round again, once, before the round ends.
+    // A near miss does not: you were shown the answer, and asking the same
+    // word again moments later tests the screen, not your memory.
+    if (opts.retry && !game.isRetry) {
+      var again = game.review
+        .filter(function (m) { return !m.near; })
+        .map(function (m) { return m.pair; });
+      if (again.length) {
+        game.isRetry = true;
+        game.queue = again;
+        game.total = game.done + again.length;
+        nextWord();
+        return;
+      }
+    }
+
+    // Every word missed at any point in the round, listed once.
+    var byWord = {};
+    game.review.forEach(function (m) { byWord[m.pair.a + "|" + m.pair.b] = m; });
+    var finalMissed = Object.keys(byWord).map(function (k) { return byWord[k]; });
+
+    var acc = game.asked ? Math.round(game.right / game.asked * 100) : 0;
+    var key = deckKey(deck);
+    var best = readStore(key, 0);
+    if (game.score > best) { best = game.score; writeStore(key, best); }
+
+    var elapsed = game.elapsed;
+    var avg = game.times.length
+      ? game.times.reduce(function (a, b) { return a + b; }, 0) / game.times.length
+      : 0;
+
+    $("done-score").textContent = game.score;
+    $("st-right").textContent = game.right + "/" + game.asked;
+    $("st-acc").textContent = acc + "%";
+    $("st-streak").textContent = game.bestStreak;
+    $("st-time").textContent = clockText(elapsed);
+    $("st-avg").textContent = (avg / 1000).toFixed(1) + "s";
+    $("st-best").textContent = best;
+    $("done-title").textContent =
+      acc === 100 ? "Clean sweep" :
+      acc >= 80 ? "Nicely done" :
+      acc >= 50 ? "Getting there" : "Worth another pass";
+
+    var box = $("missed-box"), ul = $("missed-list");
+    ul.textContent = "";
+    if (finalMissed.length) {
+      box.hidden = false;
+      finalMissed.forEach(function (m) {
+        var li = document.createElement("li");
+        var t = document.createElement("span");
+        t.className = "m-term";
+        t.textContent = opts.dir === "ab" ? m.pair.a : m.pair.b;
+        var a = document.createElement("span");
+        a.className = "m-ans";
+        a.textContent = m.target;
+        li.appendChild(t);
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+      $("btn-drill").hidden = false;
+      $("btn-drill").onclick = function () {
+        startGame(finalMissed.map(function (m) { return m.pair; }));
+      };
+    } else {
+      box.hidden = true;
+      $("btn-drill").hidden = true;
+    }
+
+    lastLog = game.log.slice();
+    describeSort();
+    renderLog();
+    show("done");
+    sizeFrames();   // again now the section is on screen and measurable
+  }
+
+  /* ---------------- the round log ----------------
+     Three readings of the same round: the order it happened, what you got
+     wrong, and where you hesitated. Sorting never filters -- every word
+     answered stays on the list, including a word asked twice because the
+     retry round brought it back.
+  ------------------------------------------------ */
+  var lastLog = [];
+  var logSort = "order";
+  var logAsc = true;
+  var logMissesFirst = false;
+
+  // Each mode ranks on one number, so a single flag reverses either of them.
+  var RANK = { bad: 0, almost: 1, ok: 2 };
+  function sortValue(r) { return logSort === "time" ? r.ms : r.n; }
+
+  // Which way round each mode reads when you first pick it: a slow word is
+  // what you came to look at, so time opens with the slowest.
+  function naturalAsc(mode) { return mode !== "time"; }
+
+  // Accuracy is a grouping laid over whichever sort is running, not a sort
+  // of its own -- so "misses at the top, slowest first" is one view, not two.
+  var LOG_NOTES = {
+    order: { asc: "In the order you were asked.", desc: "Last asked first." },
+    time:  { asc: "Quickest first.",              desc: "Slowest first." }
+  };
+  // How the sort reads once grouping has taken the top-level ordering.
+  var LOG_WITHIN = {
+    order: { asc: "as asked",      desc: "last asked first" },
+    time:  { asc: "quickest first", desc: "slowest first" }
+  };
+
+  function describeSort() {
+    var dir = logAsc ? "asc" : "desc";
+    $("log-note").textContent = logMissesFirst
+      ? (logAsc ? "Misses at the top · " : "Misses at the bottom · ") + LOG_WITHIN[logSort][dir]
+      : LOG_NOTES[logSort][dir];
+    $("log-dir").innerHTML = logAsc ? "&uarr;" : "&darr;";
+    $("log-acc").setAttribute("aria-pressed", String(logMissesFirst));
+  }
+
+  var VISIBLE_ROWS = 5;
+
+  /* Cut the list to five rows and match the score card to the result.
+     Measured, not assumed: a row with a wrong answer is taller than a row
+     with a right one, so the five-row height depends on the sort. */
+  function sizeFrames() {
+    var list = $("log-list");
+    var logCard = document.querySelector(".log-card");
+    var result = document.querySelector(".result");
+
+    list.style.height = "";
+    result.style.height = "";
+    if ($("scr-done").hidden) return;      // nothing to measure while hidden
+
+    var rows = list.children;
+    if (!rows.length) return;
+
+    var shown = Math.min(VISIBLE_ROWS, rows.length);
+    var h = 0;
+    for (var i = 0; i < shown; i++) h += rows[i].getBoundingClientRect().height;
+    if (!h) return;                        // layout not ready; leave natural
+    // The last visible row's border doubles as the list's own edge.
+    list.style.height = Math.ceil(h) + "px";
+
+    // Side by side, the score card takes the log's height exactly -- so they
+    // match whichever has more in it -- and scrolls its own overflow.
+    // Stacked, each keeps its natural height.
+    if (window.matchMedia("(min-width: 801px)").matches) {
+      result.style.height = Math.ceil(logCard.getBoundingClientRect().height) + "px";
+    }
+  }
+
+  var sizeTimer = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(sizeTimer);
+    sizeTimer = setTimeout(sizeFrames, 120);
+  });
+  // The serif lands after first paint and changes every row's height.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(sizeFrames).catch(function () {});
+  }
+
+  function renderLog() {
+    var host = $("log-list");
+    host.textContent = "";
+
+    if (!lastLog.length) {
+      var empty = document.createElement("li");
+      empty.className = "log-empty";
+      empty.textContent = "No words answered this round.";
+      host.appendChild(empty);
+      return;
+    }
+
+    var rows = lastLog.slice();
+    rows.sort(function (a, b) {
+      if (logMissesFirst) {
+        // Grouping wins over the sort, and turns with it: ascending puts
+        // misses at the top, descending puts them at the bottom. The sort
+        // then orders within each group.
+        var g = RANK[a.verdict] - RANK[b.verdict];
+        if (g) return logAsc ? g : -g;
+      }
+      var d = sortValue(a) - sortValue(b);
+      if (d) return logAsc ? d : -d;
+      return a.n - b.n;   // ties always settle by ask order
+    });
+
+    // "Slow" is relative to how this round actually went, not a fixed
+    // number of seconds -- a hard deck is slower everywhere.
+    var sorted = lastLog.map(function (r) { return r.ms; }).sort(function (a, b) { return a - b; });
+    var median = sorted[Math.floor(sorted.length / 2)] || 0;
+    var slowMark = Math.max(median * 2, 4000);
+
+    rows.forEach(function (r) {
+      var li = document.createElement("li");
+      li.className = "log-row";
+      li.setAttribute("data-v", r.verdict);
+      if (r.ms >= slowMark) li.setAttribute("data-slow", "1");
+
+      var n = document.createElement("span");
+      n.className = "log-n";
+      n.textContent = r.n;
+
+      var mid = document.createElement("div");
+      var term = document.createElement("div");
+      term.className = "log-term";
+      term.textContent = r.prompt;
+      mid.appendChild(term);
+
+      var sub = document.createElement("div");
+      sub.className = "log-sub";
+      if (r.verdict === "ok") {
+        sub.textContent = r.target;
+      } else {
+        if (r.timedOut && !r.typed) {
+          sub.appendChild(document.createTextNode("ran out · "));
+        } else if (!r.typed) {
+          sub.appendChild(document.createTextNode("no answer · "));
+        } else {
+          var struck = document.createElement("s");
+          struck.textContent = r.typed;
+          sub.appendChild(struck);
+          sub.appendChild(document.createTextNode(" · "));
+        }
+        var right = document.createElement("b");
+        right.textContent = r.target;
+        sub.appendChild(right);
+      }
+      mid.appendChild(sub);
+
+      var ms = document.createElement("span");
+      ms.className = "log-ms";
+      ms.textContent = (r.ms / 1000).toFixed(1) + "s";
+
+      li.appendChild(n);
+      li.appendChild(mid);
+      li.appendChild(ms);
+      host.appendChild(li);
+    });
+
+    var correct = rows.filter(function (r) { return r.verdict === "ok"; }).length;
+    $("log-count").textContent = correct + " of " + rows.length + " correct";
+    sizeFrames();
+  }
+
+  $("log-sort").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-sort]");
+    if (!b) return;
+    logSort = b.getAttribute("data-sort");
+    logAsc = naturalAsc(logSort);   // a fresh mode opens the way it reads best
+    Array.prototype.forEach.call($("log-sort").children, function (c) {
+      c.setAttribute("aria-pressed", String(c === b));
+    });
+    describeSort();
+    renderLog();
+  });
+
+  $("log-dir").addEventListener("click", function () {
+    logAsc = !logAsc;
+    describeSort();
+    renderLog();
+  });
+
+  $("log-acc").addEventListener("click", function () {
+    logMissesFirst = !logMissesFirst;
+    describeSort();
+    renderLog();
+  });
+
+  $("btn-play").addEventListener("click", function () {
+    deck.pairs = deck.pairs.filter(function (p) {
+      return String(p.a).trim() && String(p.b).trim();
+    });
+    if (deck.pairs.length < 2) { renderDeck(); return; }
+    startGame(deck.pairs);
+  });
+  $("btn-quit").addEventListener("click", function () {
+    game.queue = [];
+    game.isRetry = true;
+    finish();
+  });
+  $("btn-again").addEventListener("click", function () { startGame(deck.pairs); });
+  $("btn-newdeck").addEventListener("click", function () { show("intake"); });
+
+  /* ---------------- ready-made decks ---------------- */
+  function renderStarters() {
+    var host = $("starters");
+    host.textContent = "";
+    DECKS.forEach(function (d) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "starter";
+
+      var n = document.createElement("span");
+      n.className = "starter-n";
+      n.textContent = d.pairs.length + (d.pairs.length === 1 ? " word" : " words");
+
+      var name = document.createElement("span");
+      name.className = "starter-name";
+      name.textContent = d.title;
+
+      var lang = document.createElement("span");
+      lang.className = "starter-lang";
+      lang.textContent = d.langA + " → " + d.langB;
+
+      b.appendChild(n);
+      b.appendChild(name);
+      b.appendChild(lang);
+      // A copy every time, so editing one round never alters the original.
+      b.addEventListener("click", function () {
+        loadDeck(JSON.parse(JSON.stringify(d)));
+      });
+      host.appendChild(b);
+    });
+  }
+
+  /* ---------------- saved decks ---------------- */
+  function savedDecks() { return readStore("qp:decks", []); }
+
+  function renderSaved() {
+    var decks = savedDecks();
+    $("saved-box").hidden = decks.length === 0;
+    var host = $("saved-list");
+    host.textContent = "";
+    decks.forEach(function (d, i) {
+      var row = document.createElement("div");
+      row.className = "pair";
+      row.style.gridTemplateColumns = "1fr auto auto";
+      var name = document.createElement("div");
+      name.innerHTML = "";
+      var strong = document.createElement("div");
+      strong.className = "deck-title";
+      strong.style.fontSize = "16px";
+      strong.textContent = d.title || "Untitled deck";
+      var meta = document.createElement("div");
+      meta.className = "deck-meta";
+      meta.textContent = d.pairs.length + " words · " + (d.langA || "?") + " → " + (d.langB || "?");
+      name.appendChild(strong);
+      name.appendChild(meta);
+
+      var open = document.createElement("button");
+      open.type = "button";
+      open.className = "btn btn-sm";
+      open.textContent = "Open";
+      open.addEventListener("click", function () { loadDeck(JSON.parse(JSON.stringify(d))); });
+
+      var kill = document.createElement("button");
+      kill.type = "button";
+      kill.className = "kill";
+      kill.textContent = "✕";
+      kill.setAttribute("aria-label", "Delete " + (d.title || "deck"));
+      kill.addEventListener("click", function () {
+        var list = savedDecks();
+        list.splice(i, 1);
+        writeStore("qp:decks", list);
+        renderSaved();
+      });
+
+      row.appendChild(name);
+      row.appendChild(open);
+      row.appendChild(kill);
+      host.appendChild(row);
+    });
+  }
+
+  $("btn-save").addEventListener("click", function () {
+    var list = savedDecks();
+    var copy = JSON.parse(JSON.stringify(deck));
+    copy.sample = false;
+    list.unshift(copy);
+    writeStore("qp:decks", list.slice(0, 20));
+    renderSaved();
+    var b = $("btn-save");
+    b.textContent = "Saved";
+    setTimeout(function () { b.textContent = "Save deck"; }, 1600);
+  });
+
+  /* ---------------- typed-in pairs ---------------- */
+  function parsePasted(text) {
+    var pairs = [];
+    text.split(/\r?\n/).forEach(function (line) {
+      var l = line.trim();
+      if (!l) return;
+      var m = l.split(/\s*(?:\t|=|–|—| - |,|;|:)\s*/);
+      if (m.length < 2) return;
+      var a = m[0].trim();
+      var b = m.slice(1).join(", ").trim();
+      if (a && b) pairs.push({ a: a, b: b, alt: [], note: "" });
+    });
+    return pairs;
+  }
+
+  $("btn-paste").addEventListener("click", function () {
+    var pairs = parsePasted($("paste").value);
+    if (pairs.length < 2) {
+      flash("Add at least two lines, each with a word and its meaning.");
+      return;
+    }
+    loadDeck({ title: "Typed list", langA: "Column A", langB: "Column B", pairs: pairs, sample: false });
+  });
+
+  /* ---------------- the "why not" frame ---------------- */
+  function openWhy() {
+    var d = $("why-sheet");
+    if (d.showModal) { d.showModal(); } else { d.setAttribute("open", ""); }
+  }
+  function closeWhy() {
+    var d = $("why-sheet");
+    if (d.close) { d.close(); } else { d.removeAttribute("open"); }
+  }
+  $("cap-why").addEventListener("click", openWhy);
+  $("why-close").addEventListener("click", closeWhy);
+  $("why-ok").addEventListener("click", closeWhy);
+  // Clicking the backdrop -- the dialog element itself outside its panel.
+  $("why-sheet").addEventListener("click", function (e) {
+    if (e.target === $("why-sheet")) closeWhy();
+  });
+
+  function flash(msg, kind, detail, help) {
+    var box = $("read-box");
+    box.hidden = false;
+    box.textContent = "";
+    var el = document.createElement("div");
+    el.className = "alert" + (kind === "info" ? " info" : "");
+    el.textContent = msg;
+    if (help) {
+      el.appendChild(document.createTextNode(" "));
+      var q = document.createElement("button");
+      q.type = "button";
+      q.className = "why";
+      q.textContent = "?";
+      q.setAttribute("aria-label", "Why can't this view read photos?");
+      q.style.display = "inline-grid";
+      q.style.verticalAlign = "-3px";
+      q.addEventListener("click", openWhy);
+      el.appendChild(q);
+    }
+    if (detail) {
+      var code = document.createElement("span");
+      code.className = "err-code";
+      code.textContent = detail;
+      el.appendChild(code);
+    }
+    box.appendChild(el);
+  }
+
+  /* ---------------- photos ---------------- */
+  function addShots(files) {
+    var max = MAX_SHOTS;
+    var before = shots.length;
+    Array.prototype.forEach.call(files, function (f) {
+      if (!f.type || f.type.indexOf("image/") !== 0) return;
+      if (shots.length >= max) return;
+      shots.push({ file: f, url: URL.createObjectURL(f) });
+    });
+    renderShots();
+    if (shots.length > before) readSheet();
+  }
+
+  function renderShots() {
+    var host = $("shots");
+    host.textContent = "";
+    shots.forEach(function (s, i) {
+      var box = document.createElement("div");
+      box.className = "shot";
+      var img = document.createElement("img");
+      img.src = s.url;
+      img.alt = "Page " + (i + 1);
+      var x = document.createElement("button");
+      x.type = "button";
+      x.textContent = "×";
+      x.setAttribute("aria-label", "Remove page " + (i + 1));
+      x.addEventListener("click", function () {
+        URL.revokeObjectURL(s.url);
+        shots.splice(i, 1);
+        renderShots();
+      });
+      box.appendChild(img);
+      box.appendChild(x);
+      host.appendChild(box);
+    });
+  }
+
+  $("btn-camera").addEventListener("click", function () { $("in-camera").click(); });
+  $("btn-file").addEventListener("click", function () { $("in-file").click(); });
+  $("in-camera").addEventListener("change", function (e) { addShots(e.target.files); e.target.value = ""; });
+  $("in-file").addEventListener("change", function (e) { addShots(e.target.files); e.target.value = ""; });
+
+  var drop = $("drop");
+  ["dragenter", "dragover"].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add("over"); });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove("over"); });
+  });
+  drop.addEventListener("drop", function (e) {
+    if (e.dataTransfer && e.dataTransfer.files) addShots(e.dataTransfer.files);
+  });
+  document.addEventListener("paste", function (e) {
+    if (!$("scr-intake").hidden && e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) {
+      addShots(e.clipboardData.files);
+    }
+  });
+
+  /* ---------------- reading the sheet ---------------- */
+
+  function readSheet() {
+    var box = $("read-box");
+    box.hidden = false;
+    box.textContent = "";
+    var busy = document.createElement("div");
+    busy.className = "card busy";
+    var sp = document.createElement("span");
+    sp.className = "spin";
+    var label = document.createElement("span");
+    label.textContent = "Reaching Claude…";
+    busy.appendChild(sp);
+    busy.appendChild(label);
+    box.appendChild(busy);
+
+    // Claude resolves late -- never on this script's first run. Wait for it
+    // rather than declaring the feature missing because a photo arrived first.
+    (sampleReady || Promise.resolve(null)).then(function () {
+      label.textContent = shots.length > 1
+        ? "Reading " + shots.length + " pages…"
+        : "Reading your sheet…";
+      return sendToClaude(box);
+    });
+  }
+
+  // Hand the photos to our own server, which calls the Claude API with your
+  // key. No capability gating, no runtime deciding whether images may be
+  // sent -- the same path a Claude chat uses when you paste an image in.
+  function sendToClaude(box) {
+    return Promise.all(shots.map(function (s) { return toBase64(s.file); }))
+      .then(function (images) {
+        return fetch("/read", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ images: images })
+        });
+      })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok) throw data || { error: "http_" + res.status };
+          return data;
+        });
+      })
+      .then(function (data) {
+        var pairs = ((data && data.pairs) || [])
+          .filter(function (p) { return p && p.a && p.b; })
+          .map(function (p) {
+            return {
+              a: String(p.a).trim(),
+              b: String(p.b).trim(),
+              alt: Array.isArray(p.alt) ? p.alt.map(String) : [],
+              note: p.note ? String(p.note).trim() : ""
+            };
+          });
+        box.hidden = true;
+        if (!pairs.length) {
+          flash("No vocabulary was found on that photo. Try a straighter, better-lit shot — or type the words in below.");
+          return;
+        }
+        loadDeck({
+          title: (data && data.title) || "From your sheet",
+          langA: (data && data.langA) || "Column A",
+          langB: (data && data.langB) || "Column B",
+          pairs: pairs,
+          sample: false
+        });
+      })
+      .catch(function (err) {
+        box.hidden = true;
+        var code = (err && err.error) || "unknown";
+        var msg;
+        if (code === "no_api_key") {
+          msg = "The server has no Anthropic API key. Put ANTHROPIC_API_KEY in a .env file next to server.js and restart it.";
+        } else if (code === "rate_limited") {
+          msg = "The API is rate limited right now. Wait a moment and try again.";
+        } else if (code === "refused") {
+          msg = "Claude declined to read that image.";
+        } else if (code === "bad_image") {
+          msg = "That image could not be read. Use a JPEG, PNG, WebP or GIF under 20 MB.";
+        } else if (code === "too_many") {
+          msg = "Too many pages at once. Send up to " + MAX_SHOTS + ".";
+        } else if (code === "no_json") {
+          msg = "Claude read the page but did not return a usable word list. Try a clearer photo.";
+        } else if (String(code).indexOf("http_") === 0) {
+          msg = "The server is not reachable. Is it still running? (npm start)";
+        } else {
+          msg = "The sheet could not be read. Try another photo, or type the words in below.";
+        }
+        flash(msg, null, code + (err && err.detail ? ": " + err.detail : ""));
+      });
+  }
+
+  // The API takes raw base64 with no data: prefix.
+  function toBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () {
+        var s = String(r.result);
+        resolve({ media_type: file.type || "image/jpeg", data: s.slice(s.indexOf(",") + 1) });
+      };
+      r.onerror = function () { reject({ error: "bad_image" }); };
+      r.readAsDataURL(file);
+    });
+  }
+
+  // Ask the server whether it is configured, so a missing key is visible
+  // before you waste a photo on it.
+  function connectServer() {
+    return fetch("/health")
+      .then(function (r) { return r.json(); })
+      .then(function (h) {
+        if (h && h.ready) {
+          setCap("ready", "Ready to read photos");
+          $("drop-hint").textContent =
+            "You can also drag an image here, or paste one with Ctrl+V. Up to " + MAX_SHOTS + " pages at a time.";
+          return h;
+        }
+        setCap("off", "Server has no API key");
+        $("drop-hint").textContent =
+          "Add ANTHROPIC_API_KEY to .env next to server.js and restart, or type your words in below.";
+        return null;
+      })
+      .catch(function () {
+        setCap("off", "Server not reachable");
+        $("drop-hint").textContent = "Start the server with npm start, or type your words in below.";
+        return null;
+      });
+  }
+
+  sampleReady = connectServer();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "quizphoto",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Put in a list of vocabulary and drill it as a typed-translation quiz.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "preview": "node scripts/preview.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.75.0"
+  },
+  "homepage": "https://swiftblado.github.io/quizmaker"
+}
