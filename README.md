@@ -26,9 +26,12 @@ npm run preview    # serve docs/ at http://localhost:8787
 ```
 
 Edit `index.html`, never `docs/` — everything in there is generated and gets
-wiped on the next build. To move the site to another domain, change the `SITE`
-constant at the top of `build.js` and rebuild; that one line feeds the
-canonical URL, the `og:` tags and the sitemap.
+wiped on the next build.
+
+To move the site to a custom domain, set the `DOMAIN` constant at the top of
+`build.js` and rebuild. That one line repoints the canonical URL, the `og:`
+tags and the sitemap, and writes the `CNAME` file GitHub Pages reads to claim
+the domain; point the domain's DNS at `swiftblado.github.io` and it is done.
 
 ## The photo reader (optional, local only)
 

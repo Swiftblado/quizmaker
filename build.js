@@ -16,9 +16,12 @@ import {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, "docs");
 
-// The public address of the site. Change this one line when the domain
-// changes, and rebuild -- it is what the canonical, og: and sitemap URLs use.
-const SITE = "https://swiftblado.github.io/quizmaker";
+// The public address of the site. Leave DOMAIN null to stay on the github.io
+// subdomain; set it to a custom domain and rebuild, which repoints every
+// absolute URL (canonical, og:, sitemap) and writes the CNAME file that
+// GitHub Pages reads to claim the domain. Nothing else needs touching.
+const DOMAIN = null; // e.g. "quizmaker.is-a.dev"
+const SITE = DOMAIN ? `https://${DOMAIN}` : "https://swiftblado.github.io/quizmaker";
 
 const NAME = "QuizMaker";
 const BLURB =
@@ -219,6 +222,8 @@ fs.writeFileSync(path.join(OUT, "sitemap.xml"),
 `);
 
 fs.writeFileSync(path.join(OUT, ".nojekyll"), "");
+
+if (DOMAIN) fs.writeFileSync(path.join(OUT, "CNAME"), DOMAIN + "\n");
 
 const kb = (n) => (n / 1024).toFixed(1) + " KB";
 console.log(`built docs/ from index.html (version ${version})`);
