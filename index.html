@@ -446,6 +446,83 @@ button{font:inherit;color:inherit}
 .log-row[data-slow="1"] .log-ms{color:var(--almost);font-weight:600}
 .log-empty{padding:22px 16px;text-align:center;color:var(--faint);font-size:13.5px}
 
+/* ---- sub-lists ----
+   A named subset of a word list. Reachable from the round you just
+   finished, from any sub-round of it, and from the menu on the way in. */
+.quiz-menu-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.quiz-menu-row .eyebrow{flex:none}
+#quiz-menu{
+  flex:1;min-width:190px;padding:8px 10px;font:inherit;font-size:13.5px;
+  background:var(--surface);color:var(--ink);
+  border:1px solid var(--rule);border-radius:8px;cursor:pointer;
+}
+#quiz-menu:focus{outline:none;border-color:var(--accent)}
+
+.sub-card{margin-top:16px;padding:14px 16px 16px}
+.sub-card-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px}
+.sub-card-note{font-size:12px;color:var(--faint)}
+.sub-choices{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sub-chip{
+  padding:7px 12px;border:1px solid var(--rule);border-radius:999px;
+  background:var(--surface);color:var(--ink);font:inherit;font-size:13px;font-weight:600;
+  cursor:pointer;transition:background .12s,border-color .12s,color .12s;
+}
+.sub-chip:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+.sub-chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+.sub-chip:disabled{opacity:.5;cursor:default}
+.sub-chip.is-new{border-style:dashed}
+.sub-chip.is-current{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.sub-none{font-size:13px;color:var(--faint);max-width:52ch}
+
+/* The panel that puts the word just answered into a list. It sits under
+   the verdict rather than over it: nothing about the answer is hidden. */
+.sub-panel{
+  margin-top:14px;padding:13px 14px;text-align:left;
+  border:1px solid var(--rule);border-radius:10px;background:var(--surface-2);
+}
+.sub-panel .eyebrow{display:block;margin-bottom:9px}
+.sub-new{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+.sub-new input{
+  flex:1;min-width:150px;padding:7px 10px;font:inherit;font-size:13.5px;
+  background:var(--surface);color:var(--ink);border:1px solid var(--rule);border-radius:7px;
+}
+.sub-new input:focus{outline:none;border-color:var(--accent)}
+.sub-panel-foot{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
+.sub-panel-foot .sp{flex:1}
+
+/* ---- quiz colours ----
+   A saved quiz can carry a colour, which fills its whole row. The text
+   colour is derived from it rather than chosen, so a dark pick can never
+   leave unreadable near-black text on near-black ground. */
+.quiz-row.tinted{background:var(--row-bg);border-color:transparent}
+/* `.pair input` is more specific than `.saved-name`, so the name box keeps
+   its pale fill unless it is overridden here -- which on a dark row would
+   leave white text on near-white. */
+.quiz-row.tinted .saved-name{color:var(--row-ink);background:transparent;border-color:transparent}
+.quiz-row.tinted .saved-name::placeholder{color:var(--row-ink);opacity:.6}
+.quiz-row.tinted .saved-name:hover{border-color:var(--row-ink);background:transparent}
+.quiz-row.tinted .saved-name:focus{background:var(--surface);color:var(--ink);border-color:var(--accent)}
+.quiz-row.tinted .deck-meta{color:var(--row-ink);opacity:.78}
+.quiz-row.tinted .btn{background:transparent;border-color:var(--row-ink);color:var(--row-ink)}
+.quiz-row.tinted .btn:hover{background:var(--row-ink);color:var(--row-bg)}
+.quiz-row.tinted .kill{color:var(--row-ink);opacity:.85}
+.quiz-row.tinted .kill:hover{background:var(--row-ink);color:var(--row-bg);opacity:1}
+.swatch{
+  flex:none;width:22px;height:22px;padding:0;border-radius:50%;cursor:pointer;
+  border:1px solid var(--rule);background:var(--surface-2);align-self:center;
+}
+/* On a tinted row a swatch filled with the row's own colour would be
+   invisible, so it becomes a dot in the contrasting ink instead. */
+.quiz-row.tinted .swatch{background:var(--row-ink) !important;border-color:var(--row-ink)}
+#saved-list{overflow:hidden}   /* tinted rows must not square off the card */
+.palette{display:flex;flex-wrap:wrap;gap:7px;padding:10px 0 2px;grid-column:1/-1}
+.palette button{
+  width:24px;height:24px;border-radius:50%;cursor:pointer;
+  border:1px solid rgba(128,128,128,.45);padding:0;
+}
+.palette button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent)}
+.palette .none{background:var(--surface);color:var(--faint);font-size:13px;line-height:1}
+
 .busy{display:flex;align-items:center;gap:11px;padding:18px;justify-content:center;color:var(--muted);font-size:14px}
 .spin{width:16px;height:16px;flex:none;border-radius:50%;border:2px solid var(--rule);border-top-color:var(--accent);animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -521,6 +598,13 @@ button{font:inherit;color:inherit}
 
   <!-- ============ INTAKE ============ -->
   <section id="scr-intake">
+    <div class="quiz-menu-row">
+      <label class="eyebrow" for="quiz-menu">Open a quiz</label>
+      <select id="quiz-menu" aria-label="Open a quiz, or one of its sub-lists">
+        <option value="">Choose a quiz&hellip;</option>
+      </select>
+    </div>
+
     <div class="card entry">
       <label class="eyebrow" for="quiz-name">Name this quiz</label>
       <input class="entry-name" id="quiz-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled quiz">
@@ -668,6 +752,7 @@ button{font:inherit;color:inherit}
       <div class="choices" id="choices" hidden></div>
       <div class="verdict" id="verdict"></div>
       <div class="stage-foot" id="stage-foot"></div>
+      <div class="sub-panel" id="sub-panel" hidden></div>
     </div>
 
     <div class="row" style="margin-top:16px;justify-content:center">
@@ -714,6 +799,14 @@ button{font:inherit;color:inherit}
       </div>
       <ol class="log-list" id="log-list"></ol>
     </div>
+    </div>
+
+    <div class="card sub-card" id="sub-card">
+      <div class="sub-card-head">
+        <span class="eyebrow">Sub-lists</span>
+        <span class="sub-card-note" id="sub-card-note"></span>
+      </div>
+      <div class="sub-choices" id="sub-card-list"></div>
     </div>
 
     <div class="row" style="margin-top:18px">
@@ -1584,9 +1677,14 @@ button{font:inherit;color:inherit}
     }
   }
 
-  function startGame(pairs) {
+  // subName names the sub-list being played, or null for the whole list.
+  // It is carried so the results can offer the siblings of whatever you
+  // just played, and so Play again replays the same subset.
+  function startGame(pairs, subName) {
     var queue = shuffle(pairs.slice());
     game = {
+      subName: subName || null,
+      source: pairs.slice(),
       queue: queue,
       total: queue.length,
       done: 0,
@@ -1612,6 +1710,9 @@ button{font:inherit;color:inherit}
   }
 
   function nextWord() {
+    closeSubPanel();
+    clearTimeout(game.holdTimer);
+    game.advanceAt = 0;
     if (!game.queue.length) return finish();
     game.current = game.queue.shift();
     game.locked = false;
@@ -1661,8 +1762,16 @@ button{font:inherit;color:inherit}
   // The one way out of a verdict screen. Guarded on `locked` so that a
   // single Enter on the focused Next button -- which fires both a click
   // and the document handler -- moves on by exactly one word.
+  /* A verdict is worth reading, and Enter is held down by people racing
+     through a round -- without a gate the keypress that answered the word
+     also dismissed the answer. Half a second is long enough to register
+     what came up and short enough not to feel like waiting. */
+  var VERDICT_HOLD = 500;
+
   function advance() {
     if (!game || !game.locked) return;
+    if (Date.now() < (game.advanceAt || 0)) return;
+    if (game.subPanelOpen) return;     // the add-to-list panel owns Enter
     nextWord();
   }
 
@@ -1770,13 +1879,36 @@ button{font:inherit;color:inherit}
     // about to come back. Ask finish() what it will actually do, or the
     // button promises results and delivers another word.
     next.textContent = moreWordsComing() ? "Next word" : "See results";
-    next.addEventListener("click", advance);
+    // Pressing this is unambiguous: whatever the panel was in the middle
+    // of, moving on wins. Enter stays blocked while it is open, so typing
+    // a list name cannot skip the word by accident.
+    next.addEventListener("click", function () { closeSubPanel(); advance(); });
     foot.appendChild(next);
+
+    var addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.id = "btn-add-sub";
+    addBtn.className = "btn btn-sm";
+    addBtn.textContent = "Add to list";
+    addBtn.title = "Put this word in one of this quiz's sub-lists";
+    addBtn.addEventListener("click", function () { openSubPanel(game.current); });
+    foot.appendChild(addBtn);
+
     var kb = document.createElement("span");
     kb.className = "kbd";
     kb.textContent = "Enter";
     foot.appendChild(kb);
-    next.focus();
+
+    // The gate from advance(): the button says so rather than silently
+    // swallowing the click.
+    game.advanceAt = Date.now() + VERDICT_HOLD;
+    next.disabled = true;
+    clearTimeout(game.holdTimer);
+    game.holdTimer = setTimeout(function () {
+      if (!game || !game.locked) return;
+      next.disabled = false;
+      if (!game.subPanelOpen) next.focus();
+    }, VERDICT_HOLD);
   }
 
   // Enter in the answer box submits, and stops there. Without the
@@ -1791,6 +1923,16 @@ button{font:inherit;color:inherit}
   });
   document.addEventListener("keydown", function (e) {
     if ($("scr-quiz").hidden) return;
+
+    // Escape backs out of the add-to-list panel from anywhere, so an open
+    // panel is never a dead end.
+    if (e.key === "Escape" && game && game.subPanelOpen) {
+      e.preventDefault();
+      closeSubPanel();
+      var back = $("stage-foot").querySelector("button");
+      if (back && !back.disabled) back.focus();
+      return;
+    }
 
     // 1-6 pick a tile, matching the badge on it. Only while a question is
     // still open -- once it is answered the keyboard belongs to Enter.
@@ -1878,7 +2020,7 @@ button{font:inherit;color:inherit}
       });
       $("btn-drill").hidden = false;
       $("btn-drill").onclick = function () {
-        startGame(finalMissed.map(function (m) { return m.pair; }));
+        startGame(finalMissed.map(function (m) { return m.pair; }), game.subName);
       };
     } else {
       box.hidden = true;
@@ -1886,6 +2028,7 @@ button{font:inherit;color:inherit}
     }
 
     lastLog = game.log.slice();
+    renderSubCard();
     describeSort();
     renderLog();
     show("done");
@@ -2094,7 +2237,9 @@ button{font:inherit;color:inherit}
     game.isRetry = true;
     finish();
   });
-  $("btn-again").addEventListener("click", function () { startGame(deck.pairs); });
+  $("btn-again").addEventListener("click", function () {
+    startGame(game.source || deck.pairs, game.subName);
+  });
   $("btn-newdeck").addEventListener("click", function () { show("intake"); });
 
   /* ---------------- ready-made decks ---------------- */
@@ -2129,6 +2274,320 @@ button{font:inherit;color:inherit}
     });
   }
 
+  /* ---------------- sub-lists ----------------
+     A sub-list is a named subset of one word list: the awkward words, the
+     ones worth another look, whatever you gather while playing. It holds
+     keys rather than copies of the pairs, so editing a word on the deck
+     screen cannot leave a stale duplicate of it stranded in a subset.
+  -------------------------------------------- */
+  function uid() {
+    return "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function pairKey(p) { return tidy(p.a) + "␟" + tidy(p.b); }
+
+  function words(n) { return n + (n === 1 ? " word" : " words"); }
+
+  function subsOf(d) {
+    if (d && !d.subs) d.subs = [];
+    return (d && d.subs) || [];
+  }
+
+  function findSub(d, name) {
+    var subs = subsOf(d);
+    for (var i = 0; i < subs.length; i++) if (subs[i].name === name) return subs[i];
+    return null;
+  }
+
+  // What a sub-list resolves to now. A word deleted from the deck simply
+  // stops appearing -- which is the point of keying by content.
+  function subPairs(d, sub) {
+    var want = {};
+    (sub.keys || []).forEach(function (k) { want[k] = true; });
+    return d.pairs.filter(function (p) { return want[pairKey(p)]; });
+  }
+
+  function subHas(sub, p) { return (sub.keys || []).indexOf(pairKey(p)) >= 0; }
+
+  /* A sub-list has to outlive the round that made it, so writing one saves
+     the whole list: an id is minted if this deck has never been saved, and
+     an existing entry is updated in place rather than duplicated. */
+  function persistDeck(d) {
+    if (!d.id) d.id = uid();
+    var list = savedDecks(), at = -1;
+    for (var i = 0; i < list.length; i++) if (list[i].id === d.id) { at = i; break; }
+    var copy = JSON.parse(JSON.stringify(d));
+    copy.sample = false;
+    if (at >= 0) list[at] = copy; else list.unshift(copy);
+    writeStore("qp:decks", list.slice(0, 20));
+    renderSaved();
+    return d.id;
+  }
+
+  /* ---------------- add-to-list panel ----------------
+     Opened from the verdict. Several lists can be ticked and several new
+     ones named before anything is written, because deciding where a word
+     belongs is one thought, not one thought per list.
+  ---------------------------------------------------- */
+  function closeSubPanel() {
+    var box = $("sub-panel");
+    if (box) { box.hidden = true; box.textContent = ""; }
+    if (game) game.subPanelOpen = false;
+  }
+
+  function openSubPanel(pair) {
+    if (!pair || !game) return;
+    var box = $("sub-panel");
+    if (!box.hidden) { closeSubPanel(); return; }    // the button toggles
+    game.subPanelOpen = true;
+    box.hidden = false;
+    box.textContent = "";
+
+    var picked = {};     // existing sub-list name -> true
+    var fresh = [];      // names typed here, not created until Save
+
+    var head = document.createElement("span");
+    head.className = "eyebrow";
+    head.textContent = "Add “" + (opts.dir === "ab" ? pair.a : pair.b) + "” to";
+    box.appendChild(head);
+
+    var choices = document.createElement("div");
+    choices.className = "sub-choices";
+    box.appendChild(choices);
+
+    var newRow = document.createElement("div");
+    newRow.className = "sub-new";
+    var input = document.createElement("input");
+    input.placeholder = "Name a new sub-list";
+    input.maxLength = 40;
+    input.autocomplete = "off";
+    var addNew = document.createElement("button");
+    addNew.type = "button";
+    addNew.className = "btn btn-sm";
+    addNew.textContent = "Add list";
+    newRow.appendChild(input);
+    newRow.appendChild(addNew);
+    box.appendChild(newRow);
+
+    var foot = document.createElement("div");
+    foot.className = "sub-panel-foot";
+    var save = document.createElement("button");
+    save.type = "button";
+    save.className = "btn btn-primary btn-sm";
+    var cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "btn btn-sm";
+    cancel.textContent = "Cancel";
+    var sp = document.createElement("span");
+    sp.className = "sp";
+    foot.appendChild(save);
+    foot.appendChild(cancel);
+    foot.appendChild(sp);
+    box.appendChild(foot);
+
+    function targets() {
+      var names = Object.keys(picked);
+      fresh.forEach(function (n) { if (names.indexOf(n) < 0) names.push(n); });
+      return names;
+    }
+
+    function draw() {
+      choices.textContent = "";
+      subsOf(deck).forEach(function (s) {
+        var already = subHas(s, pair);
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "sub-chip";
+        b.disabled = already;
+        b.setAttribute("aria-pressed", String(already || !!picked[s.name]));
+        b.textContent = s.name + " · " + (s.keys || []).length;
+        b.title = already ? "This word is already in " + s.name : "Add to " + s.name;
+        b.addEventListener("click", function () {
+          if (picked[s.name]) delete picked[s.name]; else picked[s.name] = true;
+          draw();
+        });
+        choices.appendChild(b);
+      });
+      fresh.forEach(function (name, i) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "sub-chip is-new";
+        b.setAttribute("aria-pressed", "true");
+        b.textContent = name + " · new";
+        b.title = "Do not create this list after all";
+        b.addEventListener("click", function () { fresh.splice(i, 1); draw(); });
+        choices.appendChild(b);
+      });
+      if (!subsOf(deck).length && !fresh.length) {
+        var none = document.createElement("span");
+        none.className = "sub-none";
+        none.textContent = "No sub-lists in this quiz yet. Name one below.";
+        choices.appendChild(none);
+      }
+      var n = targets().length;
+      save.textContent = n ? "Save to " + n + (n === 1 ? " list" : " lists") : "Save";
+      save.disabled = !n;
+    }
+
+    function stageName() {
+      var n = input.value.trim();
+      input.value = "";
+      if (!n) return;
+      if (findSub(deck, n)) picked[n] = true;
+      else if (fresh.indexOf(n) < 0) fresh.push(n);
+      draw();
+    }
+
+    addNew.addEventListener("click", stageName);
+    input.addEventListener("keydown", function (e) {
+      e.stopPropagation();                  // Enter here names a list, it does not advance
+      if (e.key === "Enter") { e.preventDefault(); stageName(); }
+      if (e.key === "Escape") { e.preventDefault(); closeSubPanel(); }
+    });
+
+    cancel.addEventListener("click", closeSubPanel);
+
+    save.addEventListener("click", function () {
+      var names = targets();
+      if (!names.length) { closeSubPanel(); return; }
+      var k = pairKey(pair);
+      names.forEach(function (n) {
+        var s = findSub(deck, n);
+        if (!s) { s = { name: n, keys: [] }; subsOf(deck).push(s); }
+        if (s.keys.indexOf(k) < 0) s.keys.push(k);
+      });
+      persistDeck(deck);
+      closeSubPanel();
+      var btn = $("btn-add-sub");
+      if (btn) {
+        btn.textContent = "Added to " + names.length + (names.length === 1 ? " list" : " lists");
+        setTimeout(function () { if (btn.isConnected) btn.textContent = "Add to list"; }, 1600);
+      }
+      // Focus goes back to the round, so Enter carries on working.
+      var next = $("stage-foot").querySelector("button");
+      if (next && !next.disabled) next.focus();
+    });
+
+    draw();
+    input.focus();
+  }
+
+  /* ---------------- where sub-lists are reached ---------------- */
+  // The card under the results. Present after any round, including a round
+  // of a sub-list, which is how one sub-list leads to another.
+  function renderSubCard() {
+    var host = $("sub-card-list");
+    var note = $("sub-card-note");
+    host.textContent = "";
+    var subs = subsOf(deck);
+    note.textContent = game && game.subName
+      ? "You just played “" + game.subName + "”"
+      : (subs.length ? "Play one on its own" : "");
+
+    if (game && game.subName) {
+      var whole = document.createElement("button");
+      whole.type = "button";
+      whole.className = "sub-chip";
+      whole.textContent = "Whole list · " + deck.pairs.length;
+      whole.addEventListener("click", function () { startGame(deck.pairs, null); });
+      host.appendChild(whole);
+    }
+
+    subs.forEach(function (s) {
+      var pairs = subPairs(deck, s);
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "sub-chip" + (game && game.subName === s.name ? " is-current" : "");
+      b.textContent = s.name + " · " + pairs.length;
+      b.disabled = pairs.length < 1;
+      b.addEventListener("click", function () { startGame(pairs, s.name); });
+      host.appendChild(b);
+    });
+
+    if (!subs.length) {
+      var none = document.createElement("span");
+      none.className = "sub-none";
+      none.textContent = "No sub-lists yet. While playing, “Add to list” under any answer puts that word into one.";
+      host.appendChild(none);
+    }
+  }
+
+  // The menu on the way in: every quiz there is, and every sub-list inside
+  // each one, in a single list you can get at before choosing anything.
+  function renderQuizMenu() {
+    var sel = $("quiz-menu");
+    if (!sel) return;
+    sel.textContent = "";
+    var first = document.createElement("option");
+    first.value = "";
+    first.textContent = "Choose a quiz…";
+    sel.appendChild(first);
+
+    function group(label, rows) {
+      var g = document.createElement("optgroup");
+      g.label = label;
+      rows.forEach(function (r) {
+        var o = document.createElement("option");
+        o.value = r.value;
+        o.textContent = r.text;
+        g.appendChild(o);
+      });
+      sel.appendChild(g);
+    }
+
+    savedDecks().forEach(function (d, i) {
+      var rows = [{ value: "saved:" + i, text: "Whole list · " + words(d.pairs.length) }];
+      (d.subs || []).forEach(function (s, j) {
+        rows.push({ value: "sub:" + i + ":" + j, text: s.name + " · " + words((s.keys || []).length) });
+      });
+      group(d.title || "Untitled quiz", rows);
+    });
+
+    group("Ready-made", DECKS.map(function (d, i) {
+      return { value: "starter:" + i, text: d.title + " · " + words(d.pairs.length) };
+    }));
+  }
+
+  $("quiz-menu").addEventListener("change", function () {
+    var v = this.value;
+    this.value = "";
+    if (!v) return;
+    var bits = v.split(":");
+    if (bits[0] === "starter") {
+      loadDeck(JSON.parse(JSON.stringify(DECKS[Number(bits[1])])));
+      return;
+    }
+    var d = savedDecks()[Number(bits[1])];
+    if (!d) return;
+    loadDeck(JSON.parse(JSON.stringify(d)));
+    if (bits[0] === "sub") {
+      var s = subsOf(deck)[Number(bits[2])];
+      if (!s) return;
+      var pairs = subPairs(deck, s);
+      if (!pairs.length) { flash("“" + s.name + "” has no words left in it."); return; }
+      startGame(pairs, s.name);
+    }
+  });
+
+  /* ---------------- quiz colours ----------------
+     The colour fills the row, so the text colour is derived from it by
+     relative luminance rather than picked: a dark choice can never leave
+     near-black text on near-black ground.
+  ----------------------------------------------- */
+  var PALETTE = ["#334155", "#4338CA", "#0F766E", "#15803D",
+                 "#B45309", "#BE123C", "#BAE6FD", "#FDE68A", "#E9D5FF"];
+
+  function luminance(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    var parts = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (v) {
+      v /= 255;
+      return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * parts[0] + 0.7152 * parts[1] + 0.0722 * parts[2];
+  }
+
+  function inkOn(hex) { return luminance(hex) < 0.42 ? "#FFFFFF" : "#141A2B"; }
+
   /* ---------------- saved decks ---------------- */
   function savedDecks() { return readStore("qp:decks", []); }
 
@@ -2139,8 +2598,13 @@ button{font:inherit;color:inherit}
     host.textContent = "";
     decks.forEach(function (d, i) {
       var row = document.createElement("div");
-      row.className = "pair";
-      row.style.gridTemplateColumns = "1fr auto auto";
+      row.className = "pair quiz-row";
+      row.style.gridTemplateColumns = "1fr auto auto auto";
+      if (d.color) {
+        row.classList.add("tinted");
+        row.style.setProperty("--row-bg", d.color);
+        row.style.setProperty("--row-ink", inkOn(d.color));
+      }
       var name = document.createElement("div");
       name.style.minWidth = "0";
 
@@ -2188,20 +2652,52 @@ button{font:inherit;color:inherit}
         renderSaved();
       });
 
+      // The colour picker opens in the row itself rather than over it, so
+      // the change can be seen against the row it applies to.
+      var swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.className = "swatch";
+      swatch.title = "Colour this quiz";
+      swatch.setAttribute("aria-label", "Colour for " + (d.title || "this quiz"));
+      if (d.color) swatch.style.background = d.color;
+      var palette = null;
+      swatch.addEventListener("click", function () {
+        if (palette) { palette.parentNode.removeChild(palette); palette = null; return; }
+        palette = document.createElement("div");
+        palette.className = "palette";
+        [""].concat(PALETTE).forEach(function (c) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.setAttribute("aria-pressed", String((d.color || "") === c));
+          if (c) { b.style.background = c; b.setAttribute("aria-label", c); }
+          else {
+            b.className = "none";
+            b.textContent = "✗";
+            b.setAttribute("aria-label", "No colour");
+          }
+          b.addEventListener("click", function () {
+            var list = savedDecks();
+            if (!list[i]) return;
+            if (c) list[i].color = c; else delete list[i].color;
+            writeStore("qp:decks", list);
+            renderSaved();
+          });
+          palette.appendChild(b);
+        });
+        row.appendChild(palette);
+      });
+
       row.appendChild(name);
+      row.appendChild(swatch);
       row.appendChild(open);
       row.appendChild(kill);
       host.appendChild(row);
     });
+    renderQuizMenu();
   }
 
   $("btn-save").addEventListener("click", function () {
-    var list = savedDecks();
-    var copy = JSON.parse(JSON.stringify(deck));
-    copy.sample = false;
-    list.unshift(copy);
-    writeStore("qp:decks", list.slice(0, 20));
-    renderSaved();
+    persistDeck(deck);
     var b = $("btn-save");
     b.textContent = "Saved";
     setTimeout(function () { b.textContent = "Save deck"; }, 1600);
