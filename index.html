@@ -179,15 +179,16 @@ button{font:inherit;color:inherit}
 .deck-head{padding:16px 18px;border-bottom:1px solid var(--rule-soft)}
 /* The list's name is editable in place -- it looks like the heading it is
    until you hover or focus it. */
-.deck-title{
+.deck-title,.entry-name{
   font-family:var(--serif);font-size:20px;font-weight:600;
   width:100%;padding:3px 7px;margin-left:-7px;
   background:transparent;color:var(--ink);
   border:1px solid transparent;border-radius:7px;
 }
-.deck-title:hover{border-color:var(--rule);background:var(--surface-2)}
-.deck-title:focus{outline:none;border-color:var(--accent);background:var(--surface)}
-.deck-title::placeholder{color:var(--faint);font-style:italic}
+.deck-title:hover,.entry-name:hover{border-color:var(--rule);background:var(--surface-2)}
+.deck-title:focus,.entry-name:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.deck-title::placeholder,.entry-name::placeholder{color:var(--faint);font-style:italic}
+.entry-name{margin-top:5px}
 .saved-name{
   font-family:var(--serif);font-size:16px;font-weight:600;
   width:100%;padding:3px 7px;margin-left:-7px;
@@ -521,7 +522,9 @@ button{font:inherit;color:inherit}
   <!-- ============ INTAKE ============ -->
   <section id="scr-intake">
     <div class="card entry">
-      <label class="eyebrow" for="paste">Your word list</label>
+      <label class="eyebrow" for="quiz-name">Name this quiz</label>
+      <input class="entry-name" id="quiz-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled quiz">
+      <label class="eyebrow" for="paste" style="display:block;margin-top:16px">Your word list</label>
       <p class="entry-help">One pair per line, split by an equals sign with a single space on each side &mdash; <code class="lit-eg">hacer = to do</code>. Nothing else separates a word from its meaning.</p>
       <div class="editor" id="editor">
         <div class="hl" id="paste-hl" aria-hidden="true"></div>
@@ -2445,7 +2448,16 @@ button{font:inherit;color:inherit}
       flash("Add at least two lines, each with a word and its meaning.");
       return;
     }
-    loadDeck({ title: "Typed list", langA: "Column A", langB: "Column B", pairs: res.pairs, sample: false });
+    loadDeck({
+      title: $("quiz-name").value.trim() || "Typed list",
+      langA: "Column A", langB: "Column B", pairs: res.pairs, sample: false
+    });
+  });
+
+  // The name sits above the list, so Enter there means "done naming, build it"
+  // rather than submitting an empty nothing.
+  $("quiz-name").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); $("btn-paste").click(); }
   });
 
   function flash(msg, kind) {
