@@ -1,12 +1,21 @@
 # Netlify picks this up on import, so the build settings in the UI arrive
 # already filled in. index.html is the source; docs/ is what build.js makes.
+#
+# There is deliberately no build command. docs/ is committed and is rebuilt
+# before every push, so Netlify has nothing left to do but upload it. Giving
+# it `npm run build` instead made it run `npm install` on every deploy and
+# pull down the Claude SDK -- which the site build never touches; that
+# dependency belongs to server.js, the local-only photo reader. Each push
+# was spending build minutes on a package the website does not use.
 
 [build]
-  command = "npm run build"
   publish = "docs"
 
-[build.environment]
-  NODE_VERSION = "20"
+  # Deploys are paused while the project is being built out: GitHub Pages is
+  # the live site for now. Netlify runs this before anything else and skips
+  # the deploy when it exits 0, so a push cannot start a build even while the
+  # repo is still connected. Delete this one line to switch Netlify back on.
+  ignore = "exit 0"
 
 # The service worker decides when everyone else's cached copy expires, so it
 # must never be served stale itself.
