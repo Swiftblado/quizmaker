@@ -51,6 +51,12 @@
   --almost-soft:#FBEBCF;
   --bad:#B23A2E;
   --bad-soft:#F8DFDB;
+  /* Word-list editor. The term and the answer take a colour each; an
+     optional part in brackets takes a third, and its brackets a fourth. */
+  --tok-term:#1B3299;
+  --tok-answer:#0E7C5A;
+  --tok-opt:#7B3FBF;
+  --tok-paren:#B87503;
   --shadow:0 1px 2px rgba(20,26,43,.06),0 8px 24px -12px rgba(20,26,43,.18);
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -76,6 +82,10 @@
     --almost-soft:#3A2E12;
     --bad:#E4796B;
     --bad-soft:#3A1F1B;
+    --tok-term:#A9B9FF;
+    --tok-answer:#3DBB8E;
+    --tok-opt:#C79BF0;
+    --tok-paren:#E8A72C;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
   }
 }
@@ -98,6 +108,10 @@
   --almost-soft:#3A2E12;
   --bad:#E4796B;
   --bad-soft:#3A1F1B;
+  --tok-term:#A9B9FF;
+  --tok-answer:#3DBB8E;
+  --tok-opt:#C79BF0;
+  --tok-paren:#E8A72C;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
 }
 *{box-sizing:border-box}
@@ -178,6 +192,9 @@ button{font:inherit;color:inherit}
    than it did sitting at the bottom of a list of alternatives. */
 .entry{padding:18px 20px 20px}
 .entry-help{font-size:13px;color:var(--muted);margin:6px 0 11px;max-width:52ch}
+.lit-eg{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px solid var(--rule-soft);padding:1px 5px;border-radius:4px;color:var(--ink)}
+.entry-note{font-size:12px;color:var(--faint);margin-top:8px;min-height:18px}
+.entry-note.warn{color:var(--bad)}
 
 /* The back arrow only appears where there is somewhere to go back to. */
 .back{
@@ -466,11 +483,47 @@ button{font:inherit;color:inherit}
   display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:.07em;
   text-transform:uppercase;color:var(--almost);background:var(--almost-soft);padding:2px 7px;border-radius:4px;
 }
-textarea#paste{
-  width:100%;min-height:120px;padding:12px;font-family:var(--mono);font-size:13.5px;
-  background:var(--surface-2);color:var(--ink);border:1px solid var(--rule);border-radius:8px;resize:vertical;
+/* ---- the word-list editor ----
+   A textarea cannot colour its own text, so a div holding the same text
+   sits behind a transparent one. Every metric below is shared by both
+   rules: change padding, font or line-height in one and the colours slide
+   out of step with the characters they belong to. */
+.editor{
+  position:relative;border:1px solid var(--rule);border-radius:8px;
+  background:var(--surface-2);transition:border-color .13s,background .13s;
 }
-textarea#paste:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.editor:focus-within{border-color:var(--accent);background:var(--surface)}
+.editor textarea,.editor .hl{
+  margin:0;padding:12px;border:0;
+  font-family:var(--mono);font-size:13.5px;line-height:1.55;
+  white-space:pre-wrap;overflow-wrap:break-word;word-break:normal;tab-size:4;
+}
+.editor textarea{
+  display:block;width:100%;min-height:172px;resize:vertical;position:relative;z-index:1;
+  background:transparent;color:transparent;caret-color:var(--ink);
+}
+.editor textarea:focus{outline:none}
+.editor textarea::placeholder{color:var(--faint)}
+.editor .hl{position:absolute;inset:0;overflow:hidden;pointer-events:none;color:var(--muted)}
+
+.hl .t-term{color:var(--tok-term)}
+.hl .t-ans{color:var(--tok-answer)}
+.hl .t-opt{color:var(--tok-opt)}
+.hl .t-paren{color:var(--tok-paren);font-weight:600}
+/* The separator and the slashes are grammar, not content: left plain so
+   the coloured parts are the words themselves. */
+.hl .t-plain{color:var(--muted)}
+/* A line that is not a pair. Underlined rather than filled, so it cannot
+   be mistaken for a pending auto-format. */
+.hl .t-bad{color:var(--bad);text-decoration:underline wavy var(--bad);text-underline-offset:3px}
+.hl .t-fix{
+  background:var(--bad-soft);color:var(--bad);border-radius:3px;
+  box-shadow:0 0 0 1px var(--bad) inset;
+}
+.editor.reviewing .hl{pointer-events:auto}
+.editor.reviewing textarea{pointer-events:none}
+.editor.reviewing .t-fix{cursor:pointer}
+.editor.reviewing .t-fix:hover{background:var(--bad);color:var(--on-accent)}
 .foot{margin-top:26px;font-size:12.5px;color:var(--faint);text-align:center}
 @media (max-width:430px){
   .pair{grid-template-columns:1fr auto auto}
@@ -505,10 +558,15 @@ textarea#paste:focus{outline:none;border-color:var(--accent);background:var(--su
   <section id="scr-intake">
     <div class="card entry">
       <label class="eyebrow" for="paste">Your word list</label>
-      <p class="entry-help">One pair per line. Separate the word from its meaning with a comma, a dash, a tab, or an equals sign.</p>
-      <textarea id="paste" spellcheck="false" placeholder="hacer = to do&#10;decir = to say&#10;ser = to be"></textarea>
+      <p class="entry-help">One pair per line, split by an equals sign with a single space on each side &mdash; <code class="lit-eg">hacer = to do</code>. Nothing else separates a word from its meaning.</p>
+      <div class="editor" id="editor">
+        <div class="hl" id="paste-hl" aria-hidden="true"></div>
+        <textarea id="paste" spellcheck="false" placeholder="hacer = to do&#10;decir = to say&#10;ser = to be"></textarea>
+      </div>
+      <p class="entry-note" id="entry-note">Colours mark the word, its meaning, and any optional part in brackets.</p>
       <div class="row" style="margin-top:12px">
         <button class="btn btn-primary" id="btn-paste" type="button">Build deck</button>
+        <button class="btn" id="btn-fix" type="button">Auto-format</button>
       </div>
     </div>
 
@@ -2182,28 +2240,248 @@ textarea#paste:focus{outline:none;border-color:var(--accent);background:var(--su
     setTimeout(function () { b.textContent = "Save deck"; }, 1600);
   });
 
-  /* ---------------- typed-in pairs ---------------- */
-  function parsePasted(text) {
-    var pairs = [];
-    text.split(/\r?\n/).forEach(function (line) {
-      var l = line.trim();
-      if (!l) return;
-      var m = l.split(/\s*(?:\t|=|–|—| - |,|;|:)\s*/);
-      if (m.length < 2) return;
-      var a = m[0].trim();
-      var b = m.slice(1).join(", ").trim();
-      if (a && b) pairs.push({ a: a, b: b, alt: [], note: "" });
+  /* ---------------- typed-in pairs ----------------
+     One line is one pair and the separator is exactly " = ": an equals
+     sign with a single space on each side. Nothing else splits a line,
+     and a line that does not carry it is not a pair -- which is why the
+     auto-format below exists, rather than the parser quietly guessing.
+  ------------------------------------------------- */
+  var SEP = " = ";
+  var PASTE = $("paste"), HL = $("paste-hl"), EDITOR = $("editor"), FIXBTN = $("btn-fix");
+
+  // -> {a, b} for a well-formed line, or null. Surrounding whitespace on
+  // the line is the typist's indentation and is forgiven; whitespace
+  // touching the equals sign is not, because that IS the separator.
+  function splitStrict(raw) {
+    var line = String(raw).trim();
+    if (!line) return null;
+    var parts = line.split(SEP);
+    if (parts.length !== 2) return null;        // absent, or ambiguous
+    var a = parts[0], b = parts[1];
+    if (!a || !b) return null;
+    if (/\s$/.test(a) || /^\s/.test(b)) return null;   // more than one space
+    return { a: a, b: b };
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  /* Colour one side of a pair. Brackets mark a part that is optional to
+     type, so they earn their own colour and their contents another. A
+     slash is grammar the sheet reads, not a word, so it stays plain. */
+  function tokenizeSide(text, baseClass) {
+    var out = "", depth = 0, buf = "", bufClass = baseClass;
+    function flush() {
+      if (buf) { out += '<span class="' + bufClass + '">' + esc(buf) + "</span>"; buf = ""; }
+    }
+    for (var i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if (c === "(" || c === "[") {
+        flush(); depth++;
+        out += '<span class="t-paren">' + esc(c) + "</span>";
+        bufClass = "t-opt";
+        continue;
+      }
+      if ((c === ")" || c === "]") && depth > 0) {
+        flush(); depth--;
+        out += '<span class="t-paren">' + esc(c) + "</span>";
+        bufClass = depth > 0 ? "t-opt" : baseClass;
+        continue;
+      }
+      if (c === "/") {
+        flush();
+        out += '<span class="t-plain">/</span>';
+        bufClass = depth > 0 ? "t-opt" : baseClass;
+        continue;
+      }
+      var want = depth > 0 ? "t-opt" : baseClass;
+      if (want !== bufClass) { flush(); bufClass = want; }
+      buf += c;
+    }
+    flush();
+    return out;
+  }
+
+  function renderLine(raw) {
+    var pair = splitStrict(raw);
+    if (!pair) return '<span class="t-bad">' + esc(raw) + "</span>";
+    // The trimmed edges are put back verbatim: the overlay has to hold the
+    // same number of characters as the textarea or the two stop lining up.
+    var lead = raw.match(/^\s*/)[0], trail = raw.match(/\s*$/)[0];
+    return esc(lead) +
+      tokenizeSide(pair.a, "t-term") +
+      '<span class="t-plain">' + esc(SEP) + "</span>" +
+      tokenizeSide(pair.b, "t-ans") +
+      esc(trail);
+  }
+
+  /* Once the list is long enough to scroll, the textarea's scrollbar eats
+     into its own width and it starts wrapping earlier than the overlay
+     does. Matching the measured content width keeps the two wrapping in
+     the same places. */
+  function syncMetrics() { HL.style.width = PASTE.clientWidth + "px"; }
+
+  function renderHighlight() {
+    syncMetrics();
+    var lines = PASTE.value.split("\n");
+    var html = lines.map(function (raw, i) {
+      if (fix.active && fix.changed[i]) {
+        return '<span class="t-fix" data-line="' + i + '">' + (raw ? esc(raw) : "&nbsp;") + "</span>";
+      }
+      return renderLine(raw);
+    }).join("\n");
+    // A value ending in a newline draws one more empty row in the textarea;
+    // pre-wrap will not, without something on it.
+    HL.innerHTML = html + (/\n$/.test(PASTE.value) ? "​" : "");
+    HL.scrollTop = PASTE.scrollTop;
+  }
+
+  /* ---------------- auto-format ----------------
+     Two presses. The first rewrites every line it can onto " = " and
+     shows each rewrite in red without committing it; the second keeps
+     them. A red line can be clicked to put that one line back, which is
+     why the text is held read-only in between -- the offer is indexed by
+     line number, and typing would move the lines out from under it.
+  ---------------------------------------------- */
+  var fix = { active: false, original: null, changed: null };
+
+  // Tried in order, so an equals sign already on the line wins over a
+  // comma inside the meaning.
+  var SEP_TRIES = [/ *= */, /\t+ */, / *[–—] */, / +- +/, / *; */, / *, */, / *: */];
+
+  function proposeFix(raw) {
+    var line = String(raw).trim();
+    if (!line || splitStrict(line)) return null;   // blank, or already right
+    for (var i = 0; i < SEP_TRIES.length; i++) {
+      var m = SEP_TRIES[i].exec(line);
+      if (!m) continue;
+      var a = line.slice(0, m.index).trim();
+      var b = line.slice(m.index + m[0].length).trim();
+      if (a && b) return a + SEP + b;
+    }
+    return null;                                    // nothing to work with
+  }
+
+  function countChanges() { return fix.changed ? Object.keys(fix.changed).length : 0; }
+
+  function setFixUI() {
+    var n = countChanges();
+    FIXBTN.textContent = fix.active
+      ? "Keep " + n + (n === 1 ? " change" : " changes")
+      : "Auto-format";
+    FIXBTN.className = "btn" + (fix.active ? " btn-primary" : "");
+    var note = $("entry-note");
+    if (fix.active) {
+      note.className = "entry-note warn";
+      note.textContent = "Red lines are proposed, not saved. Click one to put it back, or keep them all.";
+    } else {
+      note.className = "entry-note";
+      note.textContent = "Colours mark the word, its meaning, and any optional part in brackets.";
+    }
+  }
+
+  function endFix() {
+    fix.active = false; fix.original = null; fix.changed = null;
+    PASTE.readOnly = false;
+    EDITOR.classList.remove("reviewing");
+    setFixUI();
+    renderHighlight();
+  }
+
+  FIXBTN.addEventListener("click", function () {
+    if (fix.active) { endFix(); return; }          // second press: keep them
+
+    var lines = PASTE.value.split("\n");
+    var out = lines.slice(), changed = {}, n = 0, stuck = 0;
+    lines.forEach(function (raw, i) {
+      if (!raw.trim() || splitStrict(raw)) return;
+      var f = proposeFix(raw);
+      if (f === null) { stuck++; return; }
+      out[i] = f; changed[i] = true; n++;
     });
-    return pairs;
+
+    if (!n) {
+      flash(stuck
+        ? "Nothing here can be split automatically — those lines need an equals sign typed in."
+        : "Every line already uses “ = ”.", stuck ? undefined : "info");
+      return;
+    }
+    fix.active = true; fix.original = lines; fix.changed = changed;
+    PASTE.value = out.join("\n");
+    PASTE.readOnly = true;
+    EDITOR.classList.add("reviewing");
+    setFixUI();
+    renderHighlight();
+  });
+
+  HL.addEventListener("click", function (e) {
+    if (!fix.active) return;
+    var el = e.target && e.target.closest ? e.target.closest(".t-fix") : null;
+    if (!el) return;
+    var i = Number(el.getAttribute("data-line"));
+    var lines = PASTE.value.split("\n");
+    lines[i] = fix.original[i];
+    PASTE.value = lines.join("\n");
+    delete fix.changed[i];
+    if (!countChanges()) { endFix(); return; }
+    setFixUI();
+    renderHighlight();
+  });
+
+  PASTE.addEventListener("input", function () {
+    // Pasted text can carry CRLF, which would put a stray character on the
+    // end of every line and fail every one of them.
+    if (PASTE.value.indexOf("\r") >= 0) {
+      var at = PASTE.selectionStart;
+      PASTE.value = PASTE.value.replace(/\r\n?/g, "\n");
+      try { PASTE.setSelectionRange(at, at); } catch (err) { /* detached */ }
+    }
+    renderHighlight();
+  });
+  PASTE.addEventListener("scroll", function () { HL.scrollTop = PASTE.scrollTop; });
+  // The box is resizable by its corner grip, and a scrollbar can come and
+  // go as lines are added, so width is re-measured rather than assumed.
+  if (window.ResizeObserver) new ResizeObserver(syncMetrics).observe(PASTE);
+  window.addEventListener("resize", syncMetrics);
+
+  /* ---------------- building the deck ---------------- */
+  // -> {pairs, bad:[1-based line numbers]}
+  function parsePasted(text) {
+    var pairs = [], bad = [];
+    text.split(/\r?\n/).forEach(function (line, i) {
+      if (!line.trim()) return;
+      var p = splitStrict(line);
+      if (!p) { bad.push(i + 1); return; }
+      pairs.push({ a: p.a, b: p.b, alt: [], note: "" });
+    });
+    return { pairs: pairs, bad: bad };
+  }
+
+  function listNumbers(ns) {
+    if (ns.length === 1) return "Line " + ns[0];
+    var shown = ns.slice(0, 4);
+    return "Lines " + (ns.length > 4
+      ? shown.join(", ") + " and " + (ns.length - 4) + " more"
+      : shown.slice(0, -1).join(", ") + " and " + shown[shown.length - 1]);
   }
 
   $("btn-paste").addEventListener("click", function () {
-    var pairs = parsePasted($("paste").value);
-    if (pairs.length < 2) {
+    if (fix.active) {
+      flash("Finish the auto-format first — keep the changes, or click each red line to put it back.");
+      return;
+    }
+    var res = parsePasted(PASTE.value);
+    if (res.bad.length) {
+      flash(listNumbers(res.bad) + (res.bad.length === 1 ? " is not a pair. " : " are not pairs. ") +
+        "Split each one with an equals sign and a single space on each side — hacer = to do.");
+      return;
+    }
+    if (res.pairs.length < 2) {
       flash("Add at least two lines, each with a word and its meaning.");
       return;
     }
-    loadDeck({ title: "Typed list", langA: "Column A", langB: "Column B", pairs: pairs, sample: false });
+    loadDeck({ title: "Typed list", langA: "Column A", langB: "Column B", pairs: res.pairs, sample: false });
   });
 
   function flash(msg, kind) {
@@ -2231,6 +2509,8 @@ textarea#paste:focus{outline:none;border-color:var(--accent);background:var(--su
     applyOpts();
     renderStarters();
     renderSaved();
+    setFixUI();
+    renderHighlight();
 
     if (saved && saved.deck) {
       loadDeck(saved.deck);
