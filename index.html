@@ -448,16 +448,8 @@ button{font:inherit;color:inherit}
 
 /* ---- sub-lists ----
    A named subset of a word list. Reachable from the round you just
-   finished, from any sub-round of it, and from the menu on the way in. */
-.quiz-menu-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
-.quiz-menu-row .eyebrow{flex:none}
-#quiz-menu{
-  flex:1;min-width:190px;padding:8px 10px;font:inherit;font-size:13.5px;
-  background:var(--surface);color:var(--ink);
-  border:1px solid var(--rule);border-radius:8px;cursor:pointer;
-}
-#quiz-menu:focus{outline:none;border-color:var(--accent)}
-
+   finished, from any sub-round of it, and from the side panel each quiz
+   card opens. */
 .sub-card{margin-top:16px;padding:14px 16px 16px}
 .sub-card-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px}
 .sub-card-note{font-size:12px;color:var(--faint)}
@@ -490,6 +482,46 @@ button{font:inherit;color:inherit}
 .sub-panel-foot{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
 .sub-panel-foot .sp{flex:1}
 
+/* ---- one quiz's side panel ----
+   The lists inside a single quiz, opened from that quiz's card. It is a
+   panel rather than a dropdown because the cards sit in a grid: a menu
+   hanging off one card would be clipped by the next, and a quiz can hold
+   more sub-lists than a dropdown wants to show. The body scrolls, the
+   header does not. */
+.side-scrim{position:fixed;inset:0;background:rgba(10,14,24,.42);z-index:40}
+.side-panel{
+  position:fixed;top:0;right:0;bottom:0;z-index:41;
+  width:min(340px,88vw);display:flex;flex-direction:column;
+  background:var(--surface);border-left:1px solid var(--rule);
+  box-shadow:-14px 0 36px -20px rgba(20,26,43,.55);
+}
+.side-panel-head{
+  flex:none;display:flex;align-items:center;gap:10px;
+  padding:16px 14px 12px 16px;border-bottom:1px solid var(--rule-soft);
+}
+.side-panel-head .eyebrow{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.side-panel-body{
+  flex:1;min-height:0;overflow-y:auto;
+  padding:14px 16px 22px;display:flex;flex-direction:column;gap:8px;
+}
+.side-item{
+  display:flex;flex-direction:column;gap:2px;align-items:flex-start;
+  width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;
+  padding:10px 12px;border:1px solid var(--rule);border-radius:9px;
+  background:var(--surface);transition:border-color .12s,background .12s;
+}
+.side-item:hover{border-color:var(--accent);background:var(--accent-soft)}
+.side-item:disabled{opacity:.5;cursor:default}
+.side-item:disabled:hover{border-color:var(--rule);background:var(--surface)}
+.side-item b{font-family:var(--serif);font-size:15.5px;font-weight:600;line-height:1.25}
+.side-item span{font-size:12px;color:var(--muted)}
+.side-sep{
+  font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);margin:8px 0 1px;
+}
+
 /* ---- your quizzes ----
    Each quiz is its own framed card, sized like the ready-made tiles above
    it, so the two rows of the page read as one kind of thing. A colour
@@ -501,7 +533,7 @@ button{font:inherit;color:inherit}
   border:1px solid var(--rule);border-radius:10px;
   background:var(--surface);box-shadow:var(--shadow);
 }
-.quiz-card-foot{display:flex;align-items:center;gap:7px;margin-top:9px}
+.quiz-card-foot{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
 .quiz-card-foot .sp{flex:1}
 
 /* The frame stays the same rule colour on every card, coloured or not, so
@@ -610,13 +642,6 @@ button{font:inherit;color:inherit}
 
   <!-- ============ INTAKE ============ -->
   <section id="scr-intake">
-    <div class="quiz-menu-row">
-      <label class="eyebrow" for="quiz-menu">Open a quiz</label>
-      <select id="quiz-menu" aria-label="Open a quiz, or one of its sub-lists">
-        <option value="">Choose a quiz&hellip;</option>
-      </select>
-    </div>
-
     <div class="card entry">
       <label class="eyebrow" for="quiz-name">Name this quiz</label>
       <input class="entry-name" id="quiz-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled quiz">
@@ -830,6 +855,18 @@ button{font:inherit;color:inherit}
 
   <p class="foot">Answers are checked against your sheet, not a dictionary &mdash; edit any pair before you play.</p>
 </div>
+
+<!-- One quiz's lists, opened from that quiz's own card. It scrolls on its
+     own, so a quiz with many sub-lists does not stretch the page. -->
+<div class="side-scrim" id="side-scrim" hidden></div>
+<aside class="side-panel" id="side-panel" role="dialog" aria-modal="true"
+       aria-labelledby="side-panel-title" hidden>
+  <div class="side-panel-head">
+    <span class="eyebrow" id="side-panel-title"></span>
+    <button class="btn btn-ghost btn-sm" id="side-panel-close" type="button" aria-label="Close">Close</button>
+  </div>
+  <div class="side-panel-body" id="side-panel-body"></div>
+</aside>
 
 
 
@@ -2561,60 +2598,89 @@ button{font:inherit;color:inherit}
     }
   }
 
-  // The menu on the way in: every quiz there is, and every sub-list inside
-  // each one, in a single list you can get at before choosing anything.
-  function renderQuizMenu() {
-    var sel = $("quiz-menu");
-    if (!sel) return;
-    sel.textContent = "";
-    var first = document.createElement("option");
-    first.value = "";
-    first.textContent = "Choose a quiz…";
-    sel.appendChild(first);
+  /* ---------------- one quiz's side panel ----------------
+     Each quiz card opens its own. A dropdown hanging off a card would be
+     clipped by the card beside it, and a quiz can hold more sub-lists than
+     a dropdown wants to show, so this is a panel that scrolls.
+  -------------------------------------------------------- */
+  var sidePanelDeck = null;
 
-    function group(label, rows) {
-      var g = document.createElement("optgroup");
-      g.label = label;
-      rows.forEach(function (r) {
-        var o = document.createElement("option");
-        o.value = r.value;
-        o.textContent = r.text;
-        g.appendChild(o);
-      });
-      sel.appendChild(g);
-    }
-
-    savedDecks().forEach(function (d, i) {
-      var rows = [{ value: "saved:" + i, text: "Whole list · " + words(d.pairs.length) }];
-      (d.subs || []).forEach(function (s, j) {
-        rows.push({ value: "sub:" + i + ":" + j, text: s.name + " · " + words((s.keys || []).length) });
-      });
-      group(d.title || "Untitled quiz", rows);
-    });
-
-    group("Ready-made", DECKS.map(function (d, i) {
-      return { value: "starter:" + i, text: d.title + " · " + words(d.pairs.length) };
-    }));
+  function closeSidePanel() {
+    $("side-panel").hidden = true;
+    $("side-scrim").hidden = true;
+    sidePanelDeck = null;
   }
 
-  $("quiz-menu").addEventListener("change", function () {
-    var v = this.value;
-    this.value = "";
-    if (!v) return;
-    var bits = v.split(":");
-    if (bits[0] === "starter") {
-      loadDeck(JSON.parse(JSON.stringify(DECKS[Number(bits[1])])));
-      return;
+  function openSidePanel(d) {
+    sidePanelDeck = d;
+    $("side-panel-title").textContent = d.title || "Untitled quiz";
+    var body = $("side-panel-body");
+    body.textContent = "";
+
+    function item(name, detail, enabled, run) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "side-item";
+      b.disabled = !enabled;
+      var t = document.createElement("b");
+      t.textContent = name;
+      var sub = document.createElement("span");
+      sub.textContent = detail;
+      b.appendChild(t);
+      b.appendChild(sub);
+      if (enabled) b.addEventListener("click", run);
+      body.appendChild(b);
+      return b;
     }
-    var d = savedDecks()[Number(bits[1])];
-    if (!d) return;
-    loadDeck(JSON.parse(JSON.stringify(d)));
-    if (bits[0] === "sub") {
-      var s = subsOf(deck)[Number(bits[2])];
-      if (!s) return;
-      var pairs = subPairs(deck, s);
-      if (!pairs.length) { flash("“" + s.name + "” has no words left in it."); return; }
-      startGame(pairs, s.name);
+
+    function label(text) {
+      var el = document.createElement("div");
+      el.className = "side-sep";
+      el.textContent = text;
+      body.appendChild(el);
+    }
+
+    // Opening the whole list lands on the deck screen, where the options
+    // are; a sub-list is a smaller thing and goes straight into a round.
+    item("Whole list", words(d.pairs.length) + " · opens the quiz", true, function () {
+      closeSidePanel();
+      loadDeck(JSON.parse(JSON.stringify(d)));
+    });
+
+    var subs = d.subs || [];
+    label(subs.length ? (subs.length === 1 ? "Sub-list" : "Sub-lists") : "Sub-lists");
+
+    if (!subs.length) {
+      var none = document.createElement("span");
+      none.className = "sub-none";
+      none.textContent = "None yet. While playing, “Add to list” under any answer puts that word into one.";
+      body.appendChild(none);
+    }
+
+    subs.forEach(function (s, j) {
+      var n = (s.keys || []).length;
+      item(s.name, n ? words(n) + " · plays straight away" : "empty", n > 0, function () {
+        closeSidePanel();
+        loadDeck(JSON.parse(JSON.stringify(d)));
+        var live = subsOf(deck)[j];
+        if (!live) return;
+        var pairs = subPairs(deck, live);
+        if (!pairs.length) { flash("“" + live.name + "” has no words left in it."); return; }
+        startGame(pairs, live.name);
+      });
+    });
+
+    $("side-scrim").hidden = false;
+    $("side-panel").hidden = false;
+    $("side-panel-close").focus();
+  }
+
+  $("side-panel-close").addEventListener("click", closeSidePanel);
+  $("side-scrim").addEventListener("click", closeSidePanel);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("side-panel").hidden) {
+      e.preventDefault();
+      closeSidePanel();
     }
   });
 
@@ -2669,8 +2735,7 @@ button{font:inherit;color:inherit}
         list[i].title = title.value.trim() || "Untitled quiz";
         writeStore("qp:decks", list);
         d.title = list[i].title;
-        renderQuizMenu();
-      }
+        }
       title.addEventListener("blur", function () { commit(); title.value = d.title; });
       title.addEventListener("keydown", function (e) {
         if (e.key === "Enter") { e.preventDefault(); title.blur(); }
@@ -2721,6 +2786,16 @@ button{font:inherit;color:inherit}
         card.appendChild(palette);
       });
 
+      // This quiz's own menu. It carries the count so the card says what
+      // is behind it without having to be opened.
+      var lists = document.createElement("button");
+      lists.type = "button";
+      lists.className = "btn btn-sm";
+      lists.textContent = "Lists" + (subs ? " · " + subs : "");
+      lists.title = "Open this quiz's lists";
+      lists.setAttribute("aria-haspopup", "dialog");
+      lists.addEventListener("click", function () { openSidePanel(d); });
+
       var open = document.createElement("button");
       open.type = "button";
       open.className = "btn btn-sm";
@@ -2746,6 +2821,7 @@ button{font:inherit;color:inherit}
       foot.className = "quiz-card-foot";
       foot.appendChild(swatch);
       foot.appendChild(sp);
+      foot.appendChild(lists);
       foot.appendChild(open);
       foot.appendChild(kill);
 
@@ -2755,7 +2831,6 @@ button{font:inherit;color:inherit}
       host.appendChild(card);
     });
 
-    renderQuizMenu();
   }
 
   $("btn-save").addEventListener("click", function () {
