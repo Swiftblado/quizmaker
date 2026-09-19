@@ -253,11 +253,11 @@ button{font:inherit;color:inherit}
 .pair input:hover{border-color:var(--rule)}
 .pair input:focus{background:var(--surface);border-color:var(--accent);outline:none}
 .pair input.term{font-family:var(--serif);font-size:16px}
-.pair .kill{
+.pair .kill,.quiz-card .kill{
   padding:6px 8px;border:none;background:transparent;color:var(--faint);
   cursor:pointer;border-radius:6px;font-size:15px;line-height:1;
 }
-.pair .kill:hover{background:var(--bad-soft);color:var(--bad)}
+.pair .kill:hover,.quiz-card .kill:hover{background:var(--bad-soft);color:var(--bad)}
 .note-chip{
   display:inline-block;margin-top:4px;font-size:11px;color:var(--muted);
   background:var(--surface-2);border:1px solid var(--rule-soft);padding:1px 6px;border-radius:4px;
@@ -519,32 +519,44 @@ button{font:inherit;color:inherit}
 .sub-panel-foot{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
 .sub-panel-foot .sp{flex:1}
 
-/* ---- quiz colours ----
-   A saved quiz can carry a colour, which fills its whole row. The text
-   colour is derived from it rather than chosen, so a dark pick can never
-   leave unreadable near-black text on near-black ground. */
-.quiz-row.tinted{background:var(--row-bg);border-color:transparent}
+/* ---- your quizzes ----
+   Each quiz is its own framed card, sized like the ready-made tiles above
+   it, so the two rows of the page read as one kind of thing. A colour
+   fills the card; the text colour is derived from it rather than chosen,
+   so a dark pick can never leave unreadable near-black on near-black. */
+.quiz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
+.quiz-card{
+  display:flex;flex-direction:column;gap:2px;padding:12px 13px 10px;
+  border:1px solid var(--rule);border-radius:10px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.quiz-card-foot{display:flex;align-items:center;gap:7px;margin-top:9px}
+.quiz-card-foot .sp{flex:1}
+
+/* The frame stays the same rule colour on every card, coloured or not, so
+   the row reads as one set. Deriving it from the fill instead made a white
+   border on a dark card disappear against the page. */
+.quiz-card.tinted{background:var(--row-bg)}
 /* `.pair input` is more specific than `.saved-name`, so the name box keeps
-   its pale fill unless it is overridden here -- which on a dark row would
+   its pale fill unless it is overridden here -- which on a dark card would
    leave white text on near-white. */
-.quiz-row.tinted .saved-name{color:var(--row-ink);background:transparent;border-color:transparent}
-.quiz-row.tinted .saved-name::placeholder{color:var(--row-ink);opacity:.6}
-.quiz-row.tinted .saved-name:hover{border-color:var(--row-ink);background:transparent}
-.quiz-row.tinted .saved-name:focus{background:var(--surface);color:var(--ink);border-color:var(--accent)}
-.quiz-row.tinted .deck-meta{color:var(--row-ink);opacity:.78}
-.quiz-row.tinted .btn{background:transparent;border-color:var(--row-ink);color:var(--row-ink)}
-.quiz-row.tinted .btn:hover{background:var(--row-ink);color:var(--row-bg)}
-.quiz-row.tinted .kill{color:var(--row-ink);opacity:.85}
-.quiz-row.tinted .kill:hover{background:var(--row-ink);color:var(--row-bg);opacity:1}
+.quiz-card.tinted .saved-name{color:var(--row-ink);background:transparent;border-color:transparent}
+.quiz-card.tinted .saved-name::placeholder{color:var(--row-ink);opacity:.6}
+.quiz-card.tinted .saved-name:hover{border-color:var(--row-ink);background:transparent}
+.quiz-card.tinted .saved-name:focus{background:var(--surface);color:var(--ink);border-color:var(--accent)}
+.quiz-card.tinted .deck-meta{color:var(--row-ink);opacity:.8}
+.quiz-card.tinted .btn{background:transparent;border-color:var(--row-ink);color:var(--row-ink)}
+.quiz-card.tinted .btn:hover{background:var(--row-ink);color:var(--row-bg)}
+.quiz-card.tinted .kill{color:var(--row-ink);opacity:.85}
+.quiz-card.tinted .kill:hover{background:var(--row-ink);color:var(--row-bg);opacity:1}
 .swatch{
   flex:none;width:22px;height:22px;padding:0;border-radius:50%;cursor:pointer;
-  border:1px solid var(--rule);background:var(--surface-2);align-self:center;
+  border:1px dashed var(--faint);background:var(--surface-2);
 }
-/* On a tinted row a swatch filled with the row's own colour would be
+/* On a tinted card a swatch filled with the card's own colour would be
    invisible, so it becomes a dot in the contrasting ink instead. */
-.quiz-row.tinted .swatch{background:var(--row-ink) !important;border-color:var(--row-ink)}
-#saved-list{overflow:hidden}   /* tinted rows must not square off the card */
-.palette{display:flex;flex-wrap:wrap;gap:7px;padding:10px 0 2px;grid-column:1/-1}
+.quiz-card.tinted .swatch{background:var(--row-ink) !important;border-color:var(--row-ink)}
+.palette{display:flex;flex-wrap:wrap;gap:7px;padding:10px 0 2px}
 .palette button{
   width:24px;height:24px;border-radius:50%;cursor:pointer;
   border:1px solid rgba(128,128,128,.45);padding:0;
@@ -664,8 +676,8 @@ button{font:inherit;color:inherit}
     <div class="starters" id="starters"></div>
 
     <div id="saved-box" style="margin-top:22px" hidden>
-      <div class="eyebrow" style="margin-bottom:9px">Your decks</div>
-      <div class="card" id="saved-list"></div>
+      <div class="eyebrow" style="margin-bottom:9px">Your quizzes</div>
+      <div class="quiz-grid" id="saved-list"></div>
     </div>
   </section>
 
@@ -2345,9 +2357,18 @@ button{font:inherit;color:inherit}
 
   function subHas(sub, p) { return (sub.keys || []).indexOf(pairKey(p)) >= 0; }
 
-  /* A sub-list has to outlive the round that made it, so writing one saves
-     the whole list: an id is minted if this deck has never been saved, and
-     an existing entry is updated in place rather than duplicated. */
+  // Is this list already one of the user's quizzes? Sub-lists are written
+  // back into it when so, and held in memory when not -- writing one must
+  // never conjure a new quiz onto the main page.
+  function isSavedDeck(d) {
+    if (!d || !d.id) return false;
+    var list = savedDecks();
+    for (var i = 0; i < list.length; i++) if (list[i].id === d.id) return true;
+    return false;
+  }
+
+  /* Saving a list: an id is minted if it has never been saved, and an
+     existing entry is updated in place rather than duplicated. */
   function persistDeck(d) {
     if (!d.id) d.id = uid();
     var list = savedDecks(), at = -1;
@@ -2492,12 +2513,19 @@ button{font:inherit;color:inherit}
         if (!s) { s = { name: n, keys: [] }; subsOf(deck).push(s); }
         if (s.keys.indexOf(k) < 0) s.keys.push(k);
       });
-      persistDeck(deck);
+      // Only an already-saved quiz is written to. A ready-made deck, or one
+      // typed and not yet saved, keeps its sub-lists in memory until the
+      // quiz itself is saved -- otherwise adding a word here would drop a
+      // whole copy of the list onto the main page as a side effect.
+      var kept = isSavedDeck(deck);
+      if (kept) persistDeck(deck);
       closeSubPanel();
       var btn = $("btn-add-sub");
       if (btn) {
-        btn.textContent = "Added to " + names.length + (names.length === 1 ? " list" : " lists");
-        setTimeout(function () { if (btn.isConnected) btn.textContent = "Add to list"; }, 1600);
+        btn.textContent = kept
+          ? "Added to " + names.length + (names.length === 1 ? " list" : " lists")
+          : "Added · save the quiz to keep";
+        setTimeout(function () { if (btn.isConnected) btn.textContent = "Add to list"; }, 2200);
       }
       // Focus goes back to the round, so Enter carries on working.
       var next = $("stage-foot").querySelector("button");
@@ -2545,6 +2573,27 @@ button{font:inherit;color:inherit}
       none.className = "sub-none";
       none.textContent = "No sub-lists yet. While playing, “Add to list” under any answer puts that word into one.";
       host.appendChild(none);
+      return;
+    }
+
+    // Sub-lists made on a quiz that was never saved live only in memory.
+    // Say so, and offer the one thing that fixes it.
+    if (!isSavedDeck(deck)) {
+      var warn = document.createElement("span");
+      warn.className = "sub-none";
+      warn.textContent = "These are not saved yet —";
+      host.appendChild(warn);
+      var keep = document.createElement("button");
+      keep.type = "button";
+      keep.className = "btn btn-sm btn-primary";
+      keep.textContent = "Save this quiz";
+      keep.addEventListener("click", function () {
+        persistDeck(deck);
+        keep.textContent = "Saved";
+        keep.disabled = true;
+        warn.textContent = "Kept in Your quizzes.";
+      });
+      host.appendChild(keep);
     }
   }
 
@@ -2632,70 +2681,55 @@ button{font:inherit;color:inherit}
     $("saved-box").hidden = decks.length === 0;
     var host = $("saved-list");
     host.textContent = "";
-    decks.forEach(function (d, i) {
-      var row = document.createElement("div");
-      row.className = "pair quiz-row";
-      row.style.gridTemplateColumns = "1fr auto auto auto";
-      if (d.color) {
-        row.classList.add("tinted");
-        row.style.setProperty("--row-bg", d.color);
-        row.style.setProperty("--row-ink", inkOn(d.color));
-      }
-      var name = document.createElement("div");
-      name.style.minWidth = "0";
 
-      // Renaming a saved list is typing in its name, same as on the deck
-      // screen -- no dialog, no separate rename mode.
+    decks.forEach(function (d, i) {
+      var card = document.createElement("div");
+      card.className = "quiz-card";
+      if (d.color) {
+        card.classList.add("tinted");
+        card.style.setProperty("--row-bg", d.color);
+        card.style.setProperty("--row-ink", inkOn(d.color));
+      }
+
+      // Renaming a quiz is typing in its name, same as on the deck screen --
+      // no dialog, no separate rename mode.
       var title = document.createElement("input");
       title.className = "saved-name";
       title.value = d.title || "";
-      title.placeholder = "Name this list";
+      title.placeholder = "Name this quiz";
       title.maxLength = 60;
-      title.setAttribute("aria-label", "Name of this word list");
+      title.setAttribute("aria-label", "Name of this quiz");
       function commit() {
         var list = savedDecks();
         if (!list[i]) return;
-        list[i].title = title.value.trim() || "Untitled list";
+        list[i].title = title.value.trim() || "Untitled quiz";
         writeStore("qp:decks", list);
         d.title = list[i].title;
+        renderQuizMenu();
       }
       title.addEventListener("blur", function () { commit(); title.value = d.title; });
       title.addEventListener("keydown", function (e) {
         if (e.key === "Enter") { e.preventDefault(); title.blur(); }
       });
 
+      // Sub-lists are counted here but not listed: they are opened from the
+      // menu at the top of the page, under the quiz they belong to.
       var meta = document.createElement("div");
       meta.className = "deck-meta";
-      meta.textContent = d.pairs.length + " words · " + (d.langA || "?") + " → " + (d.langB || "?");
-      name.appendChild(title);
-      name.appendChild(meta);
+      var subs = (d.subs || []).length;
+      var bits = [words(d.pairs.length)];
+      if (d.langA && d.langB && d.langA !== "Column A") bits.push(d.langA + " → " + d.langB);
+      if (subs) bits.push(subs + (subs === 1 ? " sub-list" : " sub-lists"));
+      meta.textContent = bits.join(" · ");
 
-      var open = document.createElement("button");
-      open.type = "button";
-      open.className = "btn btn-sm";
-      open.textContent = "Open";
-      open.addEventListener("click", function () { loadDeck(JSON.parse(JSON.stringify(d))); });
-
-      var kill = document.createElement("button");
-      kill.type = "button";
-      kill.className = "kill";
-      kill.textContent = "✕";
-      kill.setAttribute("aria-label", "Delete " + (d.title || "deck"));
-      kill.addEventListener("click", function () {
-        var list = savedDecks();
-        list.splice(i, 1);
-        writeStore("qp:decks", list);
-        renderSaved();
-      });
-
-      // The colour picker opens in the row itself rather than over it, so
-      // the change can be seen against the row it applies to.
       var swatch = document.createElement("button");
       swatch.type = "button";
       swatch.className = "swatch";
       swatch.title = "Colour this quiz";
       swatch.setAttribute("aria-label", "Colour for " + (d.title || "this quiz"));
       if (d.color) swatch.style.background = d.color;
+      // The picker opens inside the card rather than over it, so the change
+      // can be judged against the frame it applies to.
       var palette = null;
       swatch.addEventListener("click", function () {
         if (palette) { palette.parentNode.removeChild(palette); palette = null; return; }
@@ -2720,15 +2754,43 @@ button{font:inherit;color:inherit}
           });
           palette.appendChild(b);
         });
-        row.appendChild(palette);
+        card.appendChild(palette);
       });
 
-      row.appendChild(name);
-      row.appendChild(swatch);
-      row.appendChild(open);
-      row.appendChild(kill);
-      host.appendChild(row);
+      var open = document.createElement("button");
+      open.type = "button";
+      open.className = "btn btn-sm";
+      open.textContent = "Open";
+      open.addEventListener("click", function () { loadDeck(JSON.parse(JSON.stringify(d))); });
+
+      var kill = document.createElement("button");
+      kill.type = "button";
+      kill.className = "kill";
+      kill.textContent = "✕";
+      kill.setAttribute("aria-label", "Delete " + (d.title || "quiz"));
+      kill.addEventListener("click", function () {
+        var list = savedDecks();
+        list.splice(i, 1);
+        writeStore("qp:decks", list);
+        renderSaved();
+      });
+
+      var sp = document.createElement("span");
+      sp.className = "sp";
+
+      var foot = document.createElement("div");
+      foot.className = "quiz-card-foot";
+      foot.appendChild(swatch);
+      foot.appendChild(sp);
+      foot.appendChild(open);
+      foot.appendChild(kill);
+
+      card.appendChild(title);
+      card.appendChild(meta);
+      card.appendChild(foot);
+      host.appendChild(card);
     });
+
     renderQuizMenu();
   }
 
