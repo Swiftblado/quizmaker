@@ -182,6 +182,11 @@ button{font:inherit;color:inherit}
 .deck-head{padding:16px 18px;border-bottom:1px solid var(--rule-soft)}
 /* The list's name is editable in place -- it looks like the heading it is
    until you hover or focus it. */
+/* The bin sits in the top corner on the same line as the name, so the name
+   box stops short of it. Left full width, a long title ran underneath the
+   bin and was clipped by it. */
+.quiz-card .saved-name,.folder-card .folder-name{width:calc(100% - 30px)}
+
 .deck-title,.entry-name{
   font-family:var(--serif);font-size:20px;font-weight:600;
   width:100%;padding:3px 7px;margin-left:-7px;
