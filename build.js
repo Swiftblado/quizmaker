@@ -49,7 +49,6 @@ if (split === -1) throw new Error("index.html: could not find " + MOUNT);
 
 const headFrag = src.slice(0, split).trim();  // <title>, fonts, <style>
 const bodyFrag = src.slice(split).trim();     // markup + <script>
-const version = crypto.createHash("sha1").update(src).digest("hex").slice(0, 8);
 
 const page = `<!doctype html>
 <html lang="en">
@@ -81,6 +80,34 @@ const page = `<!doctype html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 
 ${headFrag}
+<style>
+/* The new-version nudge. It borrows the app's own tokens, which are
+   defined by the stylesheet above, and falls back to literals so it still
+   reads correctly if it somehow paints before them. */
+.update-nudge{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:60;
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px 9px 16px;border-radius:999px;
+  max-width:calc(100vw - 32px);
+  background:var(--surface,#fff);color:var(--ink,#141A2B);
+  border:1px solid var(--rule,#D3DAE6);
+  box-shadow:0 10px 30px -12px rgba(20,26,43,.5);
+  font:600 13.5px/1.2 var(--sans,system-ui,-apple-system,sans-serif);
+}
+.update-nudge button{font:inherit;cursor:pointer;border-radius:999px;border:0}
+.update-nudge .go{
+  padding:7px 14px;background:var(--accent,#2B4ACB);color:var(--on-accent,#fff);
+}
+.update-nudge .go:hover{background:var(--accent-ink,#1B3299)}
+.update-nudge .shut{
+  padding:6px 9px;background:transparent;color:var(--muted,#5B6478);font-size:14px;line-height:1;
+}
+.update-nudge .shut:hover{color:var(--ink,#141A2B)}
+@media (prefers-reduced-motion:no-preference){
+  .update-nudge{animation:nudge-in .22s ease-out}
+  @keyframes nudge-in{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+}
+</style>
 </head>
 <body>
 <noscript>
@@ -90,20 +117,68 @@ ${headFrag}
   </p>
 </noscript>
 ${bodyFrag}
+
+<div class="update-nudge" id="update-nudge" role="status" hidden>
+  <span>A new version is ready.</span>
+  <button type="button" class="go" id="update-reload">Reload</button>
+  <button type="button" class="shut" id="update-dismiss" aria-label="Not now">&#10005;</button>
+</div>
+
 <script>
   // Offline support, so a drill survives a bad train connection. The secure
   // context test takes in localhost as well as https, which keeps the worker
   // exercised by the local preview rather than first run in production.
-  if ("serviceWorker" in navigator && window.isSecureContext) {
-    addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () {});
+  (function () {
+    if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
+
+    var nudge = document.getElementById("update-nudge");
+    document.getElementById("update-reload").addEventListener("click", function () {
+      location.reload();
     });
-  }
+    document.getElementById("update-dismiss").addEventListener("click", function () {
+      nudge.hidden = true;
+    });
+
+    addEventListener("load", function () {
+      // A first visit has no controller, and the worker claiming the page for
+      // the first time is not a new version -- only a replacement is.
+      var hadController = !!navigator.serviceWorker.controller;
+
+      navigator.serviceWorker.register("sw.js").then(function (reg) {
+        // A tab left open all day would otherwise never ask again. The
+        // worker script bypasses the HTTP cache, so these checks are real.
+        setInterval(function () { reg.update().catch(function () {}); }, 300000);
+        addEventListener("visibilitychange", function () {
+          if (!document.hidden) reg.update().catch(function () {});
+        });
+      }).catch(function () {});
+
+      // The worker calls skipWaiting and claim, so a new build takes over the
+      // open page immediately -- but the page it is showing is still the old
+      // one. Hence an invitation to reload rather than a reload: a round in
+      // progress is the user's to finish.
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (hadController) nudge.hidden = false;
+      });
+    });
+  })();
 </script>
 </body>
 </html>
 `;
 fs.writeFileSync(path.join(OUT, "index.html"), page);
+
+/* The version names the service worker's cache, and a change to it is what
+   tells an open tab a new version is ready. So it hashes the page that is
+   actually shipped, not just the app source -- a change made out here in
+   the wrapper is every bit as much a new version.
+
+   Line endings are normalised first: git rewrites the working copy to CRLF
+   on Windows, and without this a fresh checkout would announce a new
+   version to everyone without a word of the page having changed. */
+const version = crypto.createHash("sha1")
+  .update(page.replace(/\r\n/g, "\n"))
+  .digest("hex").slice(0, 8);
 
 /* ------------------------------------------------------------------ icons */
 // A deck of two cards: one behind, one in front holding a word and its answer.
