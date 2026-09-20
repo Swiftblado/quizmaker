@@ -28,6 +28,7 @@
   --tok-answer:#0E7C5A;
   --tok-opt:#7B3FBF;
   --tok-paren:#B87503;
+  --wash-strength:14%;
   --shadow:0 1px 2px rgba(20,26,43,.06),0 8px 24px -12px rgba(20,26,43,.18);
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -57,6 +58,7 @@
     --tok-answer:#3DBB8E;
     --tok-opt:#C79BF0;
     --tok-paren:#E8A72C;
+    --wash-strength:9%;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
   }
 }
@@ -83,6 +85,7 @@
   --tok-answer:#3DBB8E;
   --tok-opt:#C79BF0;
   --tok-paren:#E8A72C;
+  --wash-strength:9%;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
 }
 *{box-sizing:border-box}
@@ -224,11 +227,11 @@ button{font:inherit;color:inherit}
 .pair input:hover{border-color:var(--rule)}
 .pair input:focus{background:var(--surface);border-color:var(--accent);outline:none}
 .pair input.term{font-family:var(--serif);font-size:16px}
-.pair .kill,.quiz-card .kill{
+.pair .kill,.quiz-card .kill,.folder-card .kill{
   padding:6px 8px;border:none;background:transparent;color:var(--faint);
   cursor:pointer;border-radius:6px;font-size:15px;line-height:1;
 }
-.pair .kill:hover,.quiz-card .kill:hover{background:var(--bad-soft);color:var(--bad)}
+.pair .kill:hover,.quiz-card .kill:hover,.folder-card .kill:hover{background:var(--bad-soft);color:var(--bad)}
 .note-chip{
   display:inline-block;margin-top:4px;font-size:11px;color:var(--muted);
   background:var(--surface-2);border:1px solid var(--rule-soft);padding:1px 6px;border-radius:4px;
@@ -527,7 +530,46 @@ button{font:inherit;color:inherit}
    it, so the two rows of the page read as one kind of thing. A colour
    fills the card; the text colour is derived from it rather than chosen,
    so a dark pick can never leave unreadable near-black on near-black. */
+.saved-head{display:flex;align-items:center;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+.saved-head .sp{flex:1}
 .quiz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
+
+/* ---- folders ----
+   Drawn as a folder rather than another card: a tab sits above the body,
+   so the two kinds of thing on this page are told apart at a glance and
+   not by reading them. The grid is padded at the top to leave the tabs
+   room, since they overhang. */
+.folder-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));
+  gap:10px;margin-bottom:14px;padding-top:9px;
+}
+.folder-card{
+  position:relative;display:flex;flex-direction:column;gap:2px;
+  padding:12px 13px 10px;border:1px solid var(--rule);
+  border-radius:0 10px 10px 10px;background:var(--surface-2);
+  box-shadow:var(--shadow);cursor:pointer;
+  transition:border-color .12s,background .12s;
+}
+.folder-card::before{
+  content:"";position:absolute;left:-1px;top:-9px;width:74px;height:10px;
+  background:inherit;border:1px solid var(--rule);border-bottom:0;
+  border-radius:7px 7px 0 0;
+}
+.folder-card:hover,.folder-card:focus-visible{border-color:var(--accent);background:var(--accent-soft)}
+.folder-card:hover::before,.folder-card:focus-visible::before{border-color:var(--accent)}
+.folder-name{
+  font-family:var(--serif);font-size:16.5px;font-weight:600;
+  width:100%;padding:3px 7px;margin-left:-7px;
+  background:transparent;color:var(--ink);
+  border:1px solid transparent;border-radius:7px;cursor:text;
+}
+.folder-name:hover{border-color:var(--rule);background:var(--surface)}
+.folder-name:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.folder-name::placeholder{color:var(--faint);font-style:italic}
+
+/* The folder chooser, inside the card of the quiz being moved. */
+.mover{display:flex;flex-wrap:wrap;gap:7px;padding:11px 0 2px;border-top:1px solid var(--rule-soft);margin-top:10px}
+.mover .sub-new{width:100%;margin-top:2px}
 .quiz-card{
   display:flex;flex-direction:column;gap:2px;padding:12px 13px 10px;
   border:1px solid var(--rule);border-radius:10px;
@@ -539,26 +581,32 @@ button{font:inherit;color:inherit}
 /* The frame stays the same rule colour on every card, coloured or not, so
    the row reads as one set. Deriving it from the fill instead made a white
    border on a dark card disappear against the page. */
-.quiz-card.tinted{background:var(--row-bg)}
-/* `.pair input` is more specific than `.saved-name`, so the name box keeps
-   its pale fill unless it is overridden here -- which on a dark card would
-   leave white text on near-white. */
-.quiz-card.tinted .saved-name{color:var(--row-ink);background:transparent;border-color:transparent}
-.quiz-card.tinted .saved-name::placeholder{color:var(--row-ink);opacity:.6}
-.quiz-card.tinted .saved-name:hover{border-color:var(--row-ink);background:transparent}
-.quiz-card.tinted .saved-name:focus{background:var(--surface);color:var(--ink);border-color:var(--accent)}
-.quiz-card.tinted .deck-meta{color:var(--row-ink);opacity:.8}
-.quiz-card.tinted .btn{background:transparent;border-color:var(--row-ink);color:var(--row-ink)}
-.quiz-card.tinted .btn:hover{background:var(--row-ink);color:var(--row-bg)}
-.quiz-card.tinted .kill{color:var(--row-ink);opacity:.85}
-.quiz-card.tinted .kill:hover{background:var(--row-ink);color:var(--row-bg);opacity:1}
+/* A quiz's colour marks its frame rather than flooding it: the border, a
+   bar across the top, and the faintest wash inside. A full fill was too
+   loud next to the ready-made tiles, and it forced the text to switch
+   colour to stay readable -- nothing sits on the colour now, so it cannot
+   be unreadable whatever is picked. The bar is an inset shadow so that it
+   follows the corner radius without clipping anything. */
+.quiz-card.tinted{
+  border-color:var(--row-bg);
+  background-color:var(--surface);
+  background-image:linear-gradient(var(--row-wash),var(--row-wash));
+  box-shadow:var(--shadow),inset 0 3px 0 var(--row-bg);
+}
 .swatch{
   flex:none;width:22px;height:22px;padding:0;border-radius:50%;cursor:pointer;
   border:1px dashed var(--faint);background:var(--surface-2);
 }
-/* On a tinted card a swatch filled with the card's own colour would be
-   invisible, so it becomes a dot in the contrasting ink instead. */
-.quiz-card.tinted .swatch{background:var(--row-ink) !important;border-color:var(--row-ink)}
+@supports (background: color-mix(in srgb, red 10%, white)) {
+  /* A flat alpha wash cannot know what it is sitting on: a pale colour that
+     reads as a soft tint on white turns muddy over the dark surface. Mixing
+     with the surface itself keeps the same strength of tint in both themes. */
+  .quiz-card.tinted{
+    background-image:none;
+    background-color:color-mix(in srgb, var(--row-bg) var(--wash-strength), var(--surface));
+  }
+}
+.quiz-card.tinted .swatch{background:var(--row-bg);border-style:solid;border-color:var(--row-bg)}
 .palette{display:flex;flex-wrap:wrap;gap:7px;padding:10px 0 2px}
 .palette button{
   width:24px;height:24px;border-radius:50%;cursor:pointer;
@@ -572,6 +620,16 @@ button{font:inherit;color:inherit}
 @keyframes sp{to{transform:rotate(360deg)}}
 .alert{margin-top:14px;padding:11px 14px;border-radius:8px;font-size:13.5px;background:var(--bad-soft);color:var(--bad)}
 .alert.info{background:var(--accent-soft);color:var(--accent-ink)}
+/* The "built" notice is the way into the quiz, so the whole notice is the
+   target rather than a link buried in it. */
+.built-notice{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;
+  font:inherit;font-size:13.5px;text-align:left;cursor:pointer;
+  border:1px solid var(--accent);
+}
+.built-notice:hover{background:var(--accent);color:var(--on-accent)}
+.built-notice b{font-family:var(--serif);font-size:15px;font-weight:600}
+.built-go{margin-left:auto;font-weight:600;white-space:nowrap}
 .sample-flag{
   display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:.07em;
   text-transform:uppercase;color:var(--almost);background:var(--almost-soft);padding:2px 7px;border-radius:4px;
@@ -665,8 +723,15 @@ button{font:inherit;color:inherit}
     <div class="starters" id="starters"></div>
 
     <div id="saved-box" style="margin-top:22px" hidden>
-      <div class="eyebrow" style="margin-bottom:9px">Your quizzes</div>
+      <div class="saved-head">
+        <button class="btn btn-sm" id="btn-back-folder" type="button" hidden>&larr; All quizzes</button>
+        <span class="eyebrow" id="saved-title">Your quizzes</span>
+        <span class="sp"></span>
+        <button class="btn btn-sm" id="btn-new-folder" type="button">New folder</button>
+      </div>
+      <div class="folder-grid" id="folder-list" hidden></div>
       <div class="quiz-grid" id="saved-list"></div>
+      <p class="sub-none" id="folder-empty" hidden>This folder is empty. Use <b>Move</b> on any quiz to put it in here.</p>
     </div>
   </section>
 
@@ -2701,136 +2766,347 @@ button{font:inherit;color:inherit}
     return 0.2126 * parts[0] + 0.7152 * parts[1] + 0.0722 * parts[2];
   }
 
-  function inkOn(hex) { return luminance(hex) < 0.42 ? "#FFFFFF" : "#141A2B"; }
+  // Fallback wash for browsers without color-mix. One modest alpha; the
+  // rule above does the theme-aware version where it is supported.
+  function washOf(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + ",0.13)";
+  }
 
-  /* ---------------- saved decks ---------------- */
+  /* ---------------- saved quizzes and folders ----------------
+     Quizzes are keyed by id rather than by position, because folders make
+     the list on screen a filtered view of storage, and an index into one
+     is not an index into the other.
+  ------------------------------------------------------------ */
   function savedDecks() { return readStore("qp:decks", []); }
 
+  // Decks made before folders existed have no id; without one they cannot
+  // be renamed, moved or deleted through a filtered view.
+  function ensureDeckIds() {
+    var list = savedDecks(), changed = false;
+    list.forEach(function (d) { if (!d.id) { d.id = uid(); changed = true; } });
+    if (changed) writeStore("qp:decks", list);
+  }
+
+  function updateDeck(id, fn) {
+    var list = savedDecks();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === id) { fn(list[i]); break; }
+    }
+    writeStore("qp:decks", list);
+  }
+
+  function removeDeck(id) {
+    writeStore("qp:decks", savedDecks().filter(function (d) { return d.id !== id; }));
+  }
+
+  function foldersList() { return readStore("qp:folders", []); }
+  function saveFolders(list) { writeStore("qp:folders", list); }
+
+  function folderById(id) {
+    var list = foldersList();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  // Which folder a quiz is really in. One pointing at a deleted folder is
+  // loose, not lost.
+  function folderOf(d) {
+    return d.folder && folderById(d.folder) ? d.folder : null;
+  }
+
+  function decksIn(folderId) {
+    return savedDecks().filter(function (d) { return folderOf(d) === folderId; });
+  }
+
+  var currentFolder = null;   // the folder being looked inside; null is the top
+
+  function openFolder(id) { currentFolder = id; renderSaved(); }
+
+  $("btn-back-folder").addEventListener("click", function () { openFolder(null); });
+
+  $("btn-new-folder").addEventListener("click", function () {
+    var list = foldersList();
+    var f = { id: "f" + uid().slice(1), name: "New folder" };
+    list.push(f);
+    saveFolders(list);
+    renderSaved();
+    // Land in the name box: a folder called "New folder" is no use to anyone.
+    var made = $("folder-list").lastChild;
+    var input = made && made.querySelector(".folder-name");
+    if (input) { input.focus(); input.select(); }
+  });
+
   function renderSaved() {
-    var decks = savedDecks();
-    $("saved-box").hidden = decks.length === 0;
+    ensureDeckIds();
+    var folders = foldersList();
+    var all = savedDecks();
+    $("saved-box").hidden = !all.length && !folders.length;
+
+    // A folder deleted while open drops you back to the top level.
+    if (currentFolder && !folderById(currentFolder)) currentFolder = null;
+    var here = currentFolder;
+
+    $("btn-back-folder").hidden = !here;
+    $("btn-new-folder").hidden = !!here;
+    $("saved-title").textContent = here ? folderById(here).name : "Your quizzes";
+
+    var fhost = $("folder-list");
+    fhost.textContent = "";
+    fhost.hidden = !!here || !folders.length;
+    if (!here) folders.forEach(function (f) { fhost.appendChild(folderCard(f)); });
+
     var host = $("saved-list");
     host.textContent = "";
+    var mine = decksIn(here);
+    host.hidden = !mine.length;
+    mine.forEach(function (d) { host.appendChild(quizCard(d)); });
 
-    decks.forEach(function (d, i) {
-      var card = document.createElement("div");
-      card.className = "quiz-card";
-      if (d.color) {
-        card.classList.add("tinted");
-        card.style.setProperty("--row-bg", d.color);
-        card.style.setProperty("--row-ink", inkOn(d.color));
-      }
+    $("folder-empty").hidden = !(here && !mine.length);
+  }
 
-      // Renaming a quiz is typing in its name, same as on the deck screen --
-      // no dialog, no separate rename mode.
-      var title = document.createElement("input");
-      title.className = "saved-name";
-      title.value = d.title || "";
-      title.placeholder = "Name this quiz";
-      title.maxLength = 60;
-      title.setAttribute("aria-label", "Name of this quiz");
-      function commit() {
-        var list = savedDecks();
-        if (!list[i]) return;
-        list[i].title = title.value.trim() || "Untitled quiz";
-        writeStore("qp:decks", list);
-        d.title = list[i].title;
+  /* ---------------- a folder ---------------- */
+  function folderCard(f) {
+    var card = document.createElement("div");
+    card.className = "folder-card";
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+
+    var name = document.createElement("input");
+    name.className = "folder-name";
+    name.value = f.name || "";
+    name.placeholder = "Name this folder";
+    name.maxLength = 40;
+    name.setAttribute("aria-label", "Name of this folder");
+    // Typing in the name must not also open the folder underneath it.
+    name.addEventListener("click", function (e) { e.stopPropagation(); });
+    name.addEventListener("keydown", function (e) {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); name.blur(); }
+    });
+    name.addEventListener("blur", function () {
+      var list = foldersList();
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === f.id) {
+          list[i].name = name.value.trim() || "Untitled folder";
+          f.name = list[i].name;
+          break;
         }
-      title.addEventListener("blur", function () { commit(); title.value = d.title; });
-      title.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") { e.preventDefault(); title.blur(); }
-      });
-
-      // Sub-lists are counted here but not listed: they are opened from the
-      // menu at the top of the page, under the quiz they belong to.
-      var meta = document.createElement("div");
-      meta.className = "deck-meta";
-      var subs = (d.subs || []).length;
-      var bits = [words(d.pairs.length)];
-      if (d.langA && d.langB && d.langA !== "Column A") bits.push(d.langA + " → " + d.langB);
-      if (subs) bits.push(subs + (subs === 1 ? " sub-list" : " sub-lists"));
-      meta.textContent = bits.join(" · ");
-
-      var swatch = document.createElement("button");
-      swatch.type = "button";
-      swatch.className = "swatch";
-      swatch.title = "Colour this quiz";
-      swatch.setAttribute("aria-label", "Colour for " + (d.title || "this quiz"));
-      if (d.color) swatch.style.background = d.color;
-      // The picker opens inside the card rather than over it, so the change
-      // can be judged against the frame it applies to.
-      var palette = null;
-      swatch.addEventListener("click", function () {
-        if (palette) { palette.parentNode.removeChild(palette); palette = null; return; }
-        palette = document.createElement("div");
-        palette.className = "palette";
-        [""].concat(PALETTE).forEach(function (c) {
-          var b = document.createElement("button");
-          b.type = "button";
-          b.setAttribute("aria-pressed", String((d.color || "") === c));
-          if (c) { b.style.background = c; b.setAttribute("aria-label", c); }
-          else {
-            b.className = "none";
-            b.textContent = "✗";
-            b.setAttribute("aria-label", "No colour");
-          }
-          b.addEventListener("click", function () {
-            var list = savedDecks();
-            if (!list[i]) return;
-            if (c) list[i].color = c; else delete list[i].color;
-            writeStore("qp:decks", list);
-            renderSaved();
-          });
-          palette.appendChild(b);
-        });
-        card.appendChild(palette);
-      });
-
-      // This quiz's own menu. It carries the count so the card says what
-      // is behind it without having to be opened.
-      var lists = document.createElement("button");
-      lists.type = "button";
-      lists.className = "btn btn-sm";
-      lists.textContent = "Lists" + (subs ? " · " + subs : "");
-      lists.title = "Open this quiz's lists";
-      lists.setAttribute("aria-haspopup", "dialog");
-      lists.addEventListener("click", function () { openSidePanel(d); });
-
-      var open = document.createElement("button");
-      open.type = "button";
-      open.className = "btn btn-sm";
-      open.textContent = "Open";
-      open.addEventListener("click", function () { loadDeck(JSON.parse(JSON.stringify(d))); });
-
-      var kill = document.createElement("button");
-      kill.type = "button";
-      kill.className = "kill";
-      kill.textContent = "✕";
-      kill.setAttribute("aria-label", "Delete " + (d.title || "quiz"));
-      kill.addEventListener("click", function () {
-        var list = savedDecks();
-        list.splice(i, 1);
-        writeStore("qp:decks", list);
-        renderSaved();
-      });
-
-      var sp = document.createElement("span");
-      sp.className = "sp";
-
-      var foot = document.createElement("div");
-      foot.className = "quiz-card-foot";
-      foot.appendChild(swatch);
-      foot.appendChild(sp);
-      foot.appendChild(lists);
-      foot.appendChild(open);
-      foot.appendChild(kill);
-
-      card.appendChild(title);
-      card.appendChild(meta);
-      card.appendChild(foot);
-      host.appendChild(card);
+      }
+      saveFolders(list);
+      name.value = f.name;
+      if (currentFolder === f.id) $("saved-title").textContent = f.name;
     });
 
+    var n = decksIn(f.id).length;
+    var meta = document.createElement("div");
+    meta.className = "deck-meta";
+    meta.textContent = n + (n === 1 ? " quiz" : " quizzes");
+
+    var kill = document.createElement("button");
+    kill.type = "button";
+    kill.className = "kill";
+    kill.textContent = "✕";
+    kill.setAttribute("aria-label", "Delete the folder " + (f.name || "folder"));
+    kill.title = "Delete this folder. The quizzes inside it are kept.";
+    kill.addEventListener("click", function (e) {
+      e.stopPropagation();
+      saveFolders(foldersList().filter(function (x) { return x.id !== f.id; }));
+      renderSaved();      // the quizzes reappear loose, by way of folderOf
+    });
+
+    var sp = document.createElement("span");
+    sp.className = "sp";
+    var foot = document.createElement("div");
+    foot.className = "quiz-card-foot";
+    foot.appendChild(sp);
+    foot.appendChild(kill);
+
+    card.appendChild(name);
+    card.appendChild(meta);
+    card.appendChild(foot);
+    card.addEventListener("click", function () { openFolder(f.id); });
+    card.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openFolder(f.id); }
+    });
+    return card;
+  }
+
+  /* ---------------- a quiz ---------------- */
+  function quizCard(d) {
+    var card = document.createElement("div");
+    card.className = "quiz-card";
+    if (d.color) {
+      card.classList.add("tinted");
+      card.style.setProperty("--row-bg", d.color);
+      card.style.setProperty("--row-wash", washOf(d.color));
+    }
+
+    // Renaming a quiz is typing in its name, same as on the deck screen.
+    var title = document.createElement("input");
+    title.className = "saved-name";
+    title.value = d.title || "";
+    title.placeholder = "Name this quiz";
+    title.maxLength = 60;
+    title.setAttribute("aria-label", "Name of this quiz");
+    title.addEventListener("blur", function () {
+      var name = title.value.trim() || "Untitled quiz";
+      updateDeck(d.id, function (x) { x.title = name; });
+      d.title = name;
+      title.value = name;
+    });
+    title.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); title.blur(); }
+    });
+
+    // Sub-lists are counted, not listed: they open from this quiz's panel.
+    var meta = document.createElement("div");
+    meta.className = "deck-meta";
+    var subs = (d.subs || []).length;
+    var bits = [words(d.pairs.length)];
+    if (d.langA && d.langB && d.langA !== "Column A") bits.push(d.langA + " → " + d.langB);
+    if (subs) bits.push(subs + (subs === 1 ? " sub-list" : " sub-lists"));
+    meta.textContent = bits.join(" · ");
+
+    var swatch = document.createElement("button");
+    swatch.type = "button";
+    swatch.className = "swatch";
+    swatch.title = "Colour this quiz";
+    swatch.setAttribute("aria-label", "Colour for " + (d.title || "this quiz"));
+    if (d.color) swatch.style.background = d.color;
+    var palette = null;
+    swatch.addEventListener("click", function () {
+      if (palette) { palette.parentNode.removeChild(palette); palette = null; return; }
+      palette = document.createElement("div");
+      palette.className = "palette";
+      [""].concat(PALETTE).forEach(function (c) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("aria-pressed", String((d.color || "") === c));
+        if (c) { b.style.background = c; b.setAttribute("aria-label", c); }
+        else {
+          b.className = "none";
+          b.textContent = "✗";
+          b.setAttribute("aria-label", "No colour");
+        }
+        b.addEventListener("click", function () {
+          updateDeck(d.id, function (x) { if (c) x.color = c; else delete x.color; });
+          renderSaved();
+        });
+        palette.appendChild(b);
+      });
+      card.appendChild(palette);
+    });
+
+    var move = document.createElement("button");
+    move.type = "button";
+    move.className = "btn btn-sm";
+    move.textContent = "Move";
+    move.title = "Put this quiz in a folder";
+    var mover = null;
+    move.addEventListener("click", function () {
+      if (mover) { mover.parentNode.removeChild(mover); mover = null; return; }
+      mover = buildMover(d);
+      card.appendChild(mover);
+    });
+
+    var lists = document.createElement("button");
+    lists.type = "button";
+    lists.className = "btn btn-sm";
+    lists.textContent = "Lists" + (subs ? " · " + subs : "");
+    lists.title = "Open this quiz's lists";
+    lists.setAttribute("aria-haspopup", "dialog");
+    lists.addEventListener("click", function () { openSidePanel(d); });
+
+    var open = document.createElement("button");
+    open.type = "button";
+    open.className = "btn btn-sm";
+    open.textContent = "Open";
+    open.addEventListener("click", function () { loadDeck(JSON.parse(JSON.stringify(d))); });
+
+    var kill = document.createElement("button");
+    kill.type = "button";
+    kill.className = "kill";
+    kill.textContent = "✕";
+    kill.setAttribute("aria-label", "Delete " + (d.title || "quiz"));
+    kill.addEventListener("click", function () { removeDeck(d.id); renderSaved(); });
+
+    var sp = document.createElement("span");
+    sp.className = "sp";
+    var foot = document.createElement("div");
+    foot.className = "quiz-card-foot";
+    foot.appendChild(swatch);
+    foot.appendChild(sp);
+    foot.appendChild(move);
+    foot.appendChild(lists);
+    foot.appendChild(open);
+    foot.appendChild(kill);
+
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(foot);
+    return card;
+  }
+
+  // The folder chooser, opened inside the card so the quiz being moved stays
+  // in view while its destination is picked.
+  function buildMover(d) {
+    var box = document.createElement("div");
+    box.className = "mover";
+
+    function row(label, run, isCurrent) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "sub-chip";
+      b.textContent = label;
+      b.disabled = !!isCurrent;
+      b.setAttribute("aria-pressed", String(!!isCurrent));
+      if (!isCurrent) b.addEventListener("click", run);
+      box.appendChild(b);
+    }
+
+    var at = folderOf(d);
+    row("No folder", function () {
+      updateDeck(d.id, function (x) { delete x.folder; });
+      renderSaved();
+    }, at === null);
+
+    foldersList().forEach(function (f) {
+      row(f.name, function () {
+        updateDeck(d.id, function (x) { x.folder = f.id; });
+        renderSaved();
+      }, at === f.id);
+    });
+
+    var mk = document.createElement("div");
+    mk.className = "sub-new";
+    var input = document.createElement("input");
+    input.placeholder = "New folder name";
+    input.maxLength = 40;
+    input.autocomplete = "off";
+    var go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn btn-sm";
+    go.textContent = "Create and move";
+    function create() {
+      var name = input.value.trim();
+      if (!name) return;
+      var list = foldersList();
+      var f = { id: "f" + uid().slice(1), name: name };
+      list.push(f);
+      saveFolders(list);
+      updateDeck(d.id, function (x) { x.folder = f.id; });
+      renderSaved();
+    }
+    go.addEventListener("click", create);
+    input.addEventListener("keydown", function (e) {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); create(); }
+    });
+    mk.appendChild(input);
+    mk.appendChild(go);
+    box.appendChild(mk);
+    return box;
   }
 
   $("btn-save").addEventListener("click", function () {
@@ -3081,11 +3357,48 @@ button{font:inherit;color:inherit}
       flash("Add at least two lines, each with a word and its meaning.");
       return;
     }
-    loadDeck({
+    // Building saves. The quiz is kept the moment it exists, rather than
+    // waiting for a second button that was easy to walk away without
+    // pressing, and the page stays where it is: an announcement with the
+    // way in on it, instead of being taken somewhere.
+    var built = {
       title: $("quiz-name").value.trim() || "Typed list",
       langA: "Column A", langB: "Column B", pairs: res.pairs, sample: false
-    });
+    };
+    if (currentFolder) built.folder = currentFolder;
+    persistDeck(built);
+
+    // The box is emptied because the quiz is now safely in the list below;
+    // leaving the words in it invites a second press and a duplicate.
+    PASTE.value = "";
+    $("quiz-name").value = "";
+    renderHighlight();
+    announceBuilt(built);
   });
+
+  // The notice that a quiz was built. The whole thing is the way into it.
+  function announceBuilt(d) {
+    var box = $("read-box");
+    box.hidden = false;
+    box.textContent = "";
+    var el = document.createElement("button");
+    el.type = "button";
+    el.className = "alert info built-notice";
+    var line = document.createElement("span");
+    line.innerHTML = "Built and saved “<b></b>” · " + words(d.pairs.length) + ".";
+    line.querySelector("b").textContent = d.title;
+    var go = document.createElement("span");
+    go.className = "built-go";
+    go.textContent = "Open it →";
+    el.appendChild(line);
+    el.appendChild(go);
+    el.addEventListener("click", function () {
+      box.hidden = true;
+      box.textContent = "";
+      loadDeck(JSON.parse(JSON.stringify(d)));
+    });
+    box.appendChild(el);
+  }
 
   // The name sits above the list, so Enter there means "done naming, build it"
   // rather than submitting an empty nothing.
