@@ -574,8 +574,11 @@ button{font:inherit;color:inherit}
   content:"";position:absolute;left:14px;right:14px;top:6px;height:12px;
   background:var(--f-paper);border-radius:3px 3px 0 0;z-index:0;
 }
+/* The sheet runs down behind the front panel rather than stopping short of
+   it: ending at 32px left a band of bare back panel showing between the
+   two. The overlap is hidden, the front being the layer above. */
 .folder-card.has-items.drop-in::after,
-.folder-card.has-items.open-folder::after{top:6px;height:26px}
+.folder-card.has-items.open-folder::after{top:6px;height:40px}
 .folder-card.has-items.open-folder.drop-in::after{top:6px;height:12px}
 
 /* The front panel. */
