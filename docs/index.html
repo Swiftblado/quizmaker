@@ -642,23 +642,66 @@ button{font:inherit;color:inherit}
 .ask-yes:hover:not(:disabled){background:var(--bad);border-color:var(--bad);filter:brightness(1.1)}
 
 /* ---- dragging ----
-   Two different answers, shown two different ways: a ring means "inside
-   this", a bar down one edge means "beside it, here". */
-.is-dragging{opacity:.4}
-.drop-in{outline:2px solid var(--accent);outline-offset:2px}
-.drop-before,.drop-after{position:relative}
-.drop-before::after,.drop-after::after{
-  content:"";position:absolute;top:-4px;bottom:-4px;width:3px;
-  background:var(--accent);border-radius:2px;
+   The card travels and its neighbours part around it, so there is nothing
+   left behind to mark and no line to draw: the shelf mid-drag already is
+   the answer. The one thing still worth saying is "inside this one", and
+   a folder says that by easing open. The same movement runs for exactly as
+   long as the hold that springs it, so the folder finishing its opening IS
+   the countdown. */
+.is-dragging{opacity:.35}
+.quiz-card,.folder-card{transition:transform .14s ease,box-shadow .12s,filter .12s}
+.drop-in{outline:2px solid var(--accent);outline-offset:3px}
+@keyframes folder-ajar{
+  from{transform:translateY(0) rotate(0deg)}
+  to{transform:translateY(-9px) rotate(-3.5deg)}
 }
-.drop-before::after{left:-7px}
-.drop-after::after{right:-7px}
-.folder-card.drop-before::after,.folder-card.drop-after::after{z-index:3}
+@keyframes folder-mouth{
+  from{transform:translateY(0) scaleY(1)}
+  to{transform:translateY(-5px) scaleY(1.9)}
+}
+.folder-card.drop-in::before{animation:folder-ajar 1.5s ease-out forwards;transform-origin:left bottom}
+.folder-card.drop-in::after{animation:folder-mouth 1.5s ease-out forwards;transform-origin:bottom}
+@media (prefers-reduced-motion:reduce){
+  .folder-card.drop-in::before,.folder-card.drop-in::after{animation:none}
+}
 /* While a sub-list is being dragged out of the panel, the scrim must not
    swallow the drop. */
 .dragging-sub .side-scrim{pointer-events:none;opacity:.12}
 .side-item[draggable="true"]{cursor:grab}
 .side-item[draggable="true"]:active{cursor:grabbing}
+
+/* ---- the way out ----
+   An open folder: the front flap leaning down and away, the sheet inside
+   standing clear of it. It reads as the folder you are standing in, seen
+   from the front, which is what going back out means. */
+.folder-card.open-folder{
+  background:linear-gradient(174deg,var(--manila-deep) 0%,var(--manila) 100%);
+  justify-content:flex-start;
+}
+.folder-card.open-folder::before{
+  height:11px;top:-10px;width:66px;
+  background:var(--manila-deep);
+}
+.folder-card.open-folder::after{
+  right:auto;left:11px;top:-7px;width:62%;height:12px;
+  background:#FFFDF6;border-radius:3px 3px 0 0;
+}
+/* the front panel, hinged along the bottom and tipped towards you: the
+   folder you are standing in, seen from the front. */
+.open-folder .flap{
+  position:absolute;left:-1px;right:-1px;bottom:-1px;height:58%;
+  background:linear-gradient(180deg,var(--manila) 0%,var(--manila-deep) 100%);
+  border:1px solid var(--manila-line);border-radius:2px 14px 10px 10px;
+  transform:perspective(340px) rotateX(15deg);transform-origin:bottom center;
+  box-shadow:0 -7px 12px -9px rgba(0,0,0,.45);
+}
+.folder-card.open-folder{padding-bottom:16px}
+.folder-card.open-folder .folder-name.static{position:relative;z-index:1}
+.folder-card.open-folder .deck-meta{position:relative;z-index:1;color:#6A5316}
+.folder-name.static{
+  font-family:var(--serif);font-size:16.5px;font-weight:600;
+  padding:3px 0;color:inherit;
+}
 
 /* ---- a sub-list that lives in a folder ---- */
 .sub-ref{border-style:dashed}
@@ -2968,7 +3011,7 @@ button{font:inherit;color:inherit}
              words: it resolves through its parent every time it is drawn,
              so renaming a word in the quiz is not a stale copy here.
   --------------------------------------------------------------------- */
-  var TRASH_DAYS = 30;
+  var TRASH_DAYS = 7;
 
   function savedDecks() { return readStore("qp:decks", []); }
   function writeDecks(list) { writeStore("qp:decks", list); }
@@ -3172,21 +3215,83 @@ button{font:inherit;color:inherit}
     if (kind === "folder") saveFolders(list); else writeDecks(list);
   }
 
-  /* ---------------- drag and drop ---------------- */
-  var dragging = null;    // {kind:"quiz"|"folder"|"sub-list", id, ...}
+  /* ---------------- drag and drop ----------------
+     The card itself travels: as it passes over its neighbours they part
+     and close behind it, so what is on screen mid-drag is already the
+     answer. That is why there is no line marking where it will land --
+     it has already landed, and letting go only writes it down.
+  ------------------------------------------------ */
+  var dragging = null;     // {kind,id} or {kind:"sub-list",deckId,subName}
+  var draggedEl = null;    // the card in flight, so the shelf can part around it
+  var springTimer = null, springAt = null;
+
+  // Held over a folder this long, the folder opens and the drag carries on
+  // inside it -- the one way to reach a folder three levels down without
+  // putting the thing down first.
+  var SPRING_MS = 1500;
+
+  function cancelSpring() {
+    if (springTimer) clearTimeout(springTimer);
+    springTimer = null;
+    springAt = null;
+  }
+
+  function armSpring(key, run) {
+    if (springAt === key) return;     // already counting down on this one
+    cancelSpring();
+    springAt = key;
+    springTimer = setTimeout(function () {
+      springTimer = null;
+      springAt = null;
+      run();
+    }, SPRING_MS);
+  }
 
   function clearDropMarks() {
-    var marked = document.querySelectorAll(".drop-in,.drop-before,.drop-after");
-    Array.prototype.forEach.call(marked, function (el) {
-      el.classList.remove("drop-in", "drop-before", "drop-after");
+    var marked = document.querySelectorAll(".drop-in");
+    Array.prototype.forEach.call(marked, function (el) { el.classList.remove("drop-in"); });
+  }
+
+  /* The shelf on screen is the order. Reading it back writes the cards into
+     the slots their kind already occupies in storage, so anything filtered
+     out of this view keeps its place. */
+  function commitOrder(grid, kind) {
+    if (!grid) return;
+    var ids = [];
+    Array.prototype.forEach.call(grid.children, function (el) {
+      if (el.dataset && el.dataset.id) ids.push(el.dataset.id);
     });
+    if (!ids.length) return;
+    var pos = {};
+    ids.forEach(function (id, i) { pos[id] = i; });
+
+    var list = kind === "folder" ? foldersList() : savedDecks();
+    var slots = [], moving = [];
+    list.forEach(function (x, i) {
+      if (pos[x.id] !== undefined) { slots.push(i); moving.push(x); }
+    });
+    moving.sort(function (a, b) { return pos[a.id] - pos[b.id]; });
+    slots.forEach(function (slot, i) { list[slot] = moving[i]; });
+    if (kind === "folder") saveFolders(list); else writeDecks(list);
+  }
+
+  // Part the shelf around the card in flight. Only within one grid: a quiz
+  // cannot take a place among the folders.
+  function partAround(target, before) {
+    if (!draggedEl || !draggedEl.isConnected) return;
+    if (target === draggedEl || target.parentNode !== draggedEl.parentNode) return;
+    target.parentNode.insertBefore(draggedEl, before ? target : target.nextSibling);
   }
 
   function makeDraggable(el, kind, id) {
     el.draggable = true;
+    el.dataset.id = id;
     el.addEventListener("dragstart", function (e) {
       dragging = { kind: kind, id: id };
-      el.classList.add("is-dragging");
+      draggedEl = el;
+      // Applied a tick late: the drag image is taken from the element as it
+      // was, and dimming it first would drag a dimmed picture around.
+      setTimeout(function () { el.classList.add("is-dragging"); }, 0);
       try {
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", kind + ":" + id);
@@ -3194,21 +3299,38 @@ button{font:inherit;color:inherit}
     });
     el.addEventListener("dragend", function () {
       el.classList.remove("is-dragging");
-      dragging = null;
-      document.body.classList.remove("dragging-sub");
-      clearDropMarks();
+      finishDrag();
     });
   }
 
-  // A card takes a drop three ways: into it, before it, or after it. The
-  // middle of a folder means "inside"; the edges mean "beside". A quiz has
-  // no inside, so it is halves.
+  function finishDrag() {
+    // A drag that only rearranged the shelf is written down here, from the
+    // order on screen. One that moved something elsewhere cleared `dragging`
+    // when it did, and has already redrawn.
+    if (dragging && dragging.kind !== "sub-list" && draggedEl && draggedEl.isConnected) {
+      commitOrder(draggedEl.parentNode, dragging.kind === "folder" ? "folder" : "quiz");
+      dragging = null;
+      draggedEl = null;
+      cancelSpring();
+      clearDropMarks();
+      renderSaved();
+      return;
+    }
+    dragging = null;
+    draggedEl = null;
+    cancelSpring();
+    document.body.classList.remove("dragging-sub");
+    clearDropMarks();
+  }
+
+  // A folder has an inside; its edges are somewhere to stand beside it. A
+  // quiz has no inside, so it is halves.
   function dropZone(el, e, canHold) {
     var r = el.getBoundingClientRect();
     var x = (e.clientX - r.left) / r.width;
     if (!canHold) return x < 0.5 ? "before" : "after";
-    if (x < 0.25) return "before";
-    if (x > 0.75) return "after";
+    if (x < 0.22) return "before";
+    if (x > 0.78) return "after";
     return "in";
   }
 
@@ -3216,7 +3338,7 @@ button{font:inherit;color:inherit}
     if (!dragging) return false;
     if (dragging.kind === "sub-list") return true;
     if (dragging.id === id) return false;
-    // A folder cannot be put inside itself or anything it contains.
+    // A folder cannot be put inside itself or anything it already holds.
     if (dragging.kind === "folder" && kind === "folder" && isDescendant(id, dragging.id)) return false;
     return true;
   }
@@ -3226,54 +3348,159 @@ button{font:inherit;color:inherit}
       if (!acceptsDrop(kind, id)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      var zone = dropZone(el, e, kind === "folder");
+      var canHold = kind === "folder";
+      var zone = dropZone(el, e, canHold);
+
+      if (zone === "in" && canHold) {
+        if (!el.classList.contains("drop-in")) {
+          clearDropMarks();
+          el.classList.add("drop-in");      // the folder eases open
+        }
+        armSpring("in:" + id, function () {
+          el.classList.remove("drop-in");
+          openFolder(id);                   // still holding it; carry on inside
+        });
+        return;
+      }
       clearDropMarks();
-      el.classList.add(zone === "in" ? "drop-in" : zone === "before" ? "drop-before" : "drop-after");
+      cancelSpring();
+      partAround(el, zone === "before");
     });
-    el.addEventListener("dragleave", function () { el.classList.remove("drop-in", "drop-before", "drop-after"); });
+
+    el.addEventListener("dragleave", function (e) {
+      if (el.contains(e.relatedTarget)) return;
+      el.classList.remove("drop-in");
+      if (springAt === "in:" + id) cancelSpring();
+    });
+
     el.addEventListener("drop", function (e) {
       if (!acceptsDrop(kind, id)) return;
       e.preventDefault();
       e.stopPropagation();
       var zone = dropZone(el, e, kind === "folder");
       var drag = dragging;
+      cancelSpring();
       clearDropMarks();
       if (!drag) return;
 
       if (drag.kind === "sub-list") {
-        var into = zone === "in" && kind === "folder" ? id : currentFolder;
-        makeSubRef(drag, into);
-      } else if (zone === "in" && kind === "folder") {
-        moveInto(drag.kind, drag.id, id);
-      } else if (drag.kind === kind) {
-        reorder(kind, drag.id, id, zone === "after");
-      } else {
-        // A quiz dropped beside a folder, or the reverse: it belongs in the
-        // container being looked at, which is where the target is.
-        moveInto(drag.kind, drag.id, currentFolder);
+        makeSubRef(drag, zone === "in" && kind === "folder" ? id : currentFolder);
+        dragging = null;
+        renderSaved();
+        return;
       }
-      dragging = null;
-      renderSaved();        // deliberately not openFolder: stay where you are
+      if (zone === "in" && kind === "folder") {
+        moveInto(drag.kind, drag.id, id);
+        dragging = null;
+        renderSaved();
+        return;
+      }
+      if (drag.kind !== kind) {
+        // A quiz set down beside a folder, or the reverse: it belongs in
+        // whatever is being looked at.
+        moveInto(drag.kind, drag.id, currentFolder);
+        dragging = null;
+        renderSaved();
+        return;
+      }
+      // Same kind, set down beside: the shelf already shows it. dragend writes it.
     });
   }
 
-  // Dropping on the empty space of a grid means "in here, at the end".
+  // The empty space of a grid means "in here, after everything else".
   function wireGridDrop(el) {
     el.addEventListener("dragover", function (e) {
       if (!dragging) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
+      if (e.target === el && draggedEl && draggedEl.isConnected &&
+          draggedEl.parentNode === el && el.lastChild !== draggedEl) {
+        el.appendChild(draggedEl);
+      }
     });
     el.addEventListener("drop", function (e) {
       if (!dragging || e.target !== el) return;
       e.preventDefault();
       var drag = dragging;
+      cancelSpring();
       clearDropMarks();
-      if (drag.kind === "sub-list") makeSubRef(drag, currentFolder);
-      else moveInto(drag.kind, drag.id, currentFolder);
+      if (drag.kind === "sub-list") {
+        makeSubRef(drag, currentFolder);
+        dragging = null;
+        renderSaved();
+        return;
+      }
+      if (draggedEl && draggedEl.parentNode === el) return;   // rearranged; dragend writes it
+      moveInto(drag.kind, drag.id, currentFolder);
       dragging = null;
       renderSaved();
     });
+  }
+
+  /* ---------------- the way out ----------------
+     An open folder in the first slot of an opened folder: the way back out,
+     and somewhere to put a thing to take it out with you. It springs like
+     any folder, so a thing can be walked out several levels without being
+     set down.
+  ---------------------------------------------- */
+  function openFolderCard(parentId) {
+    var card = document.createElement("div");
+    card.className = "folder-card open-folder";
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+
+    var name = document.createElement("div");
+    name.className = "folder-name static";
+    name.textContent = parentId
+      ? (folderById(parentId) || {}).name || "Up one"
+      : "Your quizzes";
+
+    var meta = document.createElement("div");
+    meta.className = "deck-meta";
+    meta.textContent = "Back out · or drop here to take it out";
+
+    var flap = document.createElement("div");
+    flap.className = "flap";
+
+    card.appendChild(flap);
+    card.appendChild(name);
+    card.appendChild(meta);
+    card.addEventListener("click", function () { openFolder(parentId); });
+    card.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openFolder(parentId); }
+    });
+
+    card.addEventListener("dragover", function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (!card.classList.contains("drop-in")) {
+        clearDropMarks();
+        card.classList.add("drop-in");
+      }
+      armSpring("out", function () {
+        card.classList.remove("drop-in");
+        openFolder(parentId);
+      });
+    });
+    card.addEventListener("dragleave", function (e) {
+      if (card.contains(e.relatedTarget)) return;
+      card.classList.remove("drop-in");
+      if (springAt === "out") cancelSpring();
+    });
+    card.addEventListener("drop", function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var drag = dragging;
+      cancelSpring();
+      clearDropMarks();
+      if (drag.kind === "sub-list") makeSubRef(drag, parentId);
+      else moveInto(drag.kind, drag.id, parentId);
+      dragging = null;
+      renderSaved();
+    });
+    return card;
   }
 
   // A sub-list dragged out of its panel becomes a card of its own. It keeps
@@ -3324,7 +3551,8 @@ button{font:inherit;color:inherit}
     var fhost = $("folder-list");
     fhost.textContent = "";
     var subFolders = foldersIn(here);
-    fhost.hidden = !subFolders.length;
+    fhost.hidden = !here && !subFolders.length;
+    if (here) fhost.appendChild(openFolderCard(parentOf(folderById(here))));
     subFolders.forEach(function (f) { fhost.appendChild(folderCard(f)); });
 
     var host = $("saved-list");
