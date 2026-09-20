@@ -535,52 +535,84 @@ button{font:inherit;color:inherit}
 .quiz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
 
 /* ---- folders ----
-   A folder, drawn as one: manila yellow, a tab over the body, a spine
-   crease down the inside edge and the corner of a sheet showing above the
-   rim. The colour is its own rather than the theme's, because a folder is
-   a folder in both; in the dark it is dimmed rather than recoloured, so it
-   does not glow. */
+   Two panels, the way a folder is actually built: the card itself is the
+   back, carrying the tab, and .flap is the front laid over it. Shut, the
+   front covers the back to just under the tab. Open, the front keeps its
+   top edge and splays outward at the foot -- which is what opening one
+   does, rather than anything tilting or sliding. A folder with something
+   in it shows a sheet standing between the two panels; an empty one has
+   nothing to show, so it shows nothing.
+*/
 .folder-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));
-  gap:12px;margin-bottom:16px;padding-top:22px;   /* the sheets of an open folder stand above the rim */
+  gap:14px;margin-bottom:16px;padding-top:16px;   /* the tab stands above the rim */
 }
 .folder-card{
-  --manila:#F2C86B;
-  --manila-deep:#E0AE43;
-  --manila-line:#C79433;
+  --f-back:#E09A12;
+  --f-front-a:#FFCB3D;
+  --f-front-b:#FDB813;
+  --f-paper:#FFF8E6;
+  --f-ink:#5A3F06;
   position:relative;display:flex;flex-direction:column;gap:2px;
-  padding:13px 14px 12px;border:1px solid var(--manila-line);
-  border-radius:0 10px 10px 10px;
-  background:linear-gradient(174deg,var(--manila) 0%,var(--manila-deep) 100%);
-  box-shadow:var(--shadow);cursor:pointer;color:#3A2B08;
+  padding:27px 15px 12px;
+  border-radius:0 11px 11px 11px;
+  background:var(--f-back);
+  box-shadow:var(--shadow);
+  cursor:pointer;color:var(--f-ink);
   transition:transform .1s,box-shadow .12s,filter .12s;
 }
-/* the tab */
+/* The tab, its right edge stepping down into the back panel. */
 .folder-card::before{
-  content:"";position:absolute;left:-1px;top:-12px;width:78px;height:13px;
-  background:var(--manila);
-  border:1px solid var(--manila-line);border-bottom:0;
-  border-radius:8px 8px 0 0;
+  content:"";position:absolute;left:0;top:-13px;width:88px;height:14px;
+  background:var(--f-back);border-radius:7px 7px 0 0;
+  clip-path:polygon(0 0,66% 0,100% 100%,0 100%);
 }
-/* the sheet inside, peeking over the rim, and the spine crease */
-.folder-card::after{
-  content:"";position:absolute;right:16px;top:-5px;width:44%;height:8px;
-  background:#FFFDF6;border:1px solid rgba(0,0,0,.14);border-bottom:0;
-  border-radius:3px 3px 0 0;z-index:-1;
+/* The sheet inside. Only a folder holding something has one, and an open
+   one shows more of it. */
+.folder-card::after{content:none}
+.folder-card.has-items::after{
+  content:"";position:absolute;left:14px;right:14px;top:8px;height:13px;
+  background:var(--f-paper);border-radius:3px 3px 0 0;z-index:0;
 }
-.folder-card:hover{transform:translateY(-1px);filter:saturate(1.06) brightness(1.03)}
+.folder-card.has-items.drop-in::after,
+.folder-card.has-items.open-folder::after{top:3px;height:18px}
+
+/* The front panel. */
+.folder-card .flap{
+  position:absolute;left:0;right:0;top:19px;bottom:0;z-index:1;
+  background:linear-gradient(180deg,var(--f-front-a) 0%,var(--f-front-b) 100%);
+  border-radius:4px 4px 11px 11px;
+}
+.folder-card.drop-in .flap,.folder-card.open-folder .flap{
+  left:-11px;right:-11px;
+  /* Rounded at the foot, cut away at the shoulders: the sides slope out
+     as the front falls away from the back. */
+  clip-path:polygon(11px 0,calc(100% - 11px) 0,100% 100%,0 100%);
+  box-shadow:0 -3px 6px -4px rgba(90,63,6,.55);
+}
+/* Everything readable sits on the front panel, above both. */
+.folder-card .folder-name,
+.folder-card .deck-meta,
+.folder-card .quiz-card-foot{position:relative;z-index:2}
+/* The bin is already absolutely placed in the corner; it only needs
+   lifting above the front panel, never repositioning. */
+.folder-card .card-del{z-index:3;top:25px}   /* on the front panel, level with the name */
+
+.folder-card:hover{transform:translateY(-1px);filter:saturate(1.05) brightness(1.03)}
 .folder-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.folder-card .deck-meta{color:#6A5316}
+.folder-card .deck-meta{color:#7A5A12}
+.folder-card .bin{color:#7A5A12}
+
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]) .folder-card{
-    --manila:#C9A24B;--manila-deep:#A8842F;--manila-line:#7C6120;
+    --f-back:#B77F14;--f-front-a:#D9A72F;--f-front-b:#C08E18;
+    --f-paper:#F3EAD4;--f-ink:#3C2A04;
   }
-  :root:not([data-theme="light"]) .folder-card::after{background:#EFE7D2}
 }
 :root[data-theme="dark"] .folder-card{
-  --manila:#C9A24B;--manila-deep:#A8842F;--manila-line:#7C6120;
+  --f-back:#B77F14;--f-front-a:#D9A72F;--f-front-b:#C08E18;
+  --f-paper:#F3EAD4;--f-ink:#3C2A04;
 }
-:root[data-theme="dark"] .folder-card::after{background:#EFE7D2}
 
 .folder-name{
   font-family:var(--serif);font-size:16.5px;font-weight:600;
@@ -588,9 +620,16 @@ button{font:inherit;color:inherit}
   background:transparent;color:inherit;
   border:1px solid transparent;border-radius:7px;cursor:text;
 }
-.folder-name:hover{border-color:rgba(0,0,0,.2);background:rgba(255,255,255,.35)}
-.folder-name:focus{outline:none;border-color:var(--accent);background:#FFFDF6;color:#3A2B08}
-.folder-name::placeholder{color:rgba(58,43,8,.5);font-style:italic}
+.folder-name:hover{border-color:rgba(90,63,6,.28);background:rgba(255,255,255,.34)}
+.folder-name:focus{outline:none;border-color:var(--accent);background:#FFFDF6;color:var(--f-ink)}
+.folder-name::placeholder{color:rgba(90,63,6,.5);font-style:italic}
+.folder-name.static{
+  font-family:var(--serif);font-size:16.5px;font-weight:600;
+  padding:3px 0;color:inherit;
+}
+/* Same box as a closed folder, so the two line up on the grid. */
+.folder-card .quiz-card-foot{min-height:31px}
+
 
 /* ---- the bin on every card ----
    Top corner, quiet until wanted, and it asks before it acts. */
@@ -631,40 +670,8 @@ button{font:inherit;color:inherit}
 .side-item[draggable="true"]{cursor:grab}
 .side-item[draggable="true"]:active{cursor:grabbing}
 
-/* ---- an open folder ----
-   Shut, it is a folder. Open -- held over by a drag, or the way-out card
-   in a folder you are standing in -- the sheets inside rise out of the
-   mouth and the mouth darkens behind them. The sheets sit entirely above
-   the rim rather than lying over the card, so none of it has to be
-   layered behind a background that the hover transform would otherwise
-   lift them in front of. */
-.folder-card.drop-in,.folder-card.open-folder{
-  box-shadow:var(--shadow),inset 0 7px 11px -8px rgba(58,43,8,.8);
-}
-/* the tab lifts straight up: an opening folder does not tilt */
-.folder-card.drop-in::before,.folder-card.open-folder::before{transform:translateY(-3px)}
-/* the sheet at the front */
-.folder-card.drop-in::after,.folder-card.open-folder::after{
-  left:auto;right:18px;top:-18px;width:46%;height:18px;
-  background:#FFFDF6;border:1px solid rgba(58,43,8,.22);border-bottom:0;
-  border-radius:3px 3px 0 0;
-  transform:rotate(1.4deg);transform-origin:bottom right;
-  box-shadow:0 3px 6px -4px rgba(58,43,8,.5);
-}
-/* and one behind it, so it reads as a sheaf rather than a single flag */
-.folder-card .flap{display:none}
-.folder-card.drop-in .flap,.folder-card.open-folder .flap{display:block}
-.folder-card .flap{
-  position:absolute;right:42%;top:-13px;width:32%;height:13px;
-  background:#F1E9D4;border:1px solid rgba(58,43,8,.18);border-bottom:0;
-  border-radius:3px 3px 0 0;
-  transform:rotate(-2.2deg);transform-origin:bottom left;
-}
-/* Same box as a closed folder, so the two line up on the grid. */
-.folder-card .quiz-card-foot{min-height:31px}
-.folder-card.open-folder .deck-meta{color:#6A5316}
+
 .folder-name.static{position:relative;z-index:1}
-.folder-card.open-folder .deck-meta{position:relative;z-index:1;color:#6A5316}
 .folder-name.static{
   font-family:var(--serif);font-size:16.5px;font-weight:600;
   padding:3px 0;color:inherit;
@@ -3378,6 +3385,9 @@ button{font:inherit;color:inherit}
   function openFolderCard(parentId) {
     var card = document.createElement("div");
     card.className = "folder-card open-folder";
+    // What you are going back to always holds at least the folder you are
+    // standing in, so it is drawn with a sheet in it.
+    card.classList.add("has-items");
     card.setAttribute("role", "button");
     card.tabIndex = 0;
 
@@ -3651,6 +3661,7 @@ button{font:inherit;color:inherit}
     });
 
     var inside = decksIn(f.id).length, nested = foldersIn(f.id).length;
+    if (inside + nested) card.classList.add("has-items");
     var bits = [inside + (inside === 1 ? " quiz" : " quizzes")];
     if (nested) bits.push(nested + (nested === 1 ? " folder" : " folders"));
     var meta = document.createElement("div");
