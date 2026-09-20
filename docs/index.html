@@ -226,11 +226,17 @@ button{font:inherit;color:inherit}
 .deck-title:focus,.entry-name:focus{outline:none;border-color:var(--accent);background:var(--surface)}
 .deck-title::placeholder,.entry-name::placeholder{color:var(--faint);font-style:italic}
 .entry-name{margin-top:5px}
+/* A textarea rather than an input, so a long name wraps onto a second line
+   instead of scrolling out of sight. The height is fixed at those two
+   lines: letting it grow would give every card on the grid a different
+   height depending on how long its name happened to be. Enter commits, as
+   it did when this was an input -- a newline in a title means nothing. */
 .saved-name{
-  font-family:var(--serif);font-size:16px;font-weight:600;
-  width:100%;padding:3px 7px;margin-left:-7px;
+  font-family:var(--serif);font-size:16px;font-weight:600;line-height:1.28;
+  width:100%;height:calc(2 * 1.28em + 8px);padding:3px 7px;margin-left:-7px;
   background:transparent;color:var(--ink);
   border:1px solid transparent;border-radius:7px;
+  resize:none;overflow:hidden;display:block;
 }
 .saved-name:hover{border-color:var(--rule);background:var(--surface-2)}
 .saved-name:focus{outline:none;border-color:var(--accent);background:var(--surface)}
@@ -657,17 +663,18 @@ button{font:inherit;color:inherit}
 }
 
 .folder-name{
-  font-family:var(--serif);font-size:16.5px;font-weight:600;
-  width:100%;padding:3px 7px;margin-left:-7px;
+  font-family:var(--serif);font-size:16.5px;font-weight:600;line-height:1.28;
+  width:100%;height:calc(2 * 1.28em + 8px);padding:3px 7px;margin-left:-7px;
   background:transparent;color:inherit;
   border:1px solid transparent;border-radius:7px;cursor:text;
+  resize:none;overflow:hidden;display:block;
 }
 .folder-name:hover{border-color:rgba(90,63,6,.28);background:rgba(255,255,255,.34)}
 .folder-name:focus{outline:none;border-color:var(--accent);background:#FFFDF6;color:var(--f-ink)}
 .folder-name::placeholder{color:rgba(90,63,6,.5);font-style:italic}
 .folder-name.static{
-  font-family:var(--serif);font-size:16.5px;font-weight:600;
-  padding:3px 0;color:inherit;
+  font-family:var(--serif);font-size:16.5px;font-weight:600;line-height:1.28;
+  height:calc(2 * 1.28em + 8px);padding:3px 0;color:inherit;overflow:hidden;
 }
 /* Same box as a closed folder, so the two line up on the grid. */
 .folder-card .quiz-card-foot{min-height:31px}
@@ -727,8 +734,9 @@ button{font:inherit;color:inherit}
   background:var(--accent-soft);border-radius:4px;padding:1px 6px;margin-bottom:3px;
 }
 .saved-name.static{
-  font-family:var(--serif);font-size:16.5px;font-weight:600;
-  padding:3px 0;color:var(--ink);
+  font-family:var(--serif);font-size:16.5px;font-weight:600;line-height:1.28;
+  height:calc(2 * 1.28em + 8px);padding:3px 0;color:var(--ink);
+  overflow:hidden;
 }
 .sub-ref.orphaned{opacity:.62}
 .sub-ref.orphaned .sub-tag{background:var(--bad-soft);color:var(--bad)}
@@ -3708,8 +3716,9 @@ button{font:inherit;color:inherit}
     card.setAttribute("role", "button");
     card.tabIndex = 0;
 
-    var name = document.createElement("input");
+    var name = document.createElement("textarea");
     name.className = "folder-name";
+    name.rows = 2;
     name.value = f.name || "";
     name.placeholder = "Name this folder";
     name.maxLength = 40;
@@ -3723,7 +3732,7 @@ button{font:inherit;color:inherit}
       var list = foldersList();
       for (var i = 0; i < list.length; i++) {
         if (list[i].id === f.id) {
-          list[i].name = name.value.trim() || "Untitled folder";
+          list[i].name = name.value.replace(/s+/g, " ").trim() || "Untitled folder";
           f.name = list[i].name;
           break;
         }
@@ -3823,8 +3832,9 @@ button{font:inherit;color:inherit}
     card.className = "quiz-card";
     tint(card, d);
 
-    var title = document.createElement("input");
+    var title = document.createElement("textarea");
     title.className = "saved-name";
+    title.rows = 2;
     title.value = d.title || "";
     title.placeholder = "Name this quiz";
     title.maxLength = 60;
@@ -3833,7 +3843,9 @@ button{font:inherit;color:inherit}
     title.addEventListener("mousedown", function () { card.draggable = false; });
     title.addEventListener("blur", function () {
       card.draggable = true;
-      var name = title.value.trim() || "Untitled quiz";
+      // A pasted name can carry newlines; a title is one line of text
+      // however many lines it is shown on.
+      var name = title.value.replace(/s+/g, " ").trim() || "Untitled quiz";
       updateDeck(d.id, function (x) { x.title = name; });
       d.title = name;
       title.value = name;
@@ -3853,7 +3865,7 @@ button{font:inherit;color:inherit}
     var lists = document.createElement("button");
     lists.type = "button";
     lists.className = "btn btn-sm";
-    lists.textContent = "Lists" + (subs ? " · " + subs : "");
+    lists.textContent = "Sub-lists" + (subs ? " · " + subs : "");
     lists.title = "Open this quiz's lists";
     lists.setAttribute("aria-haspopup", "dialog");
     lists.addEventListener("click", function () { openSidePanel(d); });
