@@ -215,6 +215,19 @@ button{font:inherit;color:inherit}
    box stops short of it. Left full width, a long title ran underneath the
    bin and was clipped by it. */
 .quiz-card .saved-name,.folder-card .folder-name{width:calc(100% - 30px)}
+.name-field{width:100%}
+/* The read-only half of the field: two lines, then an ellipsis. A textarea
+   has no way to show one, which is why the two swap. The cut itself is
+   measured in clampNames() -- -webkit-line-clamp is blockified away in
+   current Chrome and the standard line-clamp is not implemented yet, so
+   neither can be relied on. */
+.saved-name.name-view,.folder-name.name-view{
+  overflow:hidden;cursor:text;white-space:normal;word-break:break-word;
+}
+.name-view.is-empty{color:var(--faint);font-style:italic}
+.folder-card .name-view.is-empty{color:rgba(90,63,6,.5)}
+/* The sub-list card's name is never edited, so it is only ever cut. */
+.saved-name.static{overflow:hidden;word-break:break-word}
 
 .deck-title,.entry-name{
   font-family:var(--serif);font-size:20px;font-weight:600;
@@ -3124,8 +3137,8 @@ button{font:inherit;color:inherit}
     renderSaved();
     // Land in the name box: a folder called "New folder" is no use to anyone.
     var made = $("folder-list").lastChild;
-    var input = made && made.querySelector(".folder-name");
-    if (input) { input.focus(); input.select(); }
+    var field = made && made.querySelector(".name-field");
+    if (field && field.openEditor) field.openEditor();
   });
 
   /* ---------------- trash ----------------
@@ -3594,6 +3607,7 @@ button{font:inherit;color:inherit}
 
     $("folder-empty").hidden = !(here && !mine.length && !subFolders.length);
     renderTrash();
+    clampNames();
   }
 
   function renderTrash() {
@@ -3716,34 +3730,18 @@ button{font:inherit;color:inherit}
     card.setAttribute("role", "button");
     card.tabIndex = 0;
 
-    var name = document.createElement("textarea");
-    name.className = "folder-name";
-    name.rows = 2;
-    name.value = f.name || "";
-    name.placeholder = "Name this folder";
-    name.maxLength = 40;
-    name.setAttribute("aria-label", "Name of this folder");
-    // Typing in the name must not also open the folder underneath it, and
-    // must not start a drag of the card either.
-    name.draggable = false;
-    name.addEventListener("mousedown", function (e) { e.stopPropagation(); card.draggable = false; });
-    name.addEventListener("blur", function () {
-      card.draggable = true;
-      var list = foldersList();
-      for (var i = 0; i < list.length; i++) {
-        if (list[i].id === f.id) {
-          list[i].name = name.value.replace(/s+/g, " ").trim() || "Untitled folder";
-          f.name = list[i].name;
-          break;
+    var name = nameField({
+      card: card, cls: "folder-name", value: f.name, max: 80,
+      placeholder: "Name this folder", label: "Name of this folder",
+      fallback: "Untitled folder",
+      commit: function (next) {
+        var list = foldersList();
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].id === f.id) { list[i].name = next; f.name = next; break; }
         }
+        saveFolders(list);
+        if (currentFolder === f.id) $("saved-title").textContent = next;
       }
-      saveFolders(list);
-      name.value = f.name;
-    });
-    name.addEventListener("click", function (e) { e.stopPropagation(); });
-    name.addEventListener("keydown", function (e) {
-      e.stopPropagation();
-      if (e.key === "Enter") { e.preventDefault(); name.blur(); }
     });
 
     var inside = decksIn(f.id).length, nested = foldersIn(f.id).length;
@@ -3783,6 +3781,110 @@ button{font:inherit;color:inherit}
     makeDraggable(card, "folder", f.id);
     wireDropTarget(card, "folder", f.id);
     return card;
+  }
+
+  /* A name too long for the two lines it is given ends in an ellipsis.
+
+     This is measured rather than declared. `-webkit-line-clamp` needs
+     `display:-webkit-box`, which current Chrome blockifies straight back to
+     `flow-root`, and the standard `line-clamp` is not implemented yet --
+     tested here, both leave the text simply clipped mid-stroke. So the cut
+     is found by bisection against the box's own height, which needs the
+     card to be on the page: these run after a render, not during one. */
+  function clampOne(v) {
+    var full = v.dataset.full;
+    if (full === undefined) { full = v.textContent; v.dataset.full = full; }
+    v.textContent = full;
+    if (v.scrollHeight <= v.clientHeight) return;
+
+    var lo = 0, hi = full.length, best = 0;
+    while (lo <= hi) {
+      var mid = (lo + hi) >> 1;
+      v.textContent = full.slice(0, mid).replace(/\s+$/, "") + "…";
+      if (v.scrollHeight <= v.clientHeight) { best = mid; lo = mid + 1; }
+      else hi = mid - 1;
+    }
+    v.textContent = full.slice(0, best).replace(/\s+$/, "") + "…";
+  }
+
+  function clampNames() {
+    var views = document.querySelectorAll(".name-view,.saved-name.static");
+    Array.prototype.forEach.call(views, clampOne);
+  }
+
+  // The cut depends on how wide the card is, so it is taken again whenever
+  // that can have changed.
+  var clampSoon = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(clampSoon);
+    clampSoon = setTimeout(clampNames, 120);
+  });
+
+  /* ---------------- a card's name ----------------
+     Shown as clamped text and edited as a textarea, because neither can do
+     both jobs: a textarea has no way to end an overrun with an ellipsis,
+     and a div cannot be typed in. The field is whichever of the two the
+     moment calls for, and they are laid out identically so the swap is
+     invisible.
+  ------------------------------------------------ */
+  function nameField(o) {
+    var wrap = document.createElement("div");
+    wrap.className = "name-field";
+
+    var view = document.createElement("div");
+    view.className = o.cls + " name-view";
+    view.title = "Rename";
+
+    var edit = document.createElement("textarea");
+    edit.className = o.cls;
+    edit.rows = 2;
+    edit.maxLength = o.max;
+    edit.placeholder = o.placeholder;
+    edit.setAttribute("aria-label", o.label);
+    edit.hidden = true;
+    edit.draggable = false;
+
+    function paint(name) {
+      view.dataset.full = name || o.placeholder;
+      view.textContent = view.dataset.full;
+      view.classList.toggle("is-empty", !name);
+      edit.value = name || "";
+      if (view.isConnected) clampOne(view);
+    }
+    paint(o.value || "");
+
+    function open() {
+      o.card.draggable = false;      // dragging the card would cancel the edit
+      view.hidden = true;
+      edit.hidden = false;
+      edit.focus();
+      edit.select();
+    }
+
+    function close() {
+      o.card.draggable = true;
+      // A pasted name can carry newlines and runs of spaces; a title is one
+      // line of text however many lines it is shown on.
+      var name = edit.value.replace(/\s+/g, " ").trim() || o.fallback;
+      paint(name);
+      edit.hidden = true;
+      view.hidden = false;
+      o.commit(name);
+    }
+
+    view.addEventListener("click", function (e) { e.stopPropagation(); open(); });
+    edit.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    edit.addEventListener("blur", close);
+    edit.addEventListener("keydown", function (e) {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); edit.blur(); }
+      if (e.key === "Escape") { e.preventDefault(); paint(o.value || ""); edit.blur(); }
+    });
+
+    wrap.appendChild(view);
+    wrap.appendChild(edit);
+    wrap.openEditor = open;          // for a folder just created, which wants naming
+    return wrap;
   }
 
   /* ---------------- shared card furniture ---------------- */
@@ -3832,26 +3934,14 @@ button{font:inherit;color:inherit}
     card.className = "quiz-card";
     tint(card, d);
 
-    var title = document.createElement("textarea");
-    title.className = "saved-name";
-    title.rows = 2;
-    title.value = d.title || "";
-    title.placeholder = "Name this quiz";
-    title.maxLength = 60;
-    title.setAttribute("aria-label", "Name of this quiz");
-    title.draggable = false;
-    title.addEventListener("mousedown", function () { card.draggable = false; });
-    title.addEventListener("blur", function () {
-      card.draggable = true;
-      // A pasted name can carry newlines; a title is one line of text
-      // however many lines it is shown on.
-      var name = title.value.replace(/s+/g, " ").trim() || "Untitled quiz";
-      updateDeck(d.id, function (x) { x.title = name; });
-      d.title = name;
-      title.value = name;
-    });
-    title.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") { e.preventDefault(); title.blur(); }
+    var title = nameField({
+      card: card, cls: "saved-name", value: d.title, max: 120,
+      placeholder: "Name this quiz", label: "Name of this quiz",
+      fallback: "Untitled quiz",
+      commit: function (name) {
+        updateDeck(d.id, function (x) { x.title = name; });
+        d.title = name;
+      }
     });
 
     var subs = (d.subs || []).length;
