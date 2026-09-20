@@ -651,19 +651,20 @@ button{font:inherit;color:inherit}
 .is-dragging{opacity:.35}
 .quiz-card,.folder-card{transition:transform .14s ease,box-shadow .12s,filter .12s}
 .drop-in{outline:2px solid var(--accent);outline-offset:3px}
-@keyframes folder-ajar{
-  from{transform:translateY(0) rotate(0deg)}
-  to{transform:translateY(-9px) rotate(-3.5deg)}
-}
-@keyframes folder-mouth{
-  from{transform:translateY(0) scaleY(1)}
-  to{transform:translateY(-5px) scaleY(1.9)}
-}
-.folder-card.drop-in::before{animation:folder-ajar 1.5s ease-out forwards;transform-origin:left bottom}
-.folder-card.drop-in::after{animation:folder-mouth 1.5s ease-out forwards;transform-origin:bottom}
-@media (prefers-reduced-motion:reduce){
-  .folder-card.drop-in::before,.folder-card.drop-in::after{animation:none}
-}
+/* Held over, a folder is simply open -- one state to the next with nothing
+   in between, so there is never a half-open folder to read. The flap and
+   the raised tab are the same ones the way-out card wears, so open looks
+   like open wherever it is. */
+.folder-card .flap{display:none}
+.folder-card.drop-in .flap,.folder-card.open-folder .flap{display:block}
+/* The body darkens as the flap comes down, exactly as the way-out card is
+   drawn -- without it the flap shares the body's gradient and its edge
+   disappears into it. */
+.folder-card.drop-in{background:linear-gradient(174deg,var(--manila-deep) 0%,var(--manila) 100%)}
+.folder-card.drop-in::before{transform:translateY(-9px) rotate(-3.5deg);transform-origin:left bottom}
+.folder-card.drop-in::after{transform:translateY(-5px) scaleY(1.9);transform-origin:bottom}
+/* The label and its row sit above the flap, never behind it. */
+.folder-card .folder-name,.folder-card .deck-meta,.folder-card .quiz-card-foot{position:relative;z-index:2}
 /* While a sub-list is being dragged out of the panel, the scrim must not
    swallow the drop. */
 .dragging-sub .side-scrim{pointer-events:none;opacity:.12}
@@ -674,10 +675,10 @@ button{font:inherit;color:inherit}
    An open folder: the front flap leaning down and away, the sheet inside
    standing clear of it. It reads as the folder you are standing in, seen
    from the front, which is what going back out means. */
-.folder-card.open-folder{
-  background:linear-gradient(174deg,var(--manila-deep) 0%,var(--manila) 100%);
-  justify-content:flex-start;
-}
+.folder-card.open-folder{background:linear-gradient(174deg,var(--manila-deep) 0%,var(--manila) 100%)}
+/* Same box as a closed folder: the empty row below stands in for the one
+   holding a folder's Move button, so the two line up on the grid. */
+.folder-card .quiz-card-foot{min-height:31px}
 .folder-card.open-folder::before{
   height:11px;top:-10px;width:66px;
   background:var(--manila-deep);
@@ -688,14 +689,14 @@ button{font:inherit;color:inherit}
 }
 /* the front panel, hinged along the bottom and tipped towards you: the
    folder you are standing in, seen from the front. */
-.open-folder .flap{
+.folder-card .flap{
   position:absolute;left:-1px;right:-1px;bottom:-1px;height:58%;
   background:linear-gradient(180deg,var(--manila) 0%,var(--manila-deep) 100%);
   border:1px solid var(--manila-line);border-radius:2px 14px 10px 10px;
   transform:perspective(340px) rotateX(15deg);transform-origin:bottom center;
   box-shadow:0 -7px 12px -9px rgba(0,0,0,.45);
 }
-.folder-card.open-folder{padding-bottom:16px}
+
 .folder-card.open-folder .folder-name.static{position:relative;z-index:1}
 .folder-card.open-folder .deck-meta{position:relative;z-index:1;color:#6A5316}
 .folder-name.static{
@@ -3462,9 +3463,13 @@ button{font:inherit;color:inherit}
     var flap = document.createElement("div");
     flap.className = "flap";
 
+    var spacer = document.createElement("div");
+    spacer.className = "quiz-card-foot";
+
     card.appendChild(flap);
     card.appendChild(name);
     card.appendChild(meta);
+    card.appendChild(spacer);
     card.addEventListener("click", function () { openFolder(parentId); });
     card.addEventListener("keydown", function (e) {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openFolder(parentId); }
@@ -3725,19 +3730,22 @@ button{font:inherit;color:inherit}
       trashFolder(f.id);
       renderSaved();
     }));
+    var flap = document.createElement("div");
+    flap.className = "flap";
+
     var ffoot = document.createElement("div");
     ffoot.className = "quiz-card-foot";
     var fsp = document.createElement("span");
     fsp.className = "sp";
     ffoot.appendChild(fsp);
-    ffoot.appendChild(moverButton("folder", f.id, card));
 
+    card.appendChild(flap);
     card.appendChild(name);
     card.appendChild(meta);
     card.appendChild(ffoot);
 
     card.addEventListener("click", function (e) {
-      if (e.target.closest(".card-del,.ask-row,.folder-name,.mover,.quiz-card-foot")) return;
+      if (e.target.closest(".card-del,.ask-row,.folder-name,.quiz-card-foot")) return;
       openFolder(f.id);
     });
     card.addEventListener("keydown", function (e) {
@@ -3747,57 +3755,6 @@ button{font:inherit;color:inherit}
     makeDraggable(card, "folder", f.id);
     wireDropTarget(card, "folder", f.id);
     return card;
-  }
-
-  /* Dragging is the quick way, but HTML5 drag does not exist on a touch
-     screen and this installs to a phone home screen -- so every card also
-     carries the same move as a menu. Both go through moveInto, so they
-     cannot come to disagree about what a move means. */
-  function moverButton(kind, id, card) {
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn btn-sm";
-    btn.textContent = "Move";
-    btn.title = "Put this in a folder";
-    var box = null;
-
-    btn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      if (box) { box.parentNode.removeChild(box); box = null; return; }
-      box = document.createElement("div");
-      box.className = "mover";
-
-      var at = kind === "folder"
-        ? parentOf(folderById(id) || {})
-        : folderOf(deckById(id) || {});
-
-      function row(label, target) {
-        var b = document.createElement("button");
-        b.type = "button";
-        b.className = "sub-chip";
-        b.textContent = label;
-        var same = at === target;
-        // A folder cannot be moved inside itself or anything it holds.
-        var illegal = kind === "folder" && target &&
-          (target === id || isDescendant(target, id));
-        b.disabled = same || illegal;
-        b.setAttribute("aria-pressed", String(same));
-        if (illegal) b.title = "A folder cannot go inside itself";
-        if (!b.disabled) {
-          b.addEventListener("click", function (ev) {
-            ev.stopPropagation();
-            moveInto(kind, id, target);
-            renderSaved();     // stay put: putting a thing away is not a reason to follow it
-          });
-        }
-        box.appendChild(b);
-      }
-
-      row("Top level", null);
-      foldersList().forEach(function (f) { row(f.name, f.id); });
-      card.appendChild(box);
-    });
-    return btn;
   }
 
   /* ---------------- shared card furniture ---------------- */
@@ -3894,7 +3851,6 @@ button{font:inherit;color:inherit}
     foot.className = "quiz-card-foot";
     foot.appendChild(colourSwatch(d, card));
     foot.appendChild(sp);
-    foot.appendChild(moverButton("quiz", d.id, card));
     foot.appendChild(lists);
     foot.appendChild(open);
 
@@ -3958,7 +3914,6 @@ button{font:inherit;color:inherit}
     foot.className = "quiz-card-foot";
     foot.appendChild(colourSwatch(ref, card));
     foot.appendChild(sp);
-    foot.appendChild(moverButton("quiz", ref.id, card));
     foot.appendChild(play);
 
     card.appendChild(binButton("Remove this sub-list card", "Remove card?", function () {
