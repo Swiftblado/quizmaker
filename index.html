@@ -554,7 +554,7 @@ button{font:inherit;color:inherit}
   --f-paper:#FFF8E6;
   --f-ink:#5A3F06;
   position:relative;display:flex;flex-direction:column;gap:2px;
-  padding:27px 15px 12px;
+  padding:34px 15px 12px;
   border-radius:0 11px 11px 11px;
   background:var(--f-back);
   box-shadow:var(--shadow);
@@ -571,24 +571,24 @@ button{font:inherit;color:inherit}
    one shows more of it. */
 .folder-card::after{content:none}
 .folder-card.has-items::after{
-  content:"";position:absolute;left:14px;right:14px;top:8px;height:13px;
+  content:"";position:absolute;left:14px;right:14px;top:6px;height:12px;
   background:var(--f-paper);border-radius:3px 3px 0 0;z-index:0;
 }
 .folder-card.has-items.drop-in::after,
-.folder-card.has-items.open-folder::after{top:3px;height:18px}
+.folder-card.has-items.open-folder::after{top:5px;height:22px}
 
 /* The front panel. */
 .folder-card .flap{
-  position:absolute;left:0;right:0;top:19px;bottom:0;z-index:1;
+  position:absolute;left:0;right:0;top:14px;bottom:0;z-index:1;
   background:linear-gradient(180deg,var(--f-front-a) 0%,var(--f-front-b) 100%);
   border-radius:4px 4px 11px 11px;
 }
+/* Open: only the top edge of the front moves, and it moves down. The foot
+   stays where it is -- letting it splay outward made the folder look like
+   it was sagging rather than opening. */
 .folder-card.drop-in .flap,.folder-card.open-folder .flap{
-  left:-11px;right:-11px;
-  /* Rounded at the foot, cut away at the shoulders: the sides slope out
-     as the front falls away from the back. */
-  clip-path:polygon(11px 0,calc(100% - 11px) 0,100% 100%,0 100%);
-  box-shadow:0 -3px 6px -4px rgba(90,63,6,.55);
+  top:30px;
+  box-shadow:0 -3px 7px -4px rgba(90,63,6,.55);
 }
 /* Everything readable sits on the front panel, above both. */
 .folder-card .folder-name,
@@ -596,7 +596,7 @@ button{font:inherit;color:inherit}
 .folder-card .quiz-card-foot{position:relative;z-index:2}
 /* The bin is already absolutely placed in the corner; it only needs
    lifting above the front panel, never repositioning. */
-.folder-card .card-del{z-index:3;top:25px}   /* on the front panel, level with the name */
+.folder-card .card-del{z-index:3;top:33px}   /* on the front panel, level with the name */
 
 .folder-card:hover{transform:translateY(-1px);filter:saturate(1.05) brightness(1.03)}
 .folder-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
