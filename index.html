@@ -535,43 +535,131 @@ button{font:inherit;color:inherit}
 .quiz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
 
 /* ---- folders ----
-   Drawn as a folder rather than another card: a tab sits above the body,
-   so the two kinds of thing on this page are told apart at a glance and
-   not by reading them. The grid is padded at the top to leave the tabs
-   room, since they overhang. */
+   A folder, drawn as one: manila yellow, a tab over the body, a spine
+   crease down the inside edge and the corner of a sheet showing above the
+   rim. The colour is its own rather than the theme's, because a folder is
+   a folder in both; in the dark it is dimmed rather than recoloured, so it
+   does not glow. */
 .folder-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));
-  gap:10px;margin-bottom:14px;padding-top:9px;
+  gap:12px;margin-bottom:16px;padding-top:11px;
 }
 .folder-card{
+  --manila:#F2C86B;
+  --manila-deep:#E0AE43;
+  --manila-line:#C79433;
   position:relative;display:flex;flex-direction:column;gap:2px;
-  padding:12px 13px 10px;border:1px solid var(--rule);
-  border-radius:0 10px 10px 10px;background:var(--surface-2);
-  box-shadow:var(--shadow);cursor:pointer;
-  transition:border-color .12s,background .12s;
+  padding:13px 14px 12px;border:1px solid var(--manila-line);
+  border-radius:0 10px 10px 10px;
+  background:linear-gradient(174deg,var(--manila) 0%,var(--manila-deep) 100%);
+  box-shadow:var(--shadow);cursor:pointer;color:#3A2B08;
+  transition:transform .1s,box-shadow .12s,filter .12s;
 }
+/* the tab */
 .folder-card::before{
-  content:"";position:absolute;left:-1px;top:-9px;width:74px;height:10px;
-  background:inherit;border:1px solid var(--rule);border-bottom:0;
-  border-radius:7px 7px 0 0;
+  content:"";position:absolute;left:-1px;top:-12px;width:78px;height:13px;
+  background:var(--manila);
+  border:1px solid var(--manila-line);border-bottom:0;
+  border-radius:8px 8px 0 0;
 }
-.folder-card:hover,.folder-card:focus-visible{border-color:var(--accent);background:var(--accent-soft)}
-.folder-card:hover::before,.folder-card:focus-visible::before{border-color:var(--accent)}
+/* the sheet inside, peeking over the rim, and the spine crease */
+.folder-card::after{
+  content:"";position:absolute;right:16px;top:-5px;width:44%;height:8px;
+  background:#FFFDF6;border:1px solid rgba(0,0,0,.14);border-bottom:0;
+  border-radius:3px 3px 0 0;z-index:-1;
+}
+.folder-card:hover{transform:translateY(-1px);filter:saturate(1.06) brightness(1.03)}
+.folder-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.folder-card .deck-meta{color:#6A5316}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .folder-card{
+    --manila:#C9A24B;--manila-deep:#A8842F;--manila-line:#7C6120;
+  }
+  :root:not([data-theme="light"]) .folder-card::after{background:#EFE7D2}
+}
+:root[data-theme="dark"] .folder-card{
+  --manila:#C9A24B;--manila-deep:#A8842F;--manila-line:#7C6120;
+}
+:root[data-theme="dark"] .folder-card::after{background:#EFE7D2}
+
 .folder-name{
   font-family:var(--serif);font-size:16.5px;font-weight:600;
   width:100%;padding:3px 7px;margin-left:-7px;
-  background:transparent;color:var(--ink);
+  background:transparent;color:inherit;
   border:1px solid transparent;border-radius:7px;cursor:text;
 }
-.folder-name:hover{border-color:var(--rule);background:var(--surface)}
-.folder-name:focus{outline:none;border-color:var(--accent);background:var(--surface)}
-.folder-name::placeholder{color:var(--faint);font-style:italic}
+.folder-name:hover{border-color:rgba(0,0,0,.2);background:rgba(255,255,255,.35)}
+.folder-name:focus{outline:none;border-color:var(--accent);background:#FFFDF6;color:#3A2B08}
+.folder-name::placeholder{color:rgba(58,43,8,.5);font-style:italic}
 
-/* The folder chooser, inside the card of the quiz being moved. */
-.mover{display:flex;flex-wrap:wrap;gap:7px;padding:11px 0 2px;border-top:1px solid var(--rule-soft);margin-top:10px}
-.mover .sub-new{width:100%;margin-top:2px}
+/* ---- the bin on every card ----
+   Top corner, quiet until wanted, and it asks before it acts. */
+.card-del{position:absolute;top:8px;right:8px;z-index:2;display:flex}
+.bin{
+  display:grid;place-items:center;width:26px;height:26px;padding:0;
+  border:1px solid transparent;border-radius:7px;cursor:pointer;
+  background:transparent;color:var(--faint);opacity:.72;
+  transition:background .12s,color .12s,opacity .12s,border-color .12s;
+}
+.folder-card .bin{color:#6A5316}
+.bin:hover{opacity:1;color:var(--bad);background:var(--bad-soft);border-color:var(--bad)}
+.ask-row{
+  display:flex;align-items:center;gap:6px;padding:4px 6px;
+  background:var(--surface);border:1px solid var(--bad);border-radius:8px;
+  box-shadow:var(--shadow);white-space:nowrap;
+}
+.ask-q{font-size:12px;font-weight:600;color:var(--bad)}
+.ask-yes{background:var(--bad);border-color:var(--bad);color:#fff}
+.ask-yes:hover:not(:disabled){background:var(--bad);border-color:var(--bad);filter:brightness(1.1)}
+
+/* ---- dragging ----
+   Two different answers, shown two different ways: a ring means "inside
+   this", a bar down one edge means "beside it, here". */
+.is-dragging{opacity:.4}
+.drop-in{outline:2px solid var(--accent);outline-offset:2px}
+.drop-before,.drop-after{position:relative}
+.drop-before::after,.drop-after::after{
+  content:"";position:absolute;top:-4px;bottom:-4px;width:3px;
+  background:var(--accent);border-radius:2px;
+}
+.drop-before::after{left:-7px}
+.drop-after::after{right:-7px}
+.folder-card.drop-before::after,.folder-card.drop-after::after{z-index:3}
+/* While a sub-list is being dragged out of the panel, the scrim must not
+   swallow the drop. */
+.dragging-sub .side-scrim{pointer-events:none;opacity:.12}
+.side-item[draggable="true"]{cursor:grab}
+.side-item[draggable="true"]:active{cursor:grabbing}
+
+/* ---- a sub-list that lives in a folder ---- */
+.sub-ref{border-style:dashed}
+.sub-tag{
+  align-self:flex-start;font-family:var(--mono);font-size:10px;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--accent-ink);
+  background:var(--accent-soft);border-radius:4px;padding:1px 6px;margin-bottom:3px;
+}
+.saved-name.static{
+  font-family:var(--serif);font-size:16.5px;font-weight:600;
+  padding:3px 0;color:var(--ink);
+}
+.sub-ref.orphaned{opacity:.62}
+.sub-ref.orphaned .sub-tag{background:var(--bad-soft);color:var(--bad)}
+
+/* ---- trash ---- */
+.trash-head{margin-top:20px}
+.trash-head .sub-none{margin:0}
+.trash-card{overflow:hidden}
+.trash-row{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:11px 14px;border-bottom:1px solid var(--rule-soft);
+}
+.trash-row:last-child{border-bottom:none}
+.trash-what{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.trash-what b{font-family:var(--serif);font-size:15px;font-weight:600}
+.trash-what span{font-size:12px;color:var(--faint)}
+
 .quiz-card{
-  display:flex;flex-direction:column;gap:2px;padding:12px 13px 10px;
+  position:relative;display:flex;flex-direction:column;gap:2px;padding:12px 13px 10px;
   border:1px solid var(--rule);border-radius:10px;
   background:var(--surface);box-shadow:var(--shadow);
 }
@@ -731,7 +819,17 @@ button{font:inherit;color:inherit}
       </div>
       <div class="folder-grid" id="folder-list" hidden></div>
       <div class="quiz-grid" id="saved-list"></div>
-      <p class="sub-none" id="folder-empty" hidden>This folder is empty. Use <b>Move</b> on any quiz to put it in here.</p>
+      <p class="sub-none" id="folder-empty" hidden>This folder is empty. Drag a quiz or another folder onto it, or drop one here.</p>
+
+      <div id="trash-box" hidden>
+        <div class="saved-head trash-head">
+          <span class="eyebrow">Trash</span>
+          <span class="sub-none" id="trash-note"></span>
+          <span class="sp"></span>
+          <button class="btn btn-sm" id="btn-empty-trash" type="button">Empty trash</button>
+        </div>
+        <div class="card trash-card" id="trash-list"></div>
+      </div>
     </div>
   </section>
 
@@ -2724,7 +2822,7 @@ button{font:inherit;color:inherit}
 
     subs.forEach(function (s, j) {
       var n = (s.keys || []).length;
-      item(s.name, n ? words(n) + " · plays straight away" : "empty", n > 0, function () {
+      var row = item(s.name, n ? words(n) + " · drag out to shelve it" : "empty", n > 0, function () {
         closeSidePanel();
         loadDeck(JSON.parse(JSON.stringify(d)));
         var live = subsOf(deck)[j];
@@ -2733,6 +2831,26 @@ button{font:inherit;color:inherit}
         if (!pairs.length) { flash("“" + live.name + "” has no words left in it."); return; }
         startGame(pairs, live.name);
       });
+
+      // A sub-list can be dragged out of here and onto the shelf, where it
+      // becomes a card of its own. The scrim is stood down for the duration
+      // or it would swallow the drop.
+      if (n) {
+        row.draggable = true;
+        row.addEventListener("dragstart", function (e) {
+          dragging = { kind: "sub-list", deckId: d.id, subName: s.name };
+          document.body.classList.add("dragging-sub");
+          try {
+            e.dataTransfer.effectAllowed = "copy";
+            e.dataTransfer.setData("text/plain", "sub:" + s.name);
+          } catch (err) { /* older browsers */ }
+        });
+        row.addEventListener("dragend", function () {
+          dragging = null;
+          document.body.classList.remove("dragging-sub");
+          clearDropMarks();
+        });
+      }
     });
 
     $("side-scrim").hidden = false;
@@ -2773,19 +2891,38 @@ button{font:inherit;color:inherit}
     return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + ",0.13)";
   }
 
-  /* ---------------- saved quizzes and folders ----------------
-     Quizzes are keyed by id rather than by position, because folders make
-     the list on screen a filtered view of storage, and an index into one
-     is not an index into the other.
-  ------------------------------------------------------------ */
-  function savedDecks() { return readStore("qp:decks", []); }
+  /* ---------------- the shelf: quizzes, folders, trash ----------------
+     Everything on the main page is keyed by id and carries its own place
+     in an ordered list, because a folder makes what is on screen a
+     filtered view of storage: an index into one is not an index into the
+     other, and dragging reorders the view, not the array behind it.
 
-  // Decks made before folders existed have no id; without one they cannot
-  // be renamed, moved or deleted through a filtered view.
+     Three kinds of thing live in `qp:decks`, told apart by `kind`:
+       quiz  a word list, the ordinary case (kind absent for older ones)
+       sub   a reference to one sub-list of a quiz, dragged out of its
+             panel so it can sit in a folder of its own. It holds no
+             words: it resolves through its parent every time it is drawn,
+             so renaming a word in the quiz is not a stale copy here.
+  --------------------------------------------------------------------- */
+  var TRASH_DAYS = 30;
+
+  function savedDecks() { return readStore("qp:decks", []); }
+  function writeDecks(list) { writeStore("qp:decks", list); }
+
+  function isSub(d) { return d && d.kind === "sub"; }
+
+  // Decks made before ids existed cannot be renamed, moved or deleted
+  // through a filtered view, so they are given one on the way in.
   function ensureDeckIds() {
     var list = savedDecks(), changed = false;
     list.forEach(function (d) { if (!d.id) { d.id = uid(); changed = true; } });
-    if (changed) writeStore("qp:decks", list);
+    if (changed) writeDecks(list);
+  }
+
+  function deckById(id) {
+    var list = savedDecks();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
   }
 
   function updateDeck(id, fn) {
@@ -2793,13 +2930,10 @@ button{font:inherit;color:inherit}
     for (var i = 0; i < list.length; i++) {
       if (list[i].id === id) { fn(list[i]); break; }
     }
-    writeStore("qp:decks", list);
+    writeDecks(list);
   }
 
-  function removeDeck(id) {
-    writeStore("qp:decks", savedDecks().filter(function (d) { return d.id !== id; }));
-  }
-
+  /* ---------------- folders ---------------- */
   function foldersList() { return readStore("qp:folders", []); }
   function saveFolders(list) { writeStore("qp:folders", list); }
 
@@ -2809,8 +2943,18 @@ button{font:inherit;color:inherit}
     return null;
   }
 
-  // Which folder a quiz is really in. One pointing at a deleted folder is
-  // loose, not lost.
+  // A folder whose parent has been deleted sits at the top rather than
+  // vanishing with it.
+  function parentOf(f) {
+    return f.parent && folderById(f.parent) ? f.parent : null;
+  }
+
+  function foldersIn(parentId) {
+    return foldersList().filter(function (f) { return parentOf(f) === parentId; });
+  }
+
+  // Which folder a quiz is really in. One pointing at a folder that is gone
+  // is loose, not lost.
   function folderOf(d) {
     return d.folder && folderById(d.folder) ? d.folder : null;
   }
@@ -2819,15 +2963,31 @@ button{font:inherit;color:inherit}
     return savedDecks().filter(function (d) { return folderOf(d) === folderId; });
   }
 
+  // A folder cannot be dropped inside itself or inside its own descendant:
+  // that would cut the branch off the tree and lose everything on it.
+  function isDescendant(folderId, maybeAncestorId) {
+    var seen = {}, at = folderId;
+    while (at && !seen[at]) {
+      if (at === maybeAncestorId) return true;
+      seen[at] = true;
+      var f = folderById(at);
+      at = f ? parentOf(f) : null;
+    }
+    return false;
+  }
+
   var currentFolder = null;   // the folder being looked inside; null is the top
 
   function openFolder(id) { currentFolder = id; renderSaved(); }
 
-  $("btn-back-folder").addEventListener("click", function () { openFolder(null); });
+  $("btn-back-folder").addEventListener("click", function () {
+    var f = currentFolder && folderById(currentFolder);
+    openFolder(f ? parentOf(f) : null);
+  });
 
   $("btn-new-folder").addEventListener("click", function () {
     var list = foldersList();
-    var f = { id: "f" + uid().slice(1), name: "New folder" };
+    var f = { id: "f" + uid().slice(1), name: "New folder", parent: currentFolder || null };
     list.push(f);
     saveFolders(list);
     renderSaved();
@@ -2837,32 +2997,393 @@ button{font:inherit;color:inherit}
     if (input) { input.focus(); input.select(); }
   });
 
+  /* ---------------- trash ----------------
+     Deleting puts a thing here with the time it went in, and it is cleared
+     out after TRASH_DAYS. Long enough that a mistake noticed a week later
+     is still recoverable; short enough that it is not a second library.
+  ----------------------------------------- */
+  function trashList() { return readStore("qp:trash", []); }
+  function saveTrash(list) { writeStore("qp:trash", list); }
+
+  function purgeTrash() {
+    var cutoff = Date.now() - TRASH_DAYS * 86400000;
+    var list = trashList();
+    var kept = list.filter(function (t) { return (t.deletedAt || 0) > cutoff; });
+    if (kept.length !== list.length) saveTrash(kept);
+  }
+
+  function toTrash(kind, payload) {
+    var list = trashList();
+    list.unshift({ tid: uid(), kind: kind, deletedAt: Date.now(), payload: payload });
+    saveTrash(list);
+  }
+
+  function trashDeck(id) {
+    var d = deckById(id);
+    if (!d) return;
+    toTrash(isSub(d) ? "sub" : "quiz", JSON.parse(JSON.stringify(d)));
+    writeDecks(savedDecks().filter(function (x) { return x.id !== id; }));
+  }
+
+  // A folder goes on its own: the quizzes inside it are kept, and come back
+  // loose. Throwing away a folder should not throw away the work in it.
+  function trashFolder(id) {
+    var f = folderById(id);
+    if (!f) return;
+    toTrash("folder", JSON.parse(JSON.stringify(f)));
+    saveFolders(foldersList().filter(function (x) { return x.id !== id; }));
+    // Folders nested inside it rise to where it was, by the same reasoning.
+    var kids = foldersList();
+    var changed = false;
+    kids.forEach(function (k) { if (k.parent === id) { k.parent = f.parent || null; changed = true; } });
+    if (changed) saveFolders(kids);
+  }
+
+  function restoreFromTrash(tid) {
+    var list = trashList(), item = null;
+    list = list.filter(function (t) {
+      if (t.tid === tid) { item = t; return false; }
+      return true;
+    });
+    if (!item) return;
+    saveTrash(list);
+    if (item.kind === "folder") {
+      var folders = foldersList();
+      folders.push(item.payload);
+      saveFolders(folders);
+    } else {
+      var decks = savedDecks();
+      decks.push(item.payload);
+      writeDecks(decks);
+    }
+    renderSaved();
+  }
+
+  function dropFromTrash(tid) {
+    saveTrash(trashList().filter(function (t) { return t.tid !== tid; }));
+    renderSaved();
+  }
+
+  function ago(ms) {
+    var d = Math.floor((Date.now() - ms) / 86400000);
+    if (d <= 0) return "today";
+    if (d === 1) return "yesterday";
+    return d + " days ago";
+  }
+
+  /* ---------------- moving things ----------------
+     One place decides what a move means, so dragging and the Move menu can
+     never disagree about it. Nothing here opens a folder: putting a thing
+     away is not a reason to go and stand in the cupboard.
+  ------------------------------------------------ */
+  function moveInto(kind, id, folderId) {
+    if (kind === "folder") {
+      if (id === folderId || (folderId && isDescendant(folderId, id))) return false;
+      var folders = foldersList();
+      for (var i = 0; i < folders.length; i++) {
+        if (folders[i].id === id) { folders[i].parent = folderId || null; break; }
+      }
+      saveFolders(folders);
+    } else {
+      updateDeck(id, function (x) {
+        if (folderId) x.folder = folderId; else delete x.folder;
+      });
+    }
+    return true;
+  }
+
+  // Reordering moves the thing next to its target in the array behind the
+  // view, which is what keeps the on-screen order after a filter is applied.
+  function reorder(kind, id, targetId, after) {
+    var list = kind === "folder" ? foldersList() : savedDecks();
+    var from = -1, to = -1, i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i].id === id) from = i;
+      if (list[i].id === targetId) to = i;
+    }
+    if (from < 0 || to < 0 || from === to) return;
+    var item = list.splice(from, 1)[0];
+    to = list.findIndex(function (x) { return x.id === targetId; });
+    list.splice(after ? to + 1 : to, 0, item);
+    if (kind === "folder") saveFolders(list); else writeDecks(list);
+  }
+
+  /* ---------------- drag and drop ---------------- */
+  var dragging = null;    // {kind:"quiz"|"folder"|"sub-list", id, ...}
+
+  function clearDropMarks() {
+    var marked = document.querySelectorAll(".drop-in,.drop-before,.drop-after");
+    Array.prototype.forEach.call(marked, function (el) {
+      el.classList.remove("drop-in", "drop-before", "drop-after");
+    });
+  }
+
+  function makeDraggable(el, kind, id) {
+    el.draggable = true;
+    el.addEventListener("dragstart", function (e) {
+      dragging = { kind: kind, id: id };
+      el.classList.add("is-dragging");
+      try {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", kind + ":" + id);
+      } catch (err) { /* older browsers */ }
+    });
+    el.addEventListener("dragend", function () {
+      el.classList.remove("is-dragging");
+      dragging = null;
+      document.body.classList.remove("dragging-sub");
+      clearDropMarks();
+    });
+  }
+
+  // A card takes a drop three ways: into it, before it, or after it. The
+  // middle of a folder means "inside"; the edges mean "beside". A quiz has
+  // no inside, so it is halves.
+  function dropZone(el, e, canHold) {
+    var r = el.getBoundingClientRect();
+    var x = (e.clientX - r.left) / r.width;
+    if (!canHold) return x < 0.5 ? "before" : "after";
+    if (x < 0.25) return "before";
+    if (x > 0.75) return "after";
+    return "in";
+  }
+
+  function acceptsDrop(kind, id) {
+    if (!dragging) return false;
+    if (dragging.kind === "sub-list") return true;
+    if (dragging.id === id) return false;
+    // A folder cannot be put inside itself or anything it contains.
+    if (dragging.kind === "folder" && kind === "folder" && isDescendant(id, dragging.id)) return false;
+    return true;
+  }
+
+  function wireDropTarget(el, kind, id) {
+    el.addEventListener("dragover", function (e) {
+      if (!acceptsDrop(kind, id)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      var zone = dropZone(el, e, kind === "folder");
+      clearDropMarks();
+      el.classList.add(zone === "in" ? "drop-in" : zone === "before" ? "drop-before" : "drop-after");
+    });
+    el.addEventListener("dragleave", function () { el.classList.remove("drop-in", "drop-before", "drop-after"); });
+    el.addEventListener("drop", function (e) {
+      if (!acceptsDrop(kind, id)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var zone = dropZone(el, e, kind === "folder");
+      var drag = dragging;
+      clearDropMarks();
+      if (!drag) return;
+
+      if (drag.kind === "sub-list") {
+        var into = zone === "in" && kind === "folder" ? id : currentFolder;
+        makeSubRef(drag, into);
+      } else if (zone === "in" && kind === "folder") {
+        moveInto(drag.kind, drag.id, id);
+      } else if (drag.kind === kind) {
+        reorder(kind, drag.id, id, zone === "after");
+      } else {
+        // A quiz dropped beside a folder, or the reverse: it belongs in the
+        // container being looked at, which is where the target is.
+        moveInto(drag.kind, drag.id, currentFolder);
+      }
+      dragging = null;
+      renderSaved();        // deliberately not openFolder: stay where you are
+    });
+  }
+
+  // Dropping on the empty space of a grid means "in here, at the end".
+  function wireGridDrop(el) {
+    el.addEventListener("dragover", function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    });
+    el.addEventListener("drop", function (e) {
+      if (!dragging || e.target !== el) return;
+      e.preventDefault();
+      var drag = dragging;
+      clearDropMarks();
+      if (drag.kind === "sub-list") makeSubRef(drag, currentFolder);
+      else moveInto(drag.kind, drag.id, currentFolder);
+      dragging = null;
+      renderSaved();
+    });
+  }
+
+  // A sub-list dragged out of its panel becomes a card of its own. It keeps
+  // no words: it points at the sub-list and reads it fresh each time.
+  function makeSubRef(drag, folderId) {
+    var list = savedDecks();
+    var already = list.some(function (x) {
+      return isSub(x) && x.ofDeck === drag.deckId && x.subName === drag.subName &&
+             folderOf(x) === (folderId || null);
+    });
+    if (already) { flash("“" + drag.subName + "” is already here.", "info"); return; }
+    var ref = { id: uid(), kind: "sub", ofDeck: drag.deckId, subName: drag.subName };
+    if (folderId) ref.folder = folderId;
+    list.push(ref);
+    writeDecks(list);
+  }
+
+  function subRefTarget(ref) {
+    var parent = deckById(ref.ofDeck);
+    if (!parent || isSub(parent)) return null;
+    var subs = parent.subs || [];
+    for (var i = 0; i < subs.length; i++) {
+      if (subs[i].name === ref.subName) return { deck: parent, sub: subs[i] };
+    }
+    return null;
+  }
+
+  /* ---------------- drawing the shelf ---------------- */
+  wireGridDrop($("folder-list"));
+  wireGridDrop($("saved-list"));
+
   function renderSaved() {
     ensureDeckIds();
+    purgeTrash();
+
     var folders = foldersList();
     var all = savedDecks();
-    $("saved-box").hidden = !all.length && !folders.length;
+    var trash = trashList();
+    $("saved-box").hidden = !all.length && !folders.length && !trash.length;
 
-    // A folder deleted while open drops you back to the top level.
+    // A folder deleted while open drops you back where it was.
     if (currentFolder && !folderById(currentFolder)) currentFolder = null;
     var here = currentFolder;
 
     $("btn-back-folder").hidden = !here;
-    $("btn-new-folder").hidden = !!here;
     $("saved-title").textContent = here ? folderById(here).name : "Your quizzes";
 
     var fhost = $("folder-list");
     fhost.textContent = "";
-    fhost.hidden = !!here || !folders.length;
-    if (!here) folders.forEach(function (f) { fhost.appendChild(folderCard(f)); });
+    var subFolders = foldersIn(here);
+    fhost.hidden = !subFolders.length;
+    subFolders.forEach(function (f) { fhost.appendChild(folderCard(f)); });
 
     var host = $("saved-list");
     host.textContent = "";
     var mine = decksIn(here);
     host.hidden = !mine.length;
-    mine.forEach(function (d) { host.appendChild(quizCard(d)); });
+    mine.forEach(function (d) { host.appendChild(isSub(d) ? subCard(d) : quizCard(d)); });
 
-    $("folder-empty").hidden = !(here && !mine.length);
+    $("folder-empty").hidden = !(here && !mine.length && !subFolders.length);
+    renderTrash();
+  }
+
+  function renderTrash() {
+    var box = $("trash-box"), host = $("trash-list");
+    var list = trashList();
+    box.hidden = !list.length || !!currentFolder;
+    host.textContent = "";
+    $("trash-note").textContent =
+      list.length + (list.length === 1 ? " thing" : " things") +
+      " · cleared after " + TRASH_DAYS + " days";
+
+    list.forEach(function (t) {
+      var row = document.createElement("div");
+      row.className = "trash-row";
+
+      var what = document.createElement("div");
+      what.className = "trash-what";
+      var name = document.createElement("b");
+      name.textContent = t.kind === "folder"
+        ? (t.payload.name || "Untitled folder")
+        : t.kind === "sub"
+          ? (t.payload.subName || "Sub-list")
+          : (t.payload.title || "Untitled quiz");
+      var meta = document.createElement("span");
+      meta.textContent = (t.kind === "folder" ? "Folder" : t.kind === "sub" ? "Sub-list" : "Quiz") +
+        " · deleted " + ago(t.deletedAt);
+      what.appendChild(name);
+      what.appendChild(meta);
+
+      var back = document.createElement("button");
+      back.type = "button";
+      back.className = "btn btn-sm";
+      back.textContent = "Restore";
+      back.addEventListener("click", function () { restoreFromTrash(t.tid); });
+
+      var gone = document.createElement("button");
+      gone.type = "button";
+      gone.className = "btn btn-sm";
+      gone.textContent = "Delete forever";
+      gone.addEventListener("click", function () { confirmOn(gone, "Gone for good?", function () { dropFromTrash(t.tid); }); });
+
+      row.appendChild(what);
+      row.appendChild(back);
+      row.appendChild(gone);
+      host.appendChild(row);
+    });
+  }
+
+  $("btn-empty-trash").addEventListener("click", function () {
+    confirmOn($("btn-empty-trash"), "Empty it all?", function () { saveTrash([]); renderSaved(); });
+  });
+
+  /* A button that asks before it acts. The question replaces the button in
+     place, so the thing being deleted stays in view while it is asked
+     about -- and anything else clicked calls the whole thing off. */
+  function confirmOn(btn, question, run) {
+    if (btn.dataset.asking === "1") return;
+    var host = btn.parentNode;
+    var label = btn.textContent;
+    btn.dataset.asking = "1";
+    btn.hidden = true;
+
+    var ask = document.createElement("span");
+    ask.className = "ask-row";
+    var q = document.createElement("span");
+    q.className = "ask-q";
+    q.textContent = question;
+    var yes = document.createElement("button");
+    yes.type = "button";
+    yes.className = "btn btn-sm ask-yes";
+    yes.textContent = "Delete";
+    var no = document.createElement("button");
+    no.type = "button";
+    no.className = "btn btn-sm";
+    no.textContent = "Keep";
+    ask.appendChild(q);
+    ask.appendChild(yes);
+    ask.appendChild(no);
+    host.insertBefore(ask, btn);
+
+    function done() {
+      if (ask.parentNode) ask.parentNode.removeChild(ask);
+      btn.hidden = false;
+      btn.textContent = label;
+      delete btn.dataset.asking;
+      document.removeEventListener("click", away, true);
+    }
+    function away(e) { if (!ask.contains(e.target)) done(); }
+    setTimeout(function () { document.addEventListener("click", away, true); }, 0);
+
+    no.addEventListener("click", done);
+    yes.addEventListener("click", function () { done(); run(); });
+    yes.focus();
+  }
+
+  // The bin every card carries, in its top corner.
+  function binButton(label, question, run) {
+    var wrap = document.createElement("div");
+    wrap.className = "card-del";
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "bin";
+    b.title = label;
+    b.setAttribute("aria-label", label);
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"></path></svg>';
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      confirmOn(b, question, run);
+    });
+    wrap.appendChild(b);
+    return wrap;
   }
 
   /* ---------------- a folder ---------------- */
@@ -2878,13 +3399,12 @@ button{font:inherit;color:inherit}
     name.placeholder = "Name this folder";
     name.maxLength = 40;
     name.setAttribute("aria-label", "Name of this folder");
-    // Typing in the name must not also open the folder underneath it.
-    name.addEventListener("click", function (e) { e.stopPropagation(); });
-    name.addEventListener("keydown", function (e) {
-      e.stopPropagation();
-      if (e.key === "Enter") { e.preventDefault(); name.blur(); }
-    });
+    // Typing in the name must not also open the folder underneath it, and
+    // must not start a drag of the card either.
+    name.draggable = false;
+    name.addEventListener("mousedown", function (e) { e.stopPropagation(); card.draggable = false; });
     name.addEventListener("blur", function () {
+      card.draggable = true;
       var list = foldersList();
       for (var i = 0; i < list.length; i++) {
         if (list[i].id === f.id) {
@@ -2895,84 +3415,106 @@ button{font:inherit;color:inherit}
       }
       saveFolders(list);
       name.value = f.name;
-      if (currentFolder === f.id) $("saved-title").textContent = f.name;
+    });
+    name.addEventListener("click", function (e) { e.stopPropagation(); });
+    name.addEventListener("keydown", function (e) {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); name.blur(); }
     });
 
-    var n = decksIn(f.id).length;
+    var inside = decksIn(f.id).length, nested = foldersIn(f.id).length;
+    var bits = [inside + (inside === 1 ? " quiz" : " quizzes")];
+    if (nested) bits.push(nested + (nested === 1 ? " folder" : " folders"));
     var meta = document.createElement("div");
     meta.className = "deck-meta";
-    meta.textContent = n + (n === 1 ? " quiz" : " quizzes");
+    meta.textContent = bits.join(" · ");
 
-    var kill = document.createElement("button");
-    kill.type = "button";
-    kill.className = "kill";
-    kill.textContent = "✕";
-    kill.setAttribute("aria-label", "Delete the folder " + (f.name || "folder"));
-    kill.title = "Delete this folder. The quizzes inside it are kept.";
-    kill.addEventListener("click", function (e) {
-      e.stopPropagation();
-      saveFolders(foldersList().filter(function (x) { return x.id !== f.id; }));
-      renderSaved();      // the quizzes reappear loose, by way of folderOf
-    });
-
-    var sp = document.createElement("span");
-    sp.className = "sp";
-    var foot = document.createElement("div");
-    foot.className = "quiz-card-foot";
-    foot.appendChild(sp);
-    foot.appendChild(kill);
+    card.appendChild(binButton("Delete this folder", "Delete folder?", function () {
+      trashFolder(f.id);
+      renderSaved();
+    }));
+    var ffoot = document.createElement("div");
+    ffoot.className = "quiz-card-foot";
+    var fsp = document.createElement("span");
+    fsp.className = "sp";
+    ffoot.appendChild(fsp);
+    ffoot.appendChild(moverButton("folder", f.id, card));
 
     card.appendChild(name);
     card.appendChild(meta);
-    card.appendChild(foot);
-    card.addEventListener("click", function () { openFolder(f.id); });
+    card.appendChild(ffoot);
+
+    card.addEventListener("click", function (e) {
+      if (e.target.closest(".card-del,.ask-row,.folder-name,.mover,.quiz-card-foot")) return;
+      openFolder(f.id);
+    });
     card.addEventListener("keydown", function (e) {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openFolder(f.id); }
     });
+
+    makeDraggable(card, "folder", f.id);
+    wireDropTarget(card, "folder", f.id);
     return card;
   }
 
-  /* ---------------- a quiz ---------------- */
-  function quizCard(d) {
-    var card = document.createElement("div");
-    card.className = "quiz-card";
-    if (d.color) {
-      card.classList.add("tinted");
-      card.style.setProperty("--row-bg", d.color);
-      card.style.setProperty("--row-wash", washOf(d.color));
-    }
+  /* Dragging is the quick way, but HTML5 drag does not exist on a touch
+     screen and this installs to a phone home screen -- so every card also
+     carries the same move as a menu. Both go through moveInto, so they
+     cannot come to disagree about what a move means. */
+  function moverButton(kind, id, card) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-sm";
+    btn.textContent = "Move";
+    btn.title = "Put this in a folder";
+    var box = null;
 
-    // Renaming a quiz is typing in its name, same as on the deck screen.
-    var title = document.createElement("input");
-    title.className = "saved-name";
-    title.value = d.title || "";
-    title.placeholder = "Name this quiz";
-    title.maxLength = 60;
-    title.setAttribute("aria-label", "Name of this quiz");
-    title.addEventListener("blur", function () {
-      var name = title.value.trim() || "Untitled quiz";
-      updateDeck(d.id, function (x) { x.title = name; });
-      d.title = name;
-      title.value = name;
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (box) { box.parentNode.removeChild(box); box = null; return; }
+      box = document.createElement("div");
+      box.className = "mover";
+
+      var at = kind === "folder"
+        ? parentOf(folderById(id) || {})
+        : folderOf(deckById(id) || {});
+
+      function row(label, target) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "sub-chip";
+        b.textContent = label;
+        var same = at === target;
+        // A folder cannot be moved inside itself or anything it holds.
+        var illegal = kind === "folder" && target &&
+          (target === id || isDescendant(target, id));
+        b.disabled = same || illegal;
+        b.setAttribute("aria-pressed", String(same));
+        if (illegal) b.title = "A folder cannot go inside itself";
+        if (!b.disabled) {
+          b.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            moveInto(kind, id, target);
+            renderSaved();     // stay put: putting a thing away is not a reason to follow it
+          });
+        }
+        box.appendChild(b);
+      }
+
+      row("Top level", null);
+      foldersList().forEach(function (f) { row(f.name, f.id); });
+      card.appendChild(box);
     });
-    title.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") { e.preventDefault(); title.blur(); }
-    });
+    return btn;
+  }
 
-    // Sub-lists are counted, not listed: they open from this quiz's panel.
-    var meta = document.createElement("div");
-    meta.className = "deck-meta";
-    var subs = (d.subs || []).length;
-    var bits = [words(d.pairs.length)];
-    if (d.langA && d.langB && d.langA !== "Column A") bits.push(d.langA + " → " + d.langB);
-    if (subs) bits.push(subs + (subs === 1 ? " sub-list" : " sub-lists"));
-    meta.textContent = bits.join(" · ");
-
+  /* ---------------- shared card furniture ---------------- */
+  function colourSwatch(d, card) {
     var swatch = document.createElement("button");
     swatch.type = "button";
     swatch.className = "swatch";
     swatch.title = "Colour this quiz";
-    swatch.setAttribute("aria-label", "Colour for " + (d.title || "this quiz"));
+    swatch.setAttribute("aria-label", "Colour for " + (d.title || d.subName || "this quiz"));
     if (d.color) swatch.style.background = d.color;
     var palette = null;
     swatch.addEventListener("click", function () {
@@ -2997,18 +3539,48 @@ button{font:inherit;color:inherit}
       });
       card.appendChild(palette);
     });
+    return swatch;
+  }
 
-    var move = document.createElement("button");
-    move.type = "button";
-    move.className = "btn btn-sm";
-    move.textContent = "Move";
-    move.title = "Put this quiz in a folder";
-    var mover = null;
-    move.addEventListener("click", function () {
-      if (mover) { mover.parentNode.removeChild(mover); mover = null; return; }
-      mover = buildMover(d);
-      card.appendChild(mover);
+  function tint(card, d) {
+    if (!d.color) return;
+    card.classList.add("tinted");
+    card.style.setProperty("--row-bg", d.color);
+    card.style.setProperty("--row-wash", washOf(d.color));
+  }
+
+  /* ---------------- a quiz ---------------- */
+  function quizCard(d) {
+    var card = document.createElement("div");
+    card.className = "quiz-card";
+    tint(card, d);
+
+    var title = document.createElement("input");
+    title.className = "saved-name";
+    title.value = d.title || "";
+    title.placeholder = "Name this quiz";
+    title.maxLength = 60;
+    title.setAttribute("aria-label", "Name of this quiz");
+    title.draggable = false;
+    title.addEventListener("mousedown", function () { card.draggable = false; });
+    title.addEventListener("blur", function () {
+      card.draggable = true;
+      var name = title.value.trim() || "Untitled quiz";
+      updateDeck(d.id, function (x) { x.title = name; });
+      d.title = name;
+      title.value = name;
     });
+    title.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); title.blur(); }
+    });
+
+    var subs = (d.subs || []).length;
+    var meta = document.createElement("div");
+    meta.className = "deck-meta";
+    var bits = [words(d.pairs.length)];
+    if (d.langA && d.langB && d.langA !== "Column A") bits.push(d.langA + " → " + d.langB);
+    if (subs) bits.push(subs + (subs === 1 ? " sub-list" : " sub-lists"));
+    meta.textContent = bits.join(" · ");
 
     var lists = document.createElement("button");
     lists.type = "button";
@@ -3024,89 +3596,91 @@ button{font:inherit;color:inherit}
     open.textContent = "Open";
     open.addEventListener("click", function () { loadDeck(JSON.parse(JSON.stringify(d))); });
 
-    var kill = document.createElement("button");
-    kill.type = "button";
-    kill.className = "kill";
-    kill.textContent = "✕";
-    kill.setAttribute("aria-label", "Delete " + (d.title || "quiz"));
-    kill.addEventListener("click", function () { removeDeck(d.id); renderSaved(); });
+    var sp = document.createElement("span");
+    sp.className = "sp";
+    var foot = document.createElement("div");
+    foot.className = "quiz-card-foot";
+    foot.appendChild(colourSwatch(d, card));
+    foot.appendChild(sp);
+    foot.appendChild(moverButton("quiz", d.id, card));
+    foot.appendChild(lists);
+    foot.appendChild(open);
+
+    card.appendChild(binButton("Delete this quiz", "Delete quiz?", function () {
+      trashDeck(d.id);
+      renderSaved();
+    }));
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(foot);
+
+    makeDraggable(card, "quiz", d.id);
+    wireDropTarget(card, "quiz", d.id);
+    return card;
+  }
+
+  /* ---------------- a sub-list, living in a folder ----------------
+     Drawn narrower and notched, with the quiz it came from named on it, so
+     it never reads as a word list in its own right.
+  ----------------------------------------------------------------- */
+  function subCard(ref) {
+    var found = subRefTarget(ref);
+    var card = document.createElement("div");
+    card.className = "quiz-card sub-ref" + (found ? "" : " orphaned");
+    tint(card, ref);
+
+    var tag = document.createElement("span");
+    tag.className = "sub-tag";
+    tag.textContent = "sub-list";
+
+    var title = document.createElement("div");
+    title.className = "saved-name static";
+    title.textContent = ref.subName;
+
+    var meta = document.createElement("div");
+    meta.className = "deck-meta";
+    if (found) {
+      var n = subPairs(found.deck, found.sub).length;
+      meta.textContent = words(n) + " · from " + (found.deck.title || "a quiz");
+    } else {
+      meta.textContent = "The quiz this came from is gone";
+    }
+
+    var play = document.createElement("button");
+    play.type = "button";
+    play.className = "btn btn-sm";
+    play.textContent = "Play";
+    play.disabled = !found || !subPairs(found.deck, found.sub).length;
+    play.addEventListener("click", function () {
+      var live = subRefTarget(ref);
+      if (!live) return;
+      loadDeck(JSON.parse(JSON.stringify(live.deck)));
+      var s = findSub(deck, ref.subName);
+      if (!s) return;
+      startGame(subPairs(deck, s), s.name);
+    });
 
     var sp = document.createElement("span");
     sp.className = "sp";
     var foot = document.createElement("div");
     foot.className = "quiz-card-foot";
-    foot.appendChild(swatch);
+    foot.appendChild(colourSwatch(ref, card));
     foot.appendChild(sp);
-    foot.appendChild(move);
-    foot.appendChild(lists);
-    foot.appendChild(open);
-    foot.appendChild(kill);
+    foot.appendChild(moverButton("quiz", ref.id, card));
+    foot.appendChild(play);
 
+    card.appendChild(binButton("Remove this sub-list card", "Remove card?", function () {
+      trashDeck(ref.id);
+      renderSaved();
+    }));
+    card.appendChild(tag);
     card.appendChild(title);
     card.appendChild(meta);
     card.appendChild(foot);
+
+    makeDraggable(card, "quiz", ref.id);   // moves like any other card
+    wireDropTarget(card, "quiz", ref.id);
     return card;
-  }
-
-  // The folder chooser, opened inside the card so the quiz being moved stays
-  // in view while its destination is picked.
-  function buildMover(d) {
-    var box = document.createElement("div");
-    box.className = "mover";
-
-    function row(label, run, isCurrent) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "sub-chip";
-      b.textContent = label;
-      b.disabled = !!isCurrent;
-      b.setAttribute("aria-pressed", String(!!isCurrent));
-      if (!isCurrent) b.addEventListener("click", run);
-      box.appendChild(b);
-    }
-
-    var at = folderOf(d);
-    row("No folder", function () {
-      updateDeck(d.id, function (x) { delete x.folder; });
-      renderSaved();
-    }, at === null);
-
-    foldersList().forEach(function (f) {
-      row(f.name, function () {
-        updateDeck(d.id, function (x) { x.folder = f.id; });
-        renderSaved();
-      }, at === f.id);
-    });
-
-    var mk = document.createElement("div");
-    mk.className = "sub-new";
-    var input = document.createElement("input");
-    input.placeholder = "New folder name";
-    input.maxLength = 40;
-    input.autocomplete = "off";
-    var go = document.createElement("button");
-    go.type = "button";
-    go.className = "btn btn-sm";
-    go.textContent = "Create and move";
-    function create() {
-      var name = input.value.trim();
-      if (!name) return;
-      var list = foldersList();
-      var f = { id: "f" + uid().slice(1), name: name };
-      list.push(f);
-      saveFolders(list);
-      updateDeck(d.id, function (x) { x.folder = f.id; });
-      renderSaved();
-    }
-    go.addEventListener("click", create);
-    input.addEventListener("keydown", function (e) {
-      e.stopPropagation();
-      if (e.key === "Enter") { e.preventDefault(); create(); }
-    });
-    mk.appendChild(input);
-    mk.appendChild(go);
-    box.appendChild(mk);
-    return box;
   }
 
   $("btn-save").addEventListener("click", function () {
