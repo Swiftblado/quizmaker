@@ -542,7 +542,7 @@ button{font:inherit;color:inherit}
    does not glow. */
 .folder-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));
-  gap:12px;margin-bottom:16px;padding-top:11px;
+  gap:12px;margin-bottom:16px;padding-top:22px;   /* the sheets of an open folder stand above the rim */
 }
 .folder-card{
   --manila:#F2C86B;
@@ -622,53 +622,48 @@ button{font:inherit;color:inherit}
 .is-dragging{opacity:.35}
 .quiz-card,.folder-card{transition:transform .14s ease,box-shadow .12s,filter .12s}
 .drop-in{outline:2px solid var(--accent);outline-offset:3px}
-/* Held over, a folder is simply open -- one state to the next with nothing
-   in between, so there is never a half-open folder to read. The flap and
-   the raised tab are the same ones the way-out card wears, so open looks
-   like open wherever it is. */
-.folder-card .flap{display:none}
-.folder-card.drop-in .flap,.folder-card.open-folder .flap{display:block}
-/* The body darkens as the flap comes down, exactly as the way-out card is
-   drawn -- without it the flap shares the body's gradient and its edge
-   disappears into it. */
-.folder-card.drop-in{background:linear-gradient(174deg,var(--manila-deep) 0%,var(--manila) 100%)}
-.folder-card.drop-in::before{transform:translateY(-9px) rotate(-3.5deg);transform-origin:left bottom}
-.folder-card.drop-in::after{transform:translateY(-5px) scaleY(1.9);transform-origin:bottom}
-/* The label and its row sit above the flap, never behind it. */
-.folder-card .folder-name,.folder-card .deck-meta,.folder-card .quiz-card-foot{position:relative;z-index:2}
+/* A folder is shut or open, with nothing in between -- see the open
+   folder rules further down. */
+.folder-card .folder-name,.folder-card .deck-meta,.folder-card .quiz-card-foot{position:relative}
 /* While a sub-list is being dragged out of the panel, the scrim must not
    swallow the drop. */
 .dragging-sub .side-scrim{pointer-events:none;opacity:.12}
 .side-item[draggable="true"]{cursor:grab}
 .side-item[draggable="true"]:active{cursor:grabbing}
 
-/* ---- the way out ----
-   An open folder: the front flap leaning down and away, the sheet inside
-   standing clear of it. It reads as the folder you are standing in, seen
-   from the front, which is what going back out means. */
-.folder-card.open-folder{background:linear-gradient(174deg,var(--manila-deep) 0%,var(--manila) 100%)}
-/* Same box as a closed folder: the empty row below stands in for the one
-   holding a folder's Move button, so the two line up on the grid. */
-.folder-card .quiz-card-foot{min-height:31px}
-.folder-card.open-folder::before{
-  height:11px;top:-10px;width:66px;
-  background:var(--manila-deep);
+/* ---- an open folder ----
+   Shut, it is a folder. Open -- held over by a drag, or the way-out card
+   in a folder you are standing in -- the sheets inside rise out of the
+   mouth and the mouth darkens behind them. The sheets sit entirely above
+   the rim rather than lying over the card, so none of it has to be
+   layered behind a background that the hover transform would otherwise
+   lift them in front of. */
+.folder-card.drop-in,.folder-card.open-folder{
+  box-shadow:var(--shadow),inset 0 7px 11px -8px rgba(58,43,8,.8);
 }
-.folder-card.open-folder::after{
-  right:auto;left:11px;top:-7px;width:62%;height:12px;
-  background:#FFFDF6;border-radius:3px 3px 0 0;
+/* the tab lifts straight up: an opening folder does not tilt */
+.folder-card.drop-in::before,.folder-card.open-folder::before{transform:translateY(-3px)}
+/* the sheet at the front */
+.folder-card.drop-in::after,.folder-card.open-folder::after{
+  left:auto;right:18px;top:-18px;width:46%;height:18px;
+  background:#FFFDF6;border:1px solid rgba(58,43,8,.22);border-bottom:0;
+  border-radius:3px 3px 0 0;
+  transform:rotate(1.4deg);transform-origin:bottom right;
+  box-shadow:0 3px 6px -4px rgba(58,43,8,.5);
 }
-/* the front panel, hinged along the bottom and tipped towards you: the
-   folder you are standing in, seen from the front. */
+/* and one behind it, so it reads as a sheaf rather than a single flag */
+.folder-card .flap{display:none}
+.folder-card.drop-in .flap,.folder-card.open-folder .flap{display:block}
 .folder-card .flap{
-  position:absolute;left:-1px;right:-1px;bottom:-1px;height:58%;
-  background:linear-gradient(180deg,var(--manila) 0%,var(--manila-deep) 100%);
-  border:1px solid var(--manila-line);border-radius:2px 14px 10px 10px;
-  transform:perspective(340px) rotateX(15deg);transform-origin:bottom center;
-  box-shadow:0 -7px 12px -9px rgba(0,0,0,.45);
+  position:absolute;right:42%;top:-13px;width:32%;height:13px;
+  background:#F1E9D4;border:1px solid rgba(58,43,8,.18);border-bottom:0;
+  border-radius:3px 3px 0 0;
+  transform:rotate(-2.2deg);transform-origin:bottom left;
 }
-
-.folder-card.open-folder .folder-name.static{position:relative;z-index:1}
+/* Same box as a closed folder, so the two line up on the grid. */
+.folder-card .quiz-card-foot{min-height:31px}
+.folder-card.open-folder .deck-meta{color:#6A5316}
+.folder-name.static{position:relative;z-index:1}
 .folder-card.open-folder .deck-meta{position:relative;z-index:1;color:#6A5316}
 .folder-name.static{
   font-family:var(--serif);font-size:16.5px;font-weight:600;
