@@ -655,6 +655,18 @@ button{font:inherit;color:inherit}
    something is brought to it -- the folder you are on your way out of,
    closing as you put a thing in it. */
 .folder-card.open-folder.drop-in .flap{top:14px;box-shadow:none}
+
+/* A folder opens under the pointer as well as under a drag -- the same
+   state, reached the same way. Guarded on a real pointer so it cannot
+   stick open after a tap on a touch screen. */
+@media (hover:hover){
+  .folder-card:hover .flap{top:42px;box-shadow:0 -3px 7px -4px rgba(90,63,6,.55)}
+  .folder-card.has-items:hover::after{top:6px;height:40px}
+  /* And the way-out card the other way, as it does for a drag: open at
+     rest, shut as something comes to it. */
+  .folder-card.open-folder:hover .flap{top:14px;box-shadow:none}
+  .folder-card.has-items.open-folder:hover::after{top:6px;height:12px}
+}
 /* Everything readable sits on the front panel, above both. */
 .folder-card .folder-name,
 .folder-card .deck-meta,
@@ -4430,7 +4442,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 5c3a8dce</p>
+<p class="build-stamp">build 3644ba10</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
