@@ -1430,6 +1430,9 @@ button{font:inherit;color:inherit}
       $("scr-" + s).hidden = (s !== name);
     });
     if (name !== "quiz") window.scrollTo(0, 0);
+    // Names can only be cut while they are on screen, so the cuts are taken
+    // when the shelf reappears as well as when it is drawn.
+    if (name === "intake") clampNames();
   }
 
   /* ---------------- theme ---------------- */
@@ -3803,6 +3806,13 @@ button{font:inherit;color:inherit}
      is found by bisection against the box's own height, which needs the
      card to be on the page: these run after a render, not during one. */
   function clampOne(v) {
+    // An element that is not on screen measures zero, and zero fits inside
+    // zero -- so this would reset the name to its full length and then
+    // decide it needed no cut. renderSaved() runs from the deck screen and
+    // mid-quiz as well as from the shelf, which is how a cut made when the
+    // shelf was visible came to be undone the moment anything else saved.
+    if (!v.clientHeight) return;
+
     var full = v.dataset.full;
     if (full === undefined) { full = v.textContent; v.dataset.full = full; }
     v.classList.remove("is-cut");
@@ -3833,6 +3843,10 @@ button{font:inherit;color:inherit}
 
   // The cut depends on how wide the card is, so it is taken again whenever
   // that can have changed.
+  // The serif loads after the first paint, and text measured in the fallback
+  // is not the text that ends up on screen.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(clampNames);
+
   var clampSoon = null;
   window.addEventListener("resize", function () {
     clearTimeout(clampSoon);
@@ -4416,7 +4430,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build fdf46312</p>
+<p class="build-stamp">build 5c3a8dce</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
