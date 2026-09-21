@@ -640,6 +640,7 @@ button{font:inherit;color:inherit}
 }
 /* Everything readable sits on the front panel, above both. */
 .folder-card .folder-name,
+.folder-card .close-label,
 .folder-card .deck-meta,
 .folder-card .quiz-card-foot{position:relative;z-index:2}
 /* The bin is already absolutely placed in the corner; it only needs
@@ -672,12 +673,17 @@ button{font:inherit;color:inherit}
 .folder-name:hover{border-color:rgba(90,63,6,.28);background:rgba(255,255,255,.34)}
 .folder-name:focus{outline:none;border-color:var(--accent);background:#FFFDF6;color:var(--f-ink)}
 .folder-name::placeholder{color:rgba(90,63,6,.5);font-style:italic}
-.folder-name.static{
-  font-family:var(--serif);font-size:16.5px;font-weight:600;line-height:1.28;
-  height:calc(2 * 1.28em + 8px);padding:3px 0;color:inherit;overflow:hidden;
-}
 /* Stands where a name would, on the card that has none. */
-.name-gap{height:calc(2 * 1.28em + 8px);font-size:16.5px}
+/* The way-out card's label. Deliberately not a .folder-name: that class
+   carries the hover box and text cursor of something you can rename, and
+   this is a label, not a name. It sits lower than a name would, and the
+   row below it gives back the height so the card still matches a folder. */
+.close-label{
+  font-family:var(--serif);font-size:16.5px;font-weight:600;line-height:1.28;
+  height:calc(2 * 1.28em + 8px);margin-top:13px;padding:3px 0;
+  color:inherit;overflow:hidden;
+}
+.folder-card.open-folder .quiz-card-foot{min-height:18px}
 /* Same box as a closed folder, so the two line up on the grid. */
 /* A folder's row is empty -- it is there to make the card the same size as
    the way-out card. It must not swallow clicks meant for the folder. */
@@ -723,12 +729,6 @@ button{font:inherit;color:inherit}
 .side-item[draggable="true"]{cursor:grab}
 .side-item[draggable="true"]:active{cursor:grabbing}
 
-
-.folder-name.static{position:relative;z-index:1}
-.folder-name.static{
-  font-family:var(--serif);font-size:16.5px;font-weight:600;
-  padding:3px 0;color:inherit;
-}
 
 /* ---- a sub-list that lives in a folder ---- */
 .sub-ref{border-style:dashed}
@@ -3452,7 +3452,7 @@ button{font:inherit;color:inherit}
     // the way out of the one you are in, so the label is fixed text with no
     // box behind it and nothing to click into.
     var name = document.createElement("div");
-    name.className = "folder-name static";
+    name.className = "close-label";
     name.textContent = "Close folder";
 
     var meta = document.createElement("div");
