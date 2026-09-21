@@ -907,6 +907,13 @@ button{font:inherit;color:inherit}
   padding:6px 9px;background:transparent;color:var(--muted,#5B6478);font-size:14px;line-height:1;
 }
 .update-nudge .shut:hover{color:var(--ink,#141A2B)}
+/* Which build this page is. Quiet, but there to be read: without it a
+   stale tab and a change that did not work look exactly alike. */
+.build-stamp{
+  text-align:center;font:11px/1.4 var(--mono,ui-monospace,monospace);
+  color:var(--faint,#8B94A8);opacity:.75;margin:0 0 18px;
+  user-select:all;
+}
 @media (prefers-reduced-motion:no-preference){
   .update-nudge{animation:nudge-in .22s ease-out}
   @keyframes nudge-in{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
@@ -4409,6 +4416,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
+<p class="build-stamp">build fdf46312</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>

@@ -50,7 +50,7 @@ if (split === -1) throw new Error("index.html: could not find " + MOUNT);
 const headFrag = src.slice(0, split).trim();  // <title>, fonts, <style>
 const bodyFrag = src.slice(split).trim();     // markup + <script>
 
-const page = `<!doctype html>
+let page = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -103,6 +103,13 @@ ${headFrag}
   padding:6px 9px;background:transparent;color:var(--muted,#5B6478);font-size:14px;line-height:1;
 }
 .update-nudge .shut:hover{color:var(--ink,#141A2B)}
+/* Which build this page is. Quiet, but there to be read: without it a
+   stale tab and a change that did not work look exactly alike. */
+.build-stamp{
+  text-align:center;font:11px/1.4 var(--mono,ui-monospace,monospace);
+  color:var(--faint,#8B94A8);opacity:.75;margin:0 0 18px;
+  user-select:all;
+}
 @media (prefers-reduced-motion:no-preference){
   .update-nudge{animation:nudge-in .22s ease-out}
   @keyframes nudge-in{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
@@ -117,6 +124,7 @@ ${headFrag}
   </p>
 </noscript>
 ${bodyFrag}
+<p class="build-stamp">build __BUILD__</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
@@ -179,6 +187,13 @@ fs.writeFileSync(path.join(OUT, "index.html"), page);
 const version = crypto.createHash("sha1")
   .update(page.replace(/\r\n/g, "\n"))
   .digest("hex").slice(0, 8);
+
+// The page says which build it is, in the footer. The stamp is hashed as a
+// placeholder and filled in afterwards, so writing the id into the page
+// cannot change the id. Without it there is no way to tell, by looking, a
+// stale tab from a change that did not work.
+page = page.replace("__BUILD__", version);
+fs.writeFileSync(path.join(OUT, "index.html"), page);
 
 /* ------------------------------------------------------------------ icons */
 // A deck of two cards: one behind, one in front holding a word and its answer.
@@ -268,7 +283,10 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
 
   if (req.mode === "navigate") {
-    e.respondWith(fetch(req)
+    // Revalidated, never served straight from the HTTP cache -- the host
+    // sends max-age=600, and a reload inside that window would otherwise
+    // hand back the previous build.
+    e.respondWith(fetch(req.url, { cache: "no-cache", credentials: "same-origin" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put("./index.html", copy));

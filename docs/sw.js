@@ -1,4 +1,4 @@
-const CACHE = "quizmaker-4a89f022";
+const CACHE = "quizmaker-fdf46312";
 const SHELL = ["./", "./index.html", "./icon.svg", "./icon-192.png", "./manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -16,7 +16,10 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
 
   if (req.mode === "navigate") {
-    e.respondWith(fetch(req)
+    // Revalidated, never served straight from the HTTP cache -- the host
+    // sends max-age=600, and a reload inside that window would otherwise
+    // hand back the previous build.
+    e.respondWith(fetch(req.url, { cache: "no-cache", credentials: "same-origin" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put("./index.html", copy));
