@@ -3519,12 +3519,12 @@ button{font:inherit;color:inherit}
     card.setAttribute("role", "button");
     card.tabIndex = 0;
 
-    // No name on this one. It is not a folder you have named, it is the way
-    // out of the one you are in, and a name here only read as a second
-    // folder sitting among the real ones. The gap keeps the card the same
-    // size as they are.
+    // Labelled, but not named: this is not a folder you have named, it is
+    // the way out of the one you are in, so the label is fixed text with no
+    // box behind it and nothing to click into.
     var name = document.createElement("div");
-    name.className = "name-gap";
+    name.className = "folder-name static";
+    name.textContent = "Close folder";
 
     var meta = document.createElement("div");
     meta.className = "deck-meta";
@@ -3899,7 +3899,12 @@ button{font:inherit;color:inherit}
       view.textContent = view.dataset.full;
       view.classList.toggle("is-empty", !name);
       edit.value = name || "";
-      if (view.isConnected) clampOne(view);
+      // Only measurable once it is on screen. If it is not, the cut is taken
+      // on the next frame rather than skipped -- a name must never be left
+      // showing at full length because of what order something ran in.
+      if (!view.isConnected) return;
+      if (view.clientHeight) clampOne(view);
+      else requestAnimationFrame(function () { clampOne(view); });
     }
     paint(o.value || "");
 
@@ -3916,9 +3921,12 @@ button{font:inherit;color:inherit}
       // A pasted name can carry newlines and runs of spaces; a title is one
       // line of text however many lines it is shown on.
       var name = edit.value.replace(/\s+/g, " ").trim() || o.fallback;
-      paint(name);
+      // Put the view back before painting it. Painted while still hidden it
+      // measures zero, so the cut is skipped -- and it is then revealed at
+      // full length, running onto a third line until the next full render.
       edit.hidden = true;
       view.hidden = false;
+      paint(name);
       o.commit(name);
     }
 
@@ -4449,7 +4457,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build f849003b</p>
+<p class="build-stamp">build 382b48ef</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
