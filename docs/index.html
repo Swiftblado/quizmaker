@@ -224,6 +224,10 @@ button{font:inherit;color:inherit}
 .saved-name.name-view,.folder-name.name-view{
   overflow:hidden;cursor:text;white-space:normal;word-break:break-word;
 }
+/* Only while it is being cut: characters pack to the end of the line so
+   the ellipsis follows the last one that fits, rather than the last whole
+   word that fits. */
+.name-view.is-cut,.saved-name.static.is-cut{word-break:break-all}
 .name-view.is-empty{color:var(--faint);font-style:italic}
 .folder-card .name-view.is-empty{color:rgba(90,63,6,.5)}
 /* The sub-list card's name is never edited, so it is only ever cut. */
@@ -3794,16 +3798,24 @@ button{font:inherit;color:inherit}
   function clampOne(v) {
     var full = v.dataset.full;
     if (full === undefined) { full = v.textContent; v.dataset.full = full; }
+    v.classList.remove("is-cut");
     v.textContent = full;
     if (v.scrollHeight <= v.clientHeight) return;
+
+    // Let the last line break mid-word. Wrapping on whole words, the line
+    // ends at the last word that fits and the ellipsis sits in the gap
+    // after it -- throwing away most of a word that all but fitted. What
+    // is wanted is every character that fits, then the ellipsis.
+    v.classList.add("is-cut");
 
     var lo = 0, hi = full.length, best = 0;
     while (lo <= hi) {
       var mid = (lo + hi) >> 1;
-      v.textContent = full.slice(0, mid).replace(/\s+$/, "") + "…";
+      v.textContent = full.slice(0, mid) + "…";
       if (v.scrollHeight <= v.clientHeight) { best = mid; lo = mid + 1; }
       else hi = mid - 1;
     }
+    // A cut landing on a space would show the ellipsis adrift from the text.
     v.textContent = full.slice(0, best).replace(/\s+$/, "") + "…";
   }
 
