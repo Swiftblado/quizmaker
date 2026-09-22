@@ -1515,8 +1515,14 @@ button{font:inherit;color:inherit}
       return raw ? JSON.parse(raw) : fallback;
     } catch (e) { return fallback; }
   }
+  // -> did it actually go in? A private window refuses, and a browser out
+  // of room throws -- and a save that failed in silence looks exactly like
+  // one that worked until the page is next opened.
   function writeStore(key, val) {
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* private mode */ }
+    try {
+      localStorage.setItem(key, JSON.stringify(val));
+      return true;
+    } catch (e) { return false; }
   }
 
   /* ---------------- text normalising ----------------
@@ -2929,7 +2935,10 @@ button{font:inherit;color:inherit}
     var copy = JSON.parse(JSON.stringify(d));
     copy.sample = false;
     if (at >= 0) list[at] = copy; else list.unshift(copy);
-    writeStore("qp:decks", list.slice(0, 20));
+    // Every quiz is kept. This used to write only the first 20, which
+    // silently dropped the oldest one -- past the trash, unrecoverable --
+    // the next time anything was saved.
+    if (!writeDecks(list)) storageFull();
     renderSaved();
     return d.id;
   }
@@ -3296,7 +3305,15 @@ button{font:inherit;color:inherit}
   var TRASH_DAYS = 7;
 
   function savedDecks() { return readStore("qp:decks", []); }
-  function writeDecks(list) { writeStore("qp:decks", list); }
+  function writeDecks(list) { return writeStore("qp:decks", list); }
+
+  // There is no cap on how many quizzes you may keep, so the browser's own
+  // limit is the only one -- and it must be said out loud, because the save
+  // that hits it is the one that looked like it worked.
+  function storageFull() {
+    flash("Your browser has no room left, so that was not saved. " +
+          "Delete something, or empty the trash, and try again.");
+  }
 
   function isSub(d) { return d && d.kind === "sub"; }
 
@@ -5513,7 +5530,7 @@ button{font:inherit;color:inherit}
       d = { id: uid(), kind: "geo", title: title, places: picked };
       var list = savedDecks();
       list.unshift(d);
-      writeDecks(list);
+      if (!writeDecks(list)) { setTab("geo"); geoStatus("Your browser has no room left, so that was not saved. Delete something, or empty the trash, and try again.", true); return; }
     }
     resetGeoBuilder();
     renderSaved();
@@ -5898,7 +5915,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build aeb074c1</p>
+<p class="build-stamp">build 91de9f38</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
