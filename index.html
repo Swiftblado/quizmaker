@@ -864,6 +864,136 @@ button{font:inherit;color:inherit}
 .editor.reviewing .t-fix{cursor:pointer}
 .editor.reviewing .t-fix:hover{background:var(--bad);color:var(--on-accent)}
 .foot{margin-top:26px;font-size:12.5px;color:var(--faint);text-align:center}
+
+/* ---------------- tabs: vocabulary or geography ---------------- */
+.tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--rule)}
+.tabs button{
+  padding:9px 14px 10px;border:0;background:none;cursor:pointer;
+  font-size:14.5px;font-weight:600;color:var(--muted);
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--accent-ink);border-bottom-color:var(--accent)}
+
+/* ---------------- the map ----------------
+   Seterra's palette in this app's key: a pale sea, paper land, and the
+   places in play picked out in a warm tone on land and a deeper blue on
+   water, so what can be clicked is obvious before anything is asked. */
+:root{
+  --sea:#CFE0EF;--land:#F4F1E8;--land-edge:#BDB7A8;
+  --pick:#EFCB68;--pick-edge:#A8852A;--pick-water:#86AEDA;--pick-water-edge:#4F7FB5;
+  --pick-dot:#C8492C;--pick-line:#2F6BC9;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --sea:#15233A;--land:#2A303C;--land-edge:#454E60;
+    --pick:#9A8440;--pick-edge:#CDB265;--pick-water:#2D5687;--pick-water-edge:#6D9BD4;
+    --pick-dot:#F08A5D;--pick-line:#7FB2FF;
+  }
+}
+:root[data-theme="dark"]{
+  --sea:#15233A;--land:#2A303C;--land-edge:#454E60;
+  --pick:#9A8440;--pick-edge:#CDB265;--pick-water:#2D5687;--pick-water-edge:#6D9BD4;
+  --pick-dot:#F08A5D;--pick-line:#7FB2FF;
+}
+
+.geo-map{position:relative;width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);min-height:260px;background:var(--sea);border-radius:11px;overflow:hidden}
+.geo-map svg{display:block;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.geo-map svg.panning{cursor:grabbing}
+.m-land{fill:var(--land);stroke:var(--land-edge);stroke-width:.6;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.m-f{cursor:pointer}
+.m-f .m-shape{vector-effect:non-scaling-stroke;stroke-linejoin:round;transition:fill .15s,stroke .15s}
+.m-poly .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:1}
+.m-poly.water .m-shape{fill:var(--pick-water);stroke:var(--pick-water-edge)}
+.m-cont .m-shape{stroke:none}
+.m-cont.tone-1 .m-shape{fill:color-mix(in srgb,var(--pick) 72%,var(--pick-dot))}
+.m-cont.tone-2 .m-shape{fill:color-mix(in srgb,var(--pick) 70%,var(--surface))}
+.m-cont.tone-3 .m-shape{fill:color-mix(in srgb,var(--pick) 78%,var(--ok))}
+@media (hover:hover){ .m-cont:hover .m-shape{stroke:var(--accent);stroke-width:1} }
+.m-line .m-shape{fill:none;stroke:var(--pick-line);stroke-width:2.5;stroke-linecap:round}
+.m-line .m-hit{fill:none;stroke:transparent;stroke-width:16;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.m-dot .m-shape{fill:var(--pick-dot);stroke:var(--surface);stroke-width:1.5}
+.m-dot .m-hit,.m-ring .m-hit{fill:transparent;stroke:none}
+/* A place too small to hit at this scale gets a ring round it, as Seterra
+   does for the island nations. */
+.m-ring{fill:none;stroke:var(--pick-edge);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.m-poly.water .m-ring{stroke:var(--pick-water-edge)}
+@media (hover:hover){
+  .m-f:hover .m-shape{stroke:var(--accent);stroke-width:2}
+  .m-dot:hover .m-shape{stroke:var(--accent)}
+}
+.m-f.is-ok .m-shape{fill:var(--ok)}
+.m-f.is-late .m-shape{fill:var(--almost)}
+.m-f.is-failed .m-shape{fill:var(--bad)}
+.m-line.is-ok .m-shape{stroke:var(--ok);fill:none}
+.m-line.is-late .m-shape{stroke:var(--almost);fill:none}
+.m-line.is-failed .m-shape{stroke:var(--bad);fill:none}
+.m-f.is-ok .m-ring{stroke:var(--ok)}
+.m-f.is-late .m-ring{stroke:var(--almost)}
+.m-f.is-failed .m-ring{stroke:var(--bad)}
+.m-f.is-wrong .m-shape{fill:var(--bad-soft);stroke:var(--bad);stroke-width:2}
+.m-line.is-wrong .m-shape{stroke:var(--bad);fill:none}
+.m-f.is-blink{animation:m-blink .5s steps(2,start) 4}
+@keyframes m-blink{to{opacity:.15}}
+
+.geo-tip{
+  position:absolute;z-index:3;pointer-events:none;transform:translate(-50%,calc(-100% - 12px));
+  padding:5px 10px;border-radius:7px;font-size:13px;font-weight:600;white-space:nowrap;
+  background:var(--ink);color:var(--surface);box-shadow:var(--shadow);
+}
+.geo-tip.bad{background:var(--bad);color:#fff}
+
+.geo-hud{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.geo-ask{font-size:15px;color:var(--muted)}
+.geo-ask b{font-family:var(--serif);font-size:23px;font-weight:600;color:var(--ink);margin-left:4px}
+.geo-hud-right{display:flex;gap:12px;align-items:center}
+.geo-progress{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.geo-stage{position:relative;padding:8px}
+.geo-zoom{position:absolute;top:18px;right:18px;display:flex;flex-direction:column;border:1px solid var(--rule);border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+.geo-zoom button{width:34px;height:32px;border:0;background:var(--surface);cursor:pointer;font-size:17px;font-weight:600;color:var(--ink)}
+.geo-zoom button+button{border-top:1px solid var(--rule-soft)}
+.geo-zoom button:hover{background:var(--surface-2)}
+.geo-done{margin-top:14px}
+
+/* ---------------- building a map quiz ---------------- */
+.geo-search input{
+  width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:8px;
+  background:var(--surface-2);color:var(--ink);font:inherit;font-size:15px;
+}
+.geo-search input:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.geo-results{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.geo-hit{
+  display:flex;align-items:baseline;gap:10px;width:100%;text-align:left;
+  padding:8px 10px;border:0;border-radius:7px;background:none;cursor:pointer;
+}
+.geo-hit:hover,.geo-hit:focus-visible{background:var(--surface-2)}
+.geo-hit .gh-name{font-weight:600;font-size:14.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.geo-hit .gh-kind{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.geo-hit .gh-add{font-size:12px;font-weight:600;color:var(--accent-ink);white-space:nowrap}
+.geo-hit.is-in .gh-add{color:var(--ok)}
+.geo-hit.group .gh-name{color:var(--accent-ink)}
+.geo-hit.online{border:1px dashed var(--rule);margin-top:6px}
+.geo-hit.online .gh-name{font-weight:500;color:var(--muted)}
+.geo-picked-head{display:flex;align-items:center;gap:8px;margin-top:16px}
+.geo-picked-head .sp{flex:1}
+.geo-count{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.geo-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:10px}
+.geo-chips .sub-none{margin:0}
+.geo-chip{
+  display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 10px;border-radius:999px;
+  background:var(--surface-2);border:1px solid var(--rule-soft);font-size:13px;max-width:100%;
+}
+.geo-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.geo-chip small{color:var(--faint);font-size:11px}
+.geo-chip button{border:0;background:none;cursor:pointer;color:var(--faint);padding:0 6px;font-size:15px;line-height:1;border-radius:999px}
+.geo-chip button:hover{color:var(--bad);background:var(--bad-soft)}
+.geo-preview{margin-top:12px}
+.geo-preview .geo-map{aspect-ratio:16/9;border:1px solid var(--rule-soft)}
+.geo-preview{position:relative}
+.quiz-card .geo-tag{
+  align-self:flex-start;font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--accent-ink);background:var(--accent-soft);padding:1px 7px;border-radius:999px;margin-bottom:3px;
+}
 @media (max-width:430px){
   .pair{grid-template-columns:1fr auto auto}
   .pair .b-cell{grid-column:1/2}
@@ -888,6 +1018,43 @@ button{font:inherit;color:inherit}
 
   <!-- ============ INTAKE ============ -->
   <section id="scr-intake">
+    <div class="tabs" role="tablist" aria-label="Kind of quiz">
+      <button type="button" role="tab" id="tab-vocab" aria-controls="pane-vocab" aria-selected="true">Vocabulary</button>
+      <button type="button" role="tab" id="tab-geo" aria-controls="pane-geo" aria-selected="false" tabindex="-1">Geography</button>
+    </div>
+
+    <div id="pane-geo" role="tabpanel" aria-labelledby="tab-geo" hidden>
+      <div class="card entry">
+        <label class="eyebrow" for="geo-name">Name this quiz</label>
+        <input class="entry-name" id="geo-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled map quiz">
+        <label class="eyebrow" for="geo-q" style="display:block;margin-top:16px">Find places</label>
+        <p class="entry-help">Search for anything on a map &mdash; continents, oceans, seas, gulfs, deserts, mountain ranges and peaks, rivers, lakes, countries, cities. Type a kind, like <code class="lit-eg">deserts</code> or <code class="lit-eg">countries of Africa</code>, to add a whole set at once.</p>
+        <div class="geo-search">
+          <input type="search" id="geo-q" autocomplete="off" spellcheck="false" placeholder="Try Sahara, Mediterranean, Alps, oceans…" aria-describedby="geo-status" aria-controls="geo-results">
+        </div>
+        <p class="entry-note" id="geo-status" role="status"></p>
+        <div class="geo-results" id="geo-results"></div>
+
+        <div class="geo-picked-head">
+          <span class="eyebrow">In this quiz</span>
+          <span class="geo-count" id="geo-count"></span>
+          <span class="sp"></span>
+          <button class="btn btn-ghost btn-sm" id="geo-clear" type="button" hidden>Clear all</button>
+        </div>
+        <div class="geo-chips" id="geo-chips"></div>
+        <div class="geo-preview" id="geo-preview" hidden></div>
+
+        <div class="row" style="margin-top:14px">
+          <button class="btn btn-primary" id="geo-build" type="button" disabled>Build quiz</button>
+          <button class="btn" id="geo-cancel-edit" type="button" hidden>Stop editing</button>
+        </div>
+      </div>
+
+      <div class="or">or pick a ready-made map</div>
+      <div class="starters" id="geo-starters"></div>
+    </div>
+
+    <div id="pane-vocab" role="tabpanel" aria-labelledby="tab-vocab">
     <div class="card entry">
       <label class="eyebrow" for="quiz-name">Name this quiz</label>
       <input class="entry-name" id="quiz-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled quiz">
@@ -909,6 +1076,7 @@ button{font:inherit;color:inherit}
     <div class="or">or pick a ready-made deck</div>
 
     <div class="starters" id="starters"></div>
+    </div>
 
     <div id="saved-box" style="margin-top:22px" hidden>
       <div class="saved-head">
@@ -1113,6 +1281,51 @@ button{font:inherit;color:inherit}
       <button class="btn btn-primary" id="btn-again" type="button" style="flex:1;min-width:150px">Play again</button>
       <button class="btn" id="btn-drill" type="button" hidden>Drill the misses</button>
       <button class="btn" id="btn-newdeck" type="button">New sheet</button>
+    </div>
+  </section>
+
+  <!-- ============ MAP QUIZ ============ -->
+  <section id="scr-geo" hidden>
+    <div class="geo-hud">
+      <div class="geo-ask" id="geo-ask" aria-live="polite">Click on <b id="geo-target">&nbsp;</b></div>
+      <div class="geo-hud-right">
+        <span class="geo-progress" id="geo-progress">0 / 0</span>
+        <span class="total-clock" id="geo-clock" title="Time this round">0:00</span>
+        <span class="score" id="geo-score" title="Right clicks out of all clicks">100%</span>
+      </div>
+    </div>
+    <div class="track"><span id="geo-track"></span></div>
+
+    <div class="card geo-stage" id="geo-stage">
+      <div class="geo-map" id="geo-map"></div>
+      <div class="geo-zoom" role="group" aria-label="Zoom the map">
+        <button type="button" id="geo-zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
+        <button type="button" id="geo-zoom-out" aria-label="Zoom out" title="Zoom out">&minus;</button>
+        <button type="button" id="geo-zoom-fit" aria-label="Show the whole quiz" title="Show the whole quiz">&#10530;</button>
+      </div>
+    </div>
+
+    <div class="card result geo-done" id="geo-done" hidden>
+      <div class="eyebrow">Round complete</div>
+      <h2 id="geo-done-title">Nicely done</h2>
+      <div class="final" id="geo-done-score">0%</div>
+      <div class="stats">
+        <div class="stat"><b id="geo-st-first">0</b><span>First try</span></div>
+        <div class="stat"><b id="geo-st-miss">0</b><span>Wrong clicks</span></div>
+        <div class="stat"><b id="geo-st-time">0:00</b><span>Time</span></div>
+        <div class="stat"><b id="geo-st-best">0%</b><span>Quiz best</span></div>
+      </div>
+      <div class="missed" id="geo-missed-box" hidden>
+        <div class="eyebrow">Worth another look</div>
+        <ul id="geo-missed-list"></ul>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <button class="btn btn-primary" id="geo-again" type="button" style="flex:1;min-width:150px" hidden>Play again</button>
+      <button class="btn" id="geo-drill" type="button" hidden>Drill the misses</button>
+      <button class="btn" id="geo-edit" type="button" hidden>Edit places</button>
+      <button class="btn btn-ghost btn-sm" id="geo-quit" type="button" style="margin:0 auto">End round</button>
     </div>
   </section>
 
@@ -1365,13 +1578,15 @@ button{font:inherit;color:inherit}
 
   function show(name) {
     if (name !== "quiz") stopClock();
+    if (name !== "geo") stopGeoClock();
     // Nothing to go back to from the lists themselves.
     $("back-arrow").hidden = (name === "intake");
-    $("back-arrow").title = (name === "quiz")
+    $("back-arrow").title = (name === "quiz" || name === "geo")
       ? "Leave this round" : "Back to your word lists";
     $("back-arrow").setAttribute("aria-label", $("back-arrow").title);
-    document.querySelector(".wrap").classList.toggle("wide", name === "done");
-    ["intake", "deck", "quiz", "done"].forEach(function (s) {
+    // The results and the map both earn the extra width.
+    document.querySelector(".wrap").classList.toggle("wide", name === "done" || name === "geo");
+    ["intake", "deck", "quiz", "done", "geo"].forEach(function (s) {
       $("scr-" + s).hidden = (s !== name);
     });
     if (name !== "quiz") window.scrollTo(0, 0);
@@ -3563,7 +3778,9 @@ button{font:inherit;color:inherit}
     host.textContent = "";
     var mine = decksIn(here);
     host.hidden = !mine.length;
-    mine.forEach(function (d) { host.appendChild(isSub(d) ? subCard(d) : quizCard(d)); });
+    mine.forEach(function (d) {
+      host.appendChild(isSub(d) ? subCard(d) : isGeo(d) ? geoCard(d) : quizCard(d));
+    });
 
     $("folder-empty").hidden = !(here && !mine.length && !subFolders.length);
     renderTrash();
@@ -4347,6 +4564,1228 @@ button{font:inherit;color:inherit}
     box.appendChild(el);
   }
 
+  /* ================= geography =================
+     A map quiz in the manner of Seterra: the places in play are picked out
+     on the map, one name is asked at a time, and you click where it is.
+     A wrong click names what you did click; three of them and the place is
+     shown to you and marked missed.
+
+     The world comes from geo.json, built from Natural Earth by
+     scripts/geo-data.js and fetched the first time a map is needed. A quiz
+     stores only the ids of its places -- plus the outline of anything found
+     on OpenStreetMap, which geo.json cannot supply.
+  ============================================== */
+  var GEO_URL = "geo.json";
+  var GEO = null, geoLoading = null;
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  // Kinds drawn as water: blue when in play, rather than the land tone.
+  var WATER = { Ocean: 1, Sea: 1, Bay: 1, Gulf: 1, Strait: 1, Channel: 1, Sound: 1, Fjord: 1,
+    Lagoon: 1, Reef: 1, Inlet: 1, "Sea area": 1, Lake: 1, Reservoir: 1 };
+
+  // How results are ordered when two names match equally well: the things a
+  // geography quiz is usually about come before the thousand small towns.
+  var KIND_RANK = ["Continent", "Ocean", "Country", "Sea", "Desert", "Mountain range", "River",
+    "Lake", "Gulf", "Bay", "Strait", "Capital", "Mountain", "Islands", "Island", "Peninsula",
+    "Plateau", "Basin", "Plain", "Channel", "Sound", "Region"];
+  function kindRank(k) { var i = KIND_RANK.indexOf(k); return i < 0 ? (k === "City" ? 40 : 30) : i; }
+
+  var CONTINENTS = ["north america", "south america", "africa", "asia", "europe", "oceania", "antarctica"];
+  var CONT_ADJ = { african: "africa", asian: "asia", european: "europe", "north american": "north america",
+    "south american": "south america", oceanian: "oceania", antarctic: "antarctica",
+    australian: "oceania", "latin america": "south america" };
+
+  function gfold(s) {
+    return String(s == null ? "" : s).toLowerCase().normalize("NFD")
+      .replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  }
+
+  function loadGeo() {
+    if (GEO) return Promise.resolve(GEO);
+    if (geoLoading) return geoLoading;
+    geoLoading = fetch(GEO_URL).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (data) {
+      var byId = {}, countryCont = {};
+      data.f.forEach(function (f) {
+        byId[f.id] = f;
+        f.key = gfold(f.n);
+        f.kkey = f.key + " " + gfold(f.k);
+        f.akeys = (f.a || []).map(gfold);
+        if (f.k === "Country" && f.c) {
+          [f.key].concat(f.akeys).forEach(function (k) { countryCont[k] = gfold(f.c); });
+        }
+      });
+      GEO = { q: data.q, list: data.f, byId: byId, countryCont: countryCont,
+              base: data.f.filter(function (f) { return f.k === "Country"; }) };
+      return GEO;
+    });
+    // A failed load is tried again next time rather than remembered.
+    geoLoading.catch(function () { geoLoading = null; });
+    return geoLoading;
+  }
+
+  /* ---------------- geometry ---------------- */
+  // Rings are stored as a start point and then deltas, in 1/q of a degree.
+  function decodeRing(r, q) {
+    var pts = [], x = 0, y = 0;
+    for (var i = 0; i < r.length; i += 2) { x += r[i]; y += r[i + 1]; pts.push([x / q, y / q]); }
+    return pts;
+  }
+
+  function encodeRing(pts, q) {
+    var out = [], px = 0, py = 0;
+    pts.forEach(function (p, i) {
+      var x = Math.round(p[0] * q), y = Math.round(p[1] * q);
+      if (i && x === px && y === py) return;
+      out.push(x - px, y - py);
+      px = x; py = y;
+    });
+    return out;
+  }
+
+  // The Natural Earth projection: a compromise that keeps the whole world
+  // recognisable and closes in over the poles, where plain latitude and
+  // longitude would stretch Greenland to the size of Africa.
+  var MAP_R = 100;
+  var WORLD = { x: -280, y: -146, w: 560, h: 292 };
+  function project(lon, lat) {
+    var l = lon * Math.PI / 180, p = lat * Math.PI / 180, p2 = p * p, p4 = p2 * p2;
+    var x = l * (0.8707 - 0.131979 * p2 + p4 * (-0.013791 + p4 * (0.003971 * p2 - 0.001529 * p4)));
+    var y = p * (1.007226 + p2 * (0.015085 + p4 * (-0.044475 + 0.028874 * p2 - 0.005916 * p4)));
+    return [x * MAP_R, -y * MAP_R];
+  }
+
+  // What a quiz's place resolves to: a place found online carries its own
+  // outline; anything else is looked up, by id and then -- in case geo.json
+  // has been rebuilt since -- by name and kind.
+  function placeShape(p) {
+    if (!p) return null;
+    if (p.g) return p;
+    if (!GEO) return null;
+    var f = GEO.byId[p.id];
+    if (f) return f;
+    for (var i = 0; i < GEO.list.length; i++) {
+      if (GEO.list[i].n === p.n && GEO.list[i].k === p.k) return GEO.list[i];
+    }
+    return null;
+  }
+
+  // Projected once per feature. Kept off the objects themselves: a place
+  // found online is saved with its quiz, and must not be saved with this.
+  var projected = new WeakMap();
+  function ringsOf(f) {
+    var hit = projected.get(f);
+    if (hit) return hit;
+    var q = GEO.q, rings;
+    if (f.s === "d") {
+      rings = [[project(f.g[0] / q, f.g[1] / q)]];
+    } else {
+      var src = f.g.slice();
+      (f.from || []).forEach(function (id) { var c = GEO.byId[id]; if (c) src = src.concat(c.g); });
+      rings = src.map(function (r) {
+        return decodeRing(r, q).map(function (pt) { return project(pt[0], pt[1]); });
+      });
+    }
+    projected.set(f, rings);
+    return rings;
+  }
+
+  function ringPath(r, close) {
+    var s = "";
+    for (var i = 0; i < r.length; i++) {
+      s += (i ? "L" : "M") + (Math.round(r[i][0] * 100) / 100) + " " + (Math.round(r[i][1] * 100) / 100);
+    }
+    return close ? s + "Z" : s;
+  }
+
+  function boxOf(rings) {
+    var b = [Infinity, Infinity, -Infinity, -Infinity];
+    rings.forEach(function (r) {
+      r.forEach(function (p) {
+        if (p[0] < b[0]) b[0] = p[0];
+        if (p[1] < b[1]) b[1] = p[1];
+        if (p[0] > b[2]) b[2] = p[0];
+        if (p[1] > b[3]) b[3] = p[1];
+      });
+    });
+    return b;
+  }
+
+  // The box a map fits itself to. A small piece across the date line --
+  // Russia's Chukotka, the far Aleutians, part of Fiji -- would otherwise
+  // stretch the box round the whole world, and a quiz on Asia would open
+  // on a map of everything.
+  function fitBoxOf(rings) {
+    if (rings.length < 2) return boxOf(rings);
+    var boxes = rings.map(function (r) { return boxOf([r]); });
+    var area = function (b) { return (b[2] - b[0]) * (b[3] - b[1]); };
+    var main = boxes.reduce(function (m, b) { return area(b) > area(m) ? b : m; });
+    var mx = (main[0] + main[2]) / 2;
+    var kept = rings.filter(function (r, i) {
+      var b = boxes[i], cx = (b[0] + b[2]) / 2;
+      return !(cx * mx < 0 && Math.abs(cx) > 180 && Math.abs(cx - mx) > 200 && area(b) < area(main) * 0.25);
+    });
+    return boxOf(kept.length ? kept : rings);
+  }
+
+  // Neighbouring continents never share a tone.
+  var CONT_TONE = { Asia: 0, Africa: 1, Europe: 2, Oceania: 3, "North America": 3, "South America": 2, Antarctica: 1 };
+
+  var basePath = null;
+  function landPath() {
+    if (!basePath) {
+      basePath = GEO.base.map(function (f) {
+        return ringsOf(f).map(function (r) { return ringPath(r, true); }).join("");
+      }).join("");
+    }
+    return basePath;
+  }
+
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    return el;
+  }
+
+  /* ---------------- the map ----------------
+     One SVG in world units; zooming and panning only move the viewBox, so
+     nothing is re-projected after the first draw. Strokes are non-scaling
+     and dots are resized on every move, so both stay the same on screen
+     whatever the zoom.
+  -------------------------------------------- */
+  function makeMap(host, places, onPick) {
+    host.textContent = "";
+    var svg = svgEl("svg", { role: "img", "aria-label": "Map" });
+    svg.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
+    var layer = svgEl("g");
+    svg.appendChild(layer);
+    host.appendChild(svg);
+
+    var tip = document.createElement("div");
+    tip.className = "geo-tip";
+    tip.hidden = true;
+    host.appendChild(tip);
+
+    var items = [], byId = {};
+    places.forEach(function (p) {
+      var f = placeShape(p);
+      if (!f) return;
+      var rings = ringsOf(f), box = fitBoxOf(rings);
+      items.push({ id: p.id, f: f, rings: rings, box: box,
+                   area: (box[2] - box[0]) * (box[3] - box[1]) });
+    });
+    // Big shapes first so small ones sit on top of them; rivers and dots
+    // over everything.
+    var layerOf = { p: 0, l: 1, d: 2 };
+    items.sort(function (a, b) { return layerOf[a.f.s] - layerOf[b.f.s] || b.area - a.area; });
+
+    var dots = [], rings = [], tone = 0;
+    items.forEach(function (it) {
+      // A continent is drawn from its countries, so their borders are hidden
+      // and each continent takes its own tone -- otherwise Europe and Asia
+      // would read as one shape.
+      var cls = it.f.s === "p" ? "m-poly" + (WATER[it.f.k] ? " water" : "") +
+                  (it.f.from ? " m-cont tone-" + (CONT_TONE[it.f.n] != null ? CONT_TONE[it.f.n] : tone++ % 4) : "")
+              : it.f.s === "l" ? "m-line" : "m-dot";
+      var g = svgEl("g", { "class": "m-f " + cls });
+      g.setAttribute("data-id", it.id);
+      if (it.f.s === "d") {
+        var pt = it.rings[0][0];
+        var hit = svgEl("circle", { "class": "m-hit", cx: pt[0], cy: pt[1], r: 1 });
+        var dot = svgEl("circle", { "class": "m-shape", cx: pt[0], cy: pt[1], r: 1 });
+        g.appendChild(hit);
+        g.appendChild(dot);
+        dots.push({ hit: hit, dot: dot });
+      } else {
+        var d = it.rings.map(function (r) { return ringPath(r, it.f.s === "p"); }).join("");
+        if (it.f.s === "l") g.appendChild(svgEl("path", { "class": "m-hit", d: d }));
+        g.appendChild(svgEl("path", { "class": "m-shape", d: d }));
+      }
+      layer.appendChild(g);
+      it.g = g;
+      byId[it.id] = it;
+    });
+
+    var all = items.length ? items.reduce(function (b, it) {
+      return [Math.min(b[0], it.box[0]), Math.min(b[1], it.box[1]),
+              Math.max(b[2], it.box[2]), Math.max(b[3], it.box[3])];
+    }, [Infinity, Infinity, -Infinity, -Infinity]) : [WORLD.x, WORLD.y, WORLD.x + WORLD.w, WORLD.y + WORLD.h];
+
+    var view = null;
+
+    function aspect() {
+      var w = host.clientWidth, h = host.clientHeight;
+      return w && h ? w / h : 16 / 10;
+    }
+    // World units per screen pixel. The SVG letterboxes ("meet"), so the
+    // tighter of the two axes decides.
+    function upp() {
+      var w = host.clientWidth || 1, h = host.clientHeight || 1;
+      return Math.max(view.w / w, view.h / h);
+    }
+
+    function fitTo(b) {
+      var w = Math.max((b[2] - b[0]) * 1.14, 14), h = Math.max((b[3] - b[1]) * 1.14, 9);
+      var cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2, a = aspect();
+      if (w / h > a) h = w / a; else w = h * a;
+      return { x: cx - w / 2, y: cy - h / 2, w: w, h: h };
+    }
+
+    function setView(v) {
+      var a = v.w / v.h;
+      var w = Math.min(Math.max(v.w, 3), WORLD.w * 1.6);
+      var h = w / a;
+      var cx = v.x + v.w / 2, cy = v.y + v.h / 2;
+      // Keep some of the world in view: panning off into empty space helps no one.
+      cx = Math.min(Math.max(cx, WORLD.x), WORLD.x + WORLD.w);
+      cy = Math.min(Math.max(cy, WORLD.y), WORLD.y + WORLD.h);
+      view = { x: cx - w / 2, y: cy - h / 2, w: w, h: h };
+      svg.setAttribute("viewBox", view.x + " " + view.y + " " + view.w + " " + view.h);
+      var u = upp();
+      dots.forEach(function (d) { d.dot.setAttribute("r", 5 * u); d.hit.setAttribute("r", 13 * u); });
+      rings.forEach(function (r) { r.ring.setAttribute("r", 10 * u); r.hit.setAttribute("r", 13 * u); });
+    }
+
+    // Places too small to hit at the fitted scale get a ring round them.
+    function ringSmall() {
+      var u = upp();
+      items.forEach(function (it) {
+        if (it.f.s !== "p") return;
+        if (Math.max(it.box[2] - it.box[0], it.box[3] - it.box[1]) / u >= 12) return;
+        var cx = (it.box[0] + it.box[2]) / 2, cy = (it.box[1] + it.box[3]) / 2;
+        var ring = svgEl("circle", { "class": "m-ring", cx: cx, cy: cy, r: 1 });
+        var hit = svgEl("circle", { "class": "m-hit", cx: cx, cy: cy, r: 1 });
+        it.g.appendChild(ring);
+        it.g.appendChild(hit);
+        rings.push({ ring: ring, hit: hit });
+      });
+    }
+
+    function toSvg(clientX, clientY) {
+      var m = svg.getScreenCTM();
+      if (!m) return { x: 0, y: 0 };
+      var p = svg.createSVGPoint();
+      p.x = clientX; p.y = clientY;
+      return p.matrixTransform(m.inverse());
+    }
+    function toClient(x, y) {
+      var m = svg.getScreenCTM();
+      if (!m) return { x: 0, y: 0 };
+      var p = svg.createSVGPoint();
+      p.x = x; p.y = y;
+      return p.matrixTransform(m);
+    }
+
+    function zoomAt(clientX, clientY, f) {
+      var p = toSvg(clientX, clientY);
+      setView({ x: p.x - (p.x - view.x) * f, y: p.y - (p.y - view.y) * f, w: view.w * f, h: view.h * f });
+    }
+
+    /* Dragging pans, two fingers pinch, the wheel zooms. A press that
+       travels is a pan, not a click, and does not count as an answer. */
+    var ptrs = {}, gesture = null, moved = false;
+    function ptrList() { return Object.keys(ptrs).map(function (k) { return ptrs[k]; }); }
+    function startGesture() {
+      var list = ptrList();
+      if (list.length === 1) gesture = { x: list[0].x, y: list[0].y, v: view };
+      else if (list.length >= 2) {
+        gesture = { d: Math.hypot(list[0].x - list[1].x, list[0].y - list[1].y) || 1,
+                    mx: (list[0].x + list[1].x) / 2, my: (list[0].y + list[1].y) / 2, v: view };
+      }
+    }
+    svg.addEventListener("pointerdown", function (e) {
+      if (e.button !== undefined && e.button !== 0 && e.pointerType === "mouse") return;
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      try { svg.setPointerCapture(e.pointerId); } catch (err) { /* old browsers */ }
+      if (ptrList().length === 1) moved = false;
+      startGesture();
+    });
+    svg.addEventListener("pointermove", function (e) {
+      if (!ptrs[e.pointerId] || !gesture) return;
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var list = ptrList(), u;
+      if (list.length === 1 && gesture.x !== undefined) {
+        var dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
+        if (!moved && Math.hypot(dx, dy) < 6) return;
+        moved = true;
+        svg.classList.add("panning");
+        view = gesture.v;
+        u = upp();
+        setView({ x: gesture.v.x - dx * u, y: gesture.v.y - dy * u, w: gesture.v.w, h: gesture.v.h });
+      } else if (list.length >= 2 && gesture.d) {
+        moved = true;
+        var d = Math.hypot(list[0].x - list[1].x, list[0].y - list[1].y) || 1;
+        view = gesture.v;
+        var f = gesture.d / d;
+        var p = toSvg(gesture.mx, gesture.my);
+        setView({ x: p.x - (p.x - gesture.v.x) * f, y: p.y - (p.y - gesture.v.y) * f,
+                  w: gesture.v.w * f, h: gesture.v.h * f });
+      }
+    });
+    function endPtr(e) {
+      delete ptrs[e.pointerId];
+      svg.classList.remove("panning");
+      if (ptrList().length) startGesture(); else gesture = null;
+    }
+    svg.addEventListener("pointerup", endPtr);
+    svg.addEventListener("pointercancel", endPtr);
+    svg.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      zoomAt(e.clientX, e.clientY, Math.exp(Math.max(-60, Math.min(60, e.deltaY)) * 0.004));
+    }, { passive: false });
+
+    // Everything under the pointer, top first, so a continent can still be
+    // found beneath a country that is also in play.
+    svg.addEventListener("click", function (e) {
+      if (moved) { moved = false; return; }
+      var ids = [];
+      document.elementsFromPoint(e.clientX, e.clientY).forEach(function (n) {
+        var g = n.closest && n.closest(".m-f");
+        if (g && svg.contains(g)) {
+          var id = g.getAttribute("data-id");
+          if (ids.indexOf(id) < 0) ids.push(id);
+        }
+      });
+      if (onPick) onPick(ids, e);
+    });
+
+    var tipTimer = null;
+    function showTip(text, clientX, clientY, bad) {
+      var r = host.getBoundingClientRect();
+      tip.textContent = text;
+      tip.className = "geo-tip" + (bad ? " bad" : "");
+      tip.style.left = Math.min(Math.max(clientX - r.left, 60), r.width - 60) + "px";
+      tip.style.top = Math.max(clientY - r.top, 40) + "px";
+      tip.hidden = false;
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(function () { tip.hidden = true; }, 1500);
+    }
+
+    var flashes = [];
+    var api = {
+      fit: function () {
+        view = fitTo(all);
+        setView(view);
+        if (!rings.length) ringSmall();
+        setView(view);
+      },
+      zoom: function (f) {
+        var r = host.getBoundingClientRect();
+        zoomAt(r.left + r.width / 2, r.top + r.height / 2, f);
+      },
+      mark: function (id, cls) {
+        var it = byId[id];
+        if (!it) return;
+        it.g.classList.remove("is-ok", "is-late", "is-failed");
+        if (cls) it.g.classList.add(cls);
+      },
+      flash: function (id, cls, ms) {
+        var it = byId[id];
+        if (!it) return;
+        it.g.classList.remove(cls);
+        void it.g.getBoundingClientRect();     // restart the animation
+        it.g.classList.add(cls);
+        flashes.push(setTimeout(function () { it.g.classList.remove(cls); }, ms));
+      },
+      tip: function (text, e, bad) { showTip(text, e.clientX, e.clientY, bad); },
+      tipAt: function (id, text, bad) {
+        var it = byId[id];
+        if (!it) return;
+        var c = toClient((it.box[0] + it.box[2]) / 2, (it.box[1] + it.box[3]) / 2);
+        showTip(text, c.x, c.y, bad);
+      },
+      clear: function () {
+        items.forEach(function (it) { it.g.classList.remove("is-ok", "is-late", "is-failed", "is-wrong", "is-blink"); });
+      },
+      destroy: function () {
+        flashes.forEach(clearTimeout);
+        clearTimeout(tipTimer);
+        if (ro) ro.disconnect();
+        host.textContent = "";
+      },
+      count: items.length
+    };
+
+    // Dots and rings are sized in screen pixels, so a resize redraws them.
+    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (view) setView(view); }) : null;
+    if (ro) ro.observe(host);
+    return api;
+  }
+
+  /* ---------------- searching ---------------- */
+  function scoreKey(key, q) {
+    if (!key) return 0;
+    if (key === q) return 100;
+    if (key.indexOf(q) === 0) return 80;
+    if ((" " + key).indexOf(" " + q) >= 0) return 64;
+    if (key.indexOf(q) >= 0) return 40;
+    return 0;
+  }
+
+  function contsOf(f) {
+    if (f.k === "Country") return f.id === "country:russia" ? ["europe", "asia"] : f.c ? [gfold(f.c)] : [];
+    if (f.k === "Continent") return [gfold(f.n)];
+    if ((f.k === "City" || f.k === "Capital") && f.r) {
+      var c = GEO.countryCont[gfold(f.r)];
+      return c ? [c] : [];
+    }
+    if (f.r && CONTINENTS.indexOf(gfold(f.r)) >= 0) return [gfold(f.r)];
+    return [];
+  }
+
+  function kindPlural(k) {
+    var w = k.toLowerCase();
+    if (/s$/.test(w)) return w;                       // "islands" already is
+    if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + "ies";
+    if (/(ch|sh|x)$/.test(w)) return w + "es";
+    return w + "s";
+  }
+
+  function singular(w) {
+    return w.replace(/ies\b/g, "y").replace(/(ch|sh|ss|x)es\b/g, "$1").replace(/([^s])s\b/g, "$1");
+  }
+
+  var KIND_ALIAS = { range: "Mountain range", ranges: "Mountain range", "mountain ranges": "Mountain range",
+    peak: "Mountain", peaks: "Mountain", mountains: "Mountain", volcano: "Mountain",
+    "capital city": "Capital", "capital cities": "Capital", capitals: "Capital",
+    "island group": "Islands", archipelago: "Islands", nation: "Country", state: "Country" };
+
+  function kindFor(words) {
+    var kinds = {};
+    GEO.list.forEach(function (f) { kinds[gfold(f.k)] = f.k; });
+    if (kinds[words]) return kinds[words];
+    if (KIND_ALIAS[words]) return KIND_ALIAS[words];
+    var one = singular(words);
+    if (kinds[one]) return kinds[one];
+    if (KIND_ALIAS[one]) return KIND_ALIAS[one];
+    return null;
+  }
+
+  var GROUP_MAX = 150;
+
+  // "deserts", "countries of Africa", "European capitals" -> every place of
+  // that kind, optionally within one continent.
+  function groupFor(q) {
+    var rest = " " + q + " ", cont = null;
+    Object.keys(CONT_ADJ).concat(CONTINENTS)
+      .sort(function (a, b) { return b.length - a.length; })
+      .some(function (c) {
+        if (rest.indexOf(" " + c + " ") < 0) return false;
+        cont = CONT_ADJ[c] || c;
+        rest = rest.replace(" " + c + " ", " ");
+        return true;
+      });
+    rest = rest.replace(/ (all|every|the|of|in|on|world|worlds|major|main|famous|great|largest|biggest) /g, " ")
+               .replace(/ (all|every|the|of|in|on|world|worlds|major|main|famous|great|largest|biggest) /g, " ")
+               .replace(/\s+/g, " ").trim();
+    if (!rest) return null;
+    var kind = kindFor(rest);
+    if (!kind) return null;
+    var members = GEO.list.filter(function (f) {
+      return f.k === kind && (!cont || contsOf(f).indexOf(cont) >= 0);
+    });
+    if (!members.length) return null;
+    var label = members.length === 1 ? "The one " + kind.toLowerCase()
+      : "All " + members.length + " " + kindPlural(kind);
+    if (cont) label += " in " + cont.replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    return { label: label, members: members };
+  }
+
+  function geoSearch(raw) {
+    var q = gfold(raw);
+    if (!q || !GEO) return { group: null, hits: [] };
+    var scored = [];
+    GEO.list.forEach(function (f) {
+      var s = Math.max(scoreKey(f.key, q), scoreKey(f.kkey, q) - 2);
+      f.akeys.forEach(function (a) { s = Math.max(s, scoreKey(a, q) - 6); });
+      if (s) scored.push({ f: f, s: s });
+    });
+    scored.sort(function (a, b) {
+      return b.s - a.s || kindRank(a.f.k) - kindRank(b.f.k) ||
+        (b.f.pop || b.f.e || 0) - (a.f.pop || a.f.e || 0) || a.f.n.length - b.f.n.length;
+    });
+    return { group: groupFor(q), hits: scored.slice(0, 10).map(function (x) { return x.f; }) };
+  }
+
+  function placeDetail(f) {
+    var bits = [f.k];
+    if (f.k === "Mountain" && f.e) bits.push(f.e.toLocaleString() + " m");
+    if ((f.k === "City" || f.k === "Capital") && f.r) bits.push(f.r);
+    else if (f.k === "Country" && f.c) bits.push(f.c);
+    else if (f.r && !/seven seas/i.test(f.r)) bits.push(f.r);
+    if (f.src === "osm" && f.where) bits.push(f.where);
+    return bits.join(" · ");
+  }
+
+  // What a quiz keeps of a place from geo.json: enough to find it again.
+  function asPlace(f) { return f.src === "osm" ? f : { id: f.id, n: f.n, k: f.k }; }
+
+  /* ---------------- OpenStreetMap, for everything else ----------------
+     geo.json is a curated world; a search for a particular hill or a small
+     lake falls through to Nominatim, OpenStreetMap's search. Only when
+     asked: it is a request to someone else's server, and its rules ask for
+     no more than one a second.
+  -------------------------------------------------------------------- */
+  function simplifyPts(pts, tol) {
+    if (pts.length < 3) return pts.slice();
+    var keep = new Uint8Array(pts.length), stack = [[0, pts.length - 1]], sq = tol * tol;
+    keep[0] = keep[pts.length - 1] = 1;
+    while (stack.length) {
+      var se = stack.pop(), s = se[0], e = se[1], max = 0, at = -1;
+      for (var i = s + 1; i < e; i++) {
+        var a = pts[s], b = pts[e], p = pts[i];
+        var x = a[0], y = a[1], dx = b[0] - x, dy = b[1] - y;
+        if (dx || dy) {
+          var t = ((p[0] - x) * dx + (p[1] - y) * dy) / (dx * dx + dy * dy);
+          if (t > 1) { x = b[0]; y = b[1]; } else if (t > 0) { x += dx * t; y += dy * t; }
+        }
+        var dd = (p[0] - x) * (p[0] - x) + (p[1] - y) * (p[1] - y);
+        if (dd > max) { max = dd; at = i; }
+      }
+      if (max > sq) { keep[at] = 1; stack.push([s, at], [at, e]); }
+    }
+    return pts.filter(function (_, i) { return keep[i]; });
+  }
+
+  var OSM_KIND = { peak: "Mountain", volcano: "Volcano", mountain_range: "Mountain range", ridge: "Mountain range",
+    water: "Lake", lake: "Lake", reservoir: "Reservoir", bay: "Bay", strait: "Strait", sea: "Sea", ocean: "Ocean",
+    river: "River", stream: "River", canal: "Canal", island: "Island", islet: "Island", archipelago: "Islands",
+    country: "Country", state: "Region", province: "Region", region: "Region", county: "Region",
+    city: "City", town: "Town", village: "Village", desert: "Desert", glacier: "Glacier",
+    peninsula: "Peninsula", cape: "Cape", valley: "Valley", plateau: "Plateau", wetland: "Wetlands",
+    beach: "Beach", forest: "Forest", wood: "Forest", national_park: "National park" };
+
+  function osmPlace(r) {
+    var gj = r.geojson, q = 100;
+    if (!gj) return null;
+    var name = r.name || String(r.display_name || "").split(",")[0];
+    if (!name) return null;
+    var type = r.addresstype && OSM_KIND[r.addresstype] ? r.addresstype : r.type;
+    var kind = OSM_KIND[type] || String(type || "Place").replace(/_/g, " ").replace(/^\w/, function (c) { return c.toUpperCase(); });
+    var place = { id: "osm:" + String(r.osm_type || "x").charAt(0) + r.osm_id, n: name, k: kind, src: "osm",
+                  where: String(r.display_name || "").split(",").slice(1).map(function (s) { return s.trim(); }).filter(Boolean).slice(-2).join(", ") };
+
+    function shrink(list, closed) {
+      // Enough detail for a map the width of a screen, and small enough to
+      // live in localStorage beside every other quiz.
+      var box = boxOf(list), span = Math.max(box[2] - box[0], box[3] - box[1]) || 0.01;
+      var tol = Math.max(span / 400, 0.005), out;
+      for (var tries = 0; tries < 6; tries++, tol *= 2) {
+        out = list.map(function (l) { return simplifyPts(l, tol); })
+                  .filter(function (l) { return l.length >= (closed ? 4 : 2); });
+        if (closed) {
+          out.sort(function (a, b) { var A = boxOf([a]), B = boxOf([b]);
+            return (B[2] - B[0]) * (B[3] - B[1]) - (A[2] - A[0]) * (A[3] - A[1]); });
+          out = out.filter(function (l, i) { var b = boxOf([l]); return i === 0 || Math.max(b[2] - b[0], b[3] - b[1]) > tol * 4; });
+        }
+        var n = out.reduce(function (s, l) { return s + l.length; }, 0);
+        if (n <= 1500) break;
+      }
+      return out.map(function (l) { return encodeRing(l, q); });
+    }
+
+    if (gj.type === "Point") {
+      place.s = "d";
+      place.g = [Math.round(gj.coordinates[0] * q), Math.round(gj.coordinates[1] * q)];
+    } else if (gj.type === "Polygon" || gj.type === "MultiPolygon") {
+      place.s = "p";
+      var polys = gj.type === "Polygon" ? [gj.coordinates] : gj.coordinates;
+      place.g = shrink(polys.map(function (p) { return p[0]; }), true);
+    } else if (gj.type === "LineString" || gj.type === "MultiLineString") {
+      place.s = "l";
+      place.g = shrink(gj.type === "LineString" ? [gj.coordinates] : gj.coordinates, false);
+    } else {
+      return null;
+    }
+    return place.g.length ? place : null;
+  }
+
+  var osmLast = 0;
+  function searchOsm(text) {
+    var wait = Math.max(0, osmLast + 1100 - Date.now());
+    return new Promise(function (res) { setTimeout(res, wait); }).then(function () {
+      osmLast = Date.now();
+      var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&polygon_geojson=1" +
+        "&polygon_threshold=0.005&limit=8&accept-language=en&q=" + encodeURIComponent(text);
+      return fetch(url, { headers: { Accept: "application/json" } });
+    }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (list) {
+      var seen = {};
+      return list.map(osmPlace).filter(function (p) {
+        if (!p || seen[p.id]) return false;
+        seen[p.id] = true;
+        return true;
+      });
+    });
+  }
+
+  /* ---------------- building a map quiz ---------------- */
+  var geoPicked = [];      // the places in the quiz being built
+  var geoEditId = null;    // the saved quiz being edited, if any
+  var geoPreview = null;   // the preview map under the chips
+  var osmHits = null;      // the last OpenStreetMap answer, and what it answered
+  var osmFor = "";
+
+  function isGeo(d) { return d && d.kind === "geo"; }
+  function places(n) { return n + (n === 1 ? " place" : " places"); }
+  function geoHas(id) { return geoPicked.some(function (p) { return p.id === id; }); }
+
+  function geoStatus(msg, warn) {
+    var el = $("geo-status");
+    el.textContent = msg || "";
+    el.classList.toggle("warn", !!warn);
+  }
+
+  function addPlaces(list) {
+    list.forEach(function (f) { if (!geoHas(f.id)) geoPicked.push(asPlace(f)); });
+    renderGeoPicked();
+    renderGeoResults();
+  }
+
+  function removePlace(id) {
+    geoPicked = geoPicked.filter(function (p) { return p.id !== id; });
+    renderGeoPicked();
+    renderGeoResults();
+  }
+
+  function hitButton(name, detail, action, cls) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "geo-hit" + (cls ? " " + cls : "");
+    var n = document.createElement("span");
+    n.className = "gh-name";
+    n.textContent = name;
+    var k = document.createElement("span");
+    k.className = "gh-kind";
+    k.textContent = detail;
+    var a = document.createElement("span");
+    a.className = "gh-add";
+    a.textContent = action;
+    b.appendChild(n);
+    b.appendChild(k);
+    b.appendChild(a);
+    return b;
+  }
+
+  function placeHit(f) {
+    var inIt = geoHas(f.id);
+    var b = hitButton(f.n, placeDetail(f), inIt ? "Added ✓" : "Add", inIt ? "is-in" : "");
+    b.title = inIt ? "Take it out of this quiz" : "Add it to this quiz";
+    b.addEventListener("click", function () {
+      if (geoHas(f.id)) removePlace(f.id); else addPlaces([f]);
+    });
+    return b;
+  }
+
+  function renderGeoResults() {
+    var host = $("geo-results");
+    host.textContent = "";
+    var text = $("geo-q").value.trim();
+    if (!text || !GEO) return;
+    var res = geoSearch(text);
+
+    if (res.group) {
+      var g = res.group;
+      var fresh = g.members.filter(function (f) { return !geoHas(f.id); });
+      var tooMany = g.members.length > GROUP_MAX;
+      var b = hitButton(g.label,
+        tooMany ? "too many for one map — narrow it to a continent" : "",
+        tooMany ? "" : fresh.length ? "Add all" : "All added ✓", "group" + (fresh.length ? "" : " is-in"));
+      b.disabled = tooMany || !fresh.length;
+      b.addEventListener("click", function () { addPlaces(fresh); });
+      host.appendChild(b);
+    }
+    res.hits.forEach(function (f) { host.appendChild(placeHit(f)); });
+
+    if (osmHits && osmFor === text) {
+      osmHits.forEach(function (p) { host.appendChild(placeHit(p)); });
+      if (!osmHits.length) geoStatus("OpenStreetMap found nothing it could draw for “" + text + "”.");
+    } else {
+      var more = hitButton("Search OpenStreetMap for “" + text + "”",
+        res.hits.length ? "not what you meant?" : "nothing here by that name", "Search", "online");
+      more.addEventListener("click", function () {
+        geoStatus("Asking OpenStreetMap…");
+        more.disabled = true;
+        searchOsm(text).then(function (list) {
+          osmHits = list;
+          osmFor = text;
+          geoStatus("");
+          if ($("geo-q").value.trim() === text) renderGeoResults();
+        }).catch(function () {
+          more.disabled = false;
+          geoStatus("Couldn't reach OpenStreetMap. Check your connection and try again.", true);
+        });
+      });
+      host.appendChild(more);
+    }
+  }
+
+  function renderGeoPicked() {
+    var host = $("geo-chips");
+    host.textContent = "";
+    $("geo-count").textContent = geoPicked.length ? places(geoPicked.length) : "";
+    $("geo-clear").hidden = !geoPicked.length;
+    if (!geoPicked.length) {
+      var none = document.createElement("p");
+      none.className = "sub-none";
+      none.textContent = "Nothing yet. Search above and add what you want to be asked.";
+      host.appendChild(none);
+    }
+    geoPicked.forEach(function (p) {
+      var chip = document.createElement("span");
+      chip.className = "geo-chip";
+      var n = document.createElement("span");
+      n.textContent = p.n + " ";
+      var k = document.createElement("small");
+      k.textContent = p.k;
+      n.appendChild(k);
+      var x = document.createElement("button");
+      x.type = "button";
+      x.textContent = "×";
+      x.setAttribute("aria-label", "Remove " + p.n);
+      x.title = "Remove";
+      x.addEventListener("click", function () { removePlace(p.id); });
+      chip.appendChild(n);
+      chip.appendChild(x);
+      host.appendChild(chip);
+    });
+
+    var build = $("geo-build");
+    build.disabled = geoPicked.length < 2;
+    build.textContent = geoEditId ? "Save and play" : "Build quiz";
+    $("geo-cancel-edit").hidden = !geoEditId;
+
+    // The preview is the quiz's own map, so a search that found the wrong
+    // Georgia is caught before the round, not during it.
+    var box = $("geo-preview");
+    if (geoPreview) { geoPreview.destroy(); geoPreview = null; }
+    box.hidden = !geoPicked.length || !GEO;
+    if (box.hidden) return;
+    var mapHost = box.querySelector(".geo-map");
+    if (!mapHost) {
+      mapHost = document.createElement("div");
+      mapHost.className = "geo-map";
+      box.appendChild(mapHost);
+    }
+    geoPreview = makeMap(mapHost, geoPicked, function (ids, e) {
+      if (!ids.length) return;
+      var p = geoPicked.filter(function (x) { return x.id === ids[0]; })[0];
+      if (p) geoPreview.tip(p.n, e);
+    });
+    geoPreview.fit();
+  }
+
+  function resetGeoBuilder() {
+    geoPicked = [];
+    geoEditId = null;
+    $("geo-name").value = "";
+    $("geo-q").value = "";
+    osmHits = null;
+    geoStatus("");
+    renderGeoResults();
+    renderGeoPicked();
+  }
+
+  function editGeo(d) {
+    setTab("geo");
+    show("intake");
+    geoEditId = d.id || null;
+    geoPicked = JSON.parse(JSON.stringify(d.places || []));
+    $("geo-name").value = d.title || "";
+    $("geo-q").value = "";
+    osmHits = null;
+    renderGeoResults();
+    loadGeo().then(renderGeoPicked, geoLoadFailed);
+    renderGeoPicked();
+    $("geo-q").focus();
+  }
+
+  function geoLoadFailed() {
+    geoStatus("Couldn't load the world map. Check your connection, then open the tab again.", true);
+  }
+
+  $("geo-q").addEventListener("input", function () {
+    if (!GEO) { loadGeo().then(renderGeoResults, geoLoadFailed); return; }
+    renderGeoResults();
+  });
+  // Enter takes the best match -- the quickest way to add a list of names
+  // typed one after another.
+  $("geo-q").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" || !GEO) return;
+    e.preventDefault();
+    var first = $("geo-results").querySelector(".geo-hit:not(.online):not(.is-in):not(:disabled)");
+    if (first) first.click();
+    this.select();
+  });
+  $("geo-clear").addEventListener("click", function () {
+    confirmOn($("geo-clear"), "Clear every place?", function () {
+      geoPicked = [];
+      renderGeoPicked();
+      renderGeoResults();
+    });
+  });
+  $("geo-cancel-edit").addEventListener("click", resetGeoBuilder);
+
+  $("geo-build").addEventListener("click", function () {
+    if (geoPicked.length < 2) return;
+    var title = $("geo-name").value.trim() || "Untitled map quiz";
+    var picked = JSON.parse(JSON.stringify(geoPicked));
+    var d;
+    if (geoEditId && deckById(geoEditId)) {
+      updateDeck(geoEditId, function (x) { x.title = title; x.places = picked; });
+      d = deckById(geoEditId);
+    } else {
+      d = { id: uid(), kind: "geo", title: title, places: picked };
+      var list = savedDecks();
+      list.unshift(d);
+      writeDecks(list);
+    }
+    resetGeoBuilder();
+    renderSaved();
+    startGeo(d);
+  });
+
+  /* ---------------- ready-made maps ---------------- */
+  var GEO_STARTERS = [
+    { title: "Continents", kind: "Continent" },
+    { title: "Oceans", names: ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Southern Ocean"] },
+    { title: "Great deserts", names: ["Sahara", "Gobi Desert", "Kalahari Desert", "Great Victoria Desert",
+      "Atacama Desert", "Great Sandy Desert", "Namib Desert", "Taklimakan Desert", "Sonoran Desert",
+      "Chihuahuan Desert", "Thar Desert", "Karakum Desert", "Syrian Desert"] },
+    { title: "Mountain ranges", names: ["Himalayas", "Andes", "Alps", "Rocky Mountains", "Appalachian Mountains",
+      "Ural Mountains", "Atlas Mountains", "Caucasus Mountains", "Great Dividing Range", "Tian Shan",
+      "Zagros Mountains", "Carpathian Mountains"] },
+    { title: "Seas and gulfs", names: ["Mediterranean Sea", "Caribbean Sea", "Black Sea", "Red Sea",
+      "Baltic Sea", "North Sea", "Arabian Sea", "South China Sea", "Bering Sea", "Gulf of Mexico",
+      "Hudson Bay", "Persian Gulf", "Bay of Bengal", "Sea of Japan"] },
+    { title: "Great rivers", names: ["Nile", "Amazon", "Mississippi", "Yangtze", "Danube", "Volga", "Ganges",
+      "Mekong", "Congo", "Rhine", "Yellow River", "Niger", "Murray"] },
+    { title: "Famous peaks", names: ["Mount Everest", "K2", "Mount Kilimanjaro", "Denali", "Mont Blanc",
+      "Cerro Aconcagua", "Mount Fuji", "Matterhorn", "Mount Kosciuszko", "Vinson Massif"] }
+  ];
+
+  function findByName(name) {
+    var key = gfold(name), best = null;
+    GEO.list.forEach(function (f) {
+      if (f.key !== key && f.akeys.indexOf(key) < 0) return;
+      if (!best || kindRank(f.k) < kindRank(best.k)) best = f;
+    });
+    return best;
+  }
+
+  function starterPlaces(s) {
+    if (s.kind) return GEO.list.filter(function (f) { return f.k === s.kind; });
+    return s.names.map(findByName).filter(Boolean);
+  }
+
+  function renderGeoStarters() {
+    var host = $("geo-starters");
+    host.textContent = "";
+    if (!GEO) return;
+    GEO_STARTERS.forEach(function (s) {
+      var list = starterPlaces(s);
+      if (list.length < 2) return;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "starter";
+      var n = document.createElement("span");
+      n.className = "starter-n";
+      n.textContent = places(list.length);
+      var name = document.createElement("span");
+      name.className = "starter-name";
+      name.textContent = s.title;
+      var lang = document.createElement("span");
+      lang.className = "starter-lang";
+      lang.textContent = "Map quiz";
+      b.appendChild(n);
+      b.appendChild(name);
+      b.appendChild(lang);
+      // Into the builder rather than straight into a round, so it can be
+      // trimmed or added to first -- and so it is saved only if built.
+      b.addEventListener("click", function () {
+        geoEditId = null;
+        geoPicked = list.map(asPlace);
+        $("geo-name").value = s.title;
+        renderGeoPicked();
+        renderGeoResults();
+        $("geo-name").scrollIntoView({ block: "center", behavior: "smooth" });
+      });
+      host.appendChild(b);
+    });
+  }
+
+  /* ---------------- tabs ---------------- */
+  function setTab(name) {
+    var geo = name === "geo";
+    $("pane-geo").hidden = !geo;
+    $("pane-vocab").hidden = geo;
+    [["tab-vocab", !geo], ["tab-geo", geo]].forEach(function (t) {
+      var b = $(t[0]);
+      b.setAttribute("aria-selected", t[1] ? "true" : "false");
+      b.tabIndex = t[1] ? 0 : -1;
+    });
+    writeStore("qp:tab", geo ? "geo" : "vocab");
+    if (geo) {
+      if (!GEO) geoStatus("Loading the world map…");
+      loadGeo().then(function () {
+        if ($("geo-status").textContent === "Loading the world map…") geoStatus("");
+        renderGeoStarters();
+        renderGeoPicked();
+        renderGeoResults();
+      }, geoLoadFailed);
+    } else {
+      renderHighlight();
+    }
+  }
+  $("tab-vocab").addEventListener("click", function () { setTab("vocab"); });
+  $("tab-geo").addEventListener("click", function () { setTab("geo"); });
+  $("tab-vocab").parentNode.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    var toGeo = $("pane-geo").hidden;
+    setTab(toGeo ? "geo" : "vocab");
+    $(toGeo ? "tab-geo" : "tab-vocab").focus();
+  });
+
+  /* ---------------- playing a map quiz ---------------- */
+  var geoGame = null;
+  var geoMap = null;
+  var geoTicker = null;
+
+  function stopGeoClock() {
+    if (geoTicker) { clearInterval(geoTicker); geoTicker = null; }
+  }
+
+  function geoBestKey(d) { return "qp:geobest:" + (d.id || d.title); }
+
+  // only: ids to play, for drilling the misses; the whole quiz otherwise.
+  function startGeo(d, only) {
+    loadGeo().then(function () {
+      var all = (d.places || []).filter(function (p) { return placeShape(p); });
+      var inPlay = only ? all.filter(function (p) { return only.indexOf(p.id) >= 0; }) : all;
+      if (!inPlay.length) {
+        setTab("geo");
+        geoStatus("None of this quiz's places could be found on the map.", true);
+        return;
+      }
+      var names = {};
+      inPlay.forEach(function (p) { names[p.id] = p.n; });
+
+      show("geo");
+      if (geoMap) geoMap.destroy();
+      geoMap = makeMap($("geo-map"), inPlay, onGeoPick);
+      geoMap.fit();
+
+      geoGame = { deck: d, order: shuffle(inPlay.map(function (p) { return p.id; })),
+                  names: names, i: 0, tries: 0, results: {}, right: 0, wrong: 0, first: 0,
+                  t0: Date.now(), over: false, drill: !!only };
+      $("geo-done").hidden = true;
+      $("geo-again").hidden = $("geo-drill").hidden = $("geo-edit").hidden = true;
+      $("geo-quit").hidden = false;
+      $("geo-ask").hidden = false;
+      stopGeoClock();
+      geoTicker = setInterval(geoHud, 1000);
+      geoHud();
+    }, function () {
+      setTab("geo");
+      geoLoadFailed();
+    });
+  }
+
+  function geoScore() {
+    var g = geoGame, clicks = g.right + g.wrong;
+    return clicks ? Math.round(g.right / clicks * 100) : 100;
+  }
+
+  function geoHud() {
+    var g = geoGame;
+    if (!g) return;
+    var n = g.order.length;
+    $("geo-target").textContent = g.over ? "" : g.names[g.order[g.i]];
+    $("geo-progress").textContent = Math.min(g.i + 1, n) + " / " + n;
+    $("geo-track").style.width = (g.i / n * 100) + "%";
+    $("geo-score").textContent = geoScore() + "%";
+    $("geo-clock").textContent = clockText((g.over ? g.t1 : Date.now()) - g.t0);
+  }
+
+  function onGeoPick(ids, e) {
+    var g = geoGame;
+    if (!g || !ids.length) return;
+    // After the round, and on places already answered, a click just names
+    // the place -- a free look, as in Seterra.
+    if (g.over) { geoMap.tip(g.names[ids[0]], e); return; }
+    var target = g.order[g.i];
+    if (ids.indexOf(target) >= 0) {
+      var state = g.tries ? "is-late" : "is-ok";
+      g.results[target] = state;
+      g.right++;
+      if (!g.tries) g.first++;
+      geoMap.mark(target, state);
+      nextGeo();
+      return;
+    }
+    var hit = ids[0];
+    if (g.results[hit]) { geoMap.tip(g.names[hit], e); return; }
+    g.tries++;
+    g.wrong++;
+    geoMap.flash(hit, "is-wrong", 650);
+    geoMap.tip(g.names[hit], e, true);
+    if (g.tries >= 3) {
+      g.results[target] = "is-failed";
+      geoMap.mark(target, "is-failed");
+      geoMap.flash(target, "is-blink", 2000);
+      setTimeout(function () { if (geoGame === g) geoMap.tipAt(target, g.names[target]); }, 700);
+      nextGeo();
+      return;
+    }
+    geoHud();
+  }
+
+  function nextGeo() {
+    var g = geoGame;
+    g.i++;
+    g.tries = 0;
+    if (g.i >= g.order.length) finishGeo();
+    else geoHud();
+  }
+
+  function finishGeo() {
+    var g = geoGame;
+    if (!g || g.over) return;
+    g.over = true;
+    g.t1 = Date.now();
+    stopGeoClock();
+    geoHud();
+
+    var answered = Object.keys(g.results).length, n = g.order.length;
+    var score = geoScore();
+    var best = readStore(geoBestKey(g.deck), 0);
+    // Only a whole round counts towards the best: a drill of three misses
+    // scoring 100% says nothing about the quiz.
+    if (!g.drill && answered === n && score > best) { best = score; writeStore(geoBestKey(g.deck), best); }
+
+    $("geo-ask").hidden = true;
+    $("geo-done").hidden = false;
+    $("geo-done-title").textContent = answered < n ? "Ended after " + answered + " of " + n
+      : score === 100 ? "Flawless" : score >= 80 ? "Nicely done" : score >= 50 ? "Getting there" : "Keep at it";
+    $("geo-done-score").textContent = score + "%";
+    $("geo-st-first").textContent = g.first + "/" + n;
+    $("geo-st-miss").textContent = g.wrong;
+    $("geo-st-time").textContent = clockText(g.t1 - g.t0);
+    $("geo-st-best").textContent = best + "%";
+
+    var missed = g.order.filter(function (id) { return g.results[id] === "is-failed" || g.results[id] === "is-late"; });
+    var list = $("geo-missed-list");
+    list.textContent = "";
+    missed.forEach(function (id) {
+      var li = document.createElement("li");
+      var t = document.createElement("span");
+      t.className = "m-term";
+      t.textContent = g.names[id];
+      var a = document.createElement("span");
+      a.className = "m-ans";
+      a.textContent = g.results[id] === "is-failed" ? "missed" : "found late";
+      li.appendChild(t);
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+    $("geo-missed-box").hidden = !missed.length;
+    g.missed = missed;
+
+    $("geo-quit").hidden = true;
+    $("geo-again").hidden = false;
+    $("geo-drill").hidden = !missed.length;
+    $("geo-edit").hidden = !isSavedDeck(g.deck);
+    $("geo-done").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  $("geo-quit").addEventListener("click", finishGeo);
+  $("geo-again").addEventListener("click", function () {
+    if (geoGame) startGeo(deckById(geoGame.deck.id) || geoGame.deck);
+  });
+  $("geo-drill").addEventListener("click", function () {
+    if (geoGame && geoGame.missed) startGeo(deckById(geoGame.deck.id) || geoGame.deck, geoGame.missed.slice());
+  });
+  $("geo-edit").addEventListener("click", function () {
+    var d = geoGame && deckById(geoGame.deck.id);
+    if (d) editGeo(d);
+  });
+  $("geo-zoom-in").addEventListener("click", function () { if (geoMap) geoMap.zoom(1 / 1.6); });
+  $("geo-zoom-out").addEventListener("click", function () { if (geoMap) geoMap.zoom(1.6); });
+  $("geo-zoom-fit").addEventListener("click", function () { if (geoMap) geoMap.fit(); });
+
+  /* ---------------- a map quiz on the shelf ---------------- */
+  function geoCard(d) {
+    var card = document.createElement("div");
+    card.className = "quiz-card";
+    tint(card, d);
+
+    var tag = document.createElement("span");
+    tag.className = "geo-tag";
+    tag.textContent = "map quiz";
+
+    var title = nameField({
+      card: card, cls: "saved-name", value: d.title, max: 120,
+      placeholder: "Name this quiz", label: "Name of this quiz",
+      fallback: "Untitled map quiz",
+      commit: function (name) {
+        updateDeck(d.id, function (x) { x.title = name; });
+        d.title = name;
+      }
+    });
+
+    var meta = document.createElement("div");
+    meta.className = "deck-meta";
+    var kinds = {};
+    (d.places || []).forEach(function (p) { kinds[p.k] = (kinds[p.k] || 0) + 1; });
+    var top = Object.keys(kinds).sort(function (a, b) { return kinds[b] - kinds[a]; });
+    var bits = [places((d.places || []).length)];
+    if (top.length) {
+      bits.push(top.slice(0, 2).map(kindPlural).join(", ") + (top.length > 2 ? "…" : ""));
+    }
+    var best = readStore(geoBestKey(d), 0);
+    if (best) bits.push("best " + best + "%");
+    meta.textContent = bits.join(" · ");
+
+    var edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "btn btn-sm";
+    edit.textContent = "Edit";
+    edit.title = "Add or remove places";
+    edit.addEventListener("click", function () { editGeo(deckById(d.id) || d); });
+
+    var play = document.createElement("button");
+    play.type = "button";
+    play.className = "btn btn-sm";
+    play.textContent = "Play";
+    play.addEventListener("click", function () { startGeo(deckById(d.id) || d); });
+
+    var sp = document.createElement("span");
+    sp.className = "sp";
+    var foot = document.createElement("div");
+    foot.className = "quiz-card-foot";
+    foot.appendChild(colourSwatch(d, card));
+    foot.appendChild(sp);
+    foot.appendChild(edit);
+    foot.appendChild(play);
+
+    card.appendChild(binButton("Delete this quiz", "Delete quiz?", function () {
+      trashDeck(d.id);
+      renderSaved();
+    }));
+    card.appendChild(tag);
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(foot);
+
+    makeDraggable(card, "quiz", d.id);
+    wireDropTarget(card, "quiz", d.id);
+    return card;
+  }
+
   /* ---------------- boot ---------------- */
   function start(saved) {
     var storedOpts = readStore("qp:opts", null);
@@ -4361,6 +5800,8 @@ button{font:inherit;color:inherit}
     }
     applyOpts();
     renderStarters();
+    renderGeoPicked();
+    if (readStore("qp:tab", "vocab") === "geo") setTab("geo");
     renderSaved();
     setFixUI();
     renderHighlight();

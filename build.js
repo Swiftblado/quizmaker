@@ -184,8 +184,15 @@ fs.writeFileSync(path.join(OUT, "index.html"), page);
    Line endings are normalised first: git rewrites the working copy to CRLF
    on Windows, and without this a fresh checkout would announce a new
    version to everyone without a word of the page having changed. */
+// The world map rides along beside the page. It is part of the version too:
+// the worker serves it from a cache named after the version, so a new map
+// under an unchanged page would otherwise never reach anyone.
+const geo = fs.readFileSync(path.join(HERE, "geo.json"));
+fs.writeFileSync(path.join(OUT, "geo.json"), geo);
+
 const version = crypto.createHash("sha1")
   .update(page.replace(/\r\n/g, "\n"))
+  .update(geo)
   .digest("hex").slice(0, 8);
 
 // The page says which build it is, in the footer. The stamp is hashed as a
