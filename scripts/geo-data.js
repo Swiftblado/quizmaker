@@ -131,44 +131,35 @@ countries.forEach((f) => {
 // and the page stitches them together.
 //
 // Natural Earth files all of Russia under Europe, which would leave Asia
-// without Siberia, so Russia is cut at the Urals (60°E) -- and its far-eastern
-// tip, which sits across the date line at -170°, goes with Asia. Those halves
-// are the only outlines a continent carries of its own, in `g`.
+// without Siberia. Russia is therefore split by its own federal subjects
+// (ne_50m_admin_1_states_provinces) rather than cut along a meridian: a
+// straight line down 60°E read as a mistake, because the real division
+// follows the Urals and the administrative borders drawn around them.
+// Those two halves are the only outlines a continent carries of its own.
+//
+// Everything east of the Urals crest, by the usual reckoning. Anything not
+// named here is European Russia -- including the subjects that straddle the
+// ridge and are counted west of it (Perm, Bashkortostan, Orenburg, Komi).
+const RUS_ASIA = ["Tomsk", "Chukotka", "Chelyabinsk", "Kurgan", "Yamalo-Nenets", "Sverdlovsk",
+  "Khanty-Mansi", "Omsk", "Tyumen", "Altai", "Kemerovo", "Khakassia", "Novosibirsk", "Irkutsk",
+  "Krasnoyarsk", "Tuva", "Buryatia", "Amur", "Zabaykalsky", "Primorsky", "Sakha", "Jewish",
+  "Khabarovsk", "Magadan", "Sakhalin", "Kamchatka"];
 {
-  // The part of a ring on one side of a meridian (Sutherland-Hodgman against
-  // a single edge).
-  function clipX(ring, x0, keepEast) {
-    const inside = (p) => keepEast ? p[0] >= x0 : p[0] < x0;
-    const outRing = [];
-    for (let i = 0; i < ring.length; i++) {
-      const a = ring[i], b = ring[(i + 1) % ring.length];
-      const ia = inside(a), ib = inside(b);
-      if (ia) outRing.push(a);
-      if (ia !== ib) {
-        const t = (x0 - a[0]) / (b[0] - a[0]);
-        outRing.push([x0, a[1] + t * (b[1] - a[1])]);
-      }
-    }
-    return outRing;
-  }
-
-  const decode = (r) => {
-    const pts = [];
-    for (let i = 0, x = 0, y = 0; i < r.length; i += 2) { x += r[i]; y += r[i + 1]; pts.push([x / Q, y / Q]); }
-    return pts;
-  };
   const from = {}, own = {};
   out.filter((f) => f.k === "Country").forEach((f) => {
     const c = f.c;
     if (!c || c === "Seven seas (open ocean)") return;
-    if (f.n !== "Russia") return (from[c] = from[c] || []).push(f);
-    f.g.map(decode).forEach((r) => {
-      const put = (cont, ring) => { if (ring.length >= 4) (own[cont] = own[cont] || []).push(encode(ring)); };
-      if (r.every((p) => p[0] < -100)) return put("Asia", r);
-      put("Europe", clipX(r, 60, false));
-      put("Asia", clipX(r, 60, true));
-    });
+    if (f.n !== "Russia") (from[c] = from[c] || []).push(f);
   });
+
+  read("ne_50m_admin_1_states_provinces")
+    .filter((p) => p.properties.admin === "Russia")
+    .forEach((p) => {
+      const name = p.properties.name_en || p.properties.name || "";
+      const asia = RUS_ASIA.some((k) => name.indexOf(k) >= 0);
+      const rings = polys(p.geometry, 0.03, 0.02);
+      (own[asia ? "Asia" : "Europe"] = own[asia ? "Asia" : "Europe"] || []).push(...rings);
+    });
   const extra = { "North America": ["N. America"], "South America": ["S. America"],
     Oceania: ["Australia (continent)", "Australasia"] };
   Object.keys(from).forEach((c) => {

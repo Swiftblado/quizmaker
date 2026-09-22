@@ -926,18 +926,28 @@ button{font:inherit;color:inherit}
   --pick-dot:#F08A5D;--pick-line:#7FB2FF;
 }
 
-.geo-map{position:relative;width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);min-height:260px;background:var(--sea);border-radius:11px;overflow:hidden}
+.geo-map{position:relative;width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);min-height:260px;background:transparent;border-radius:11px;overflow:hidden}
+/* The sea is the world itself rather than the box it sits in: a path along
+   the 180th meridian and the poles, which the projection already draws as a
+   barrel with the corners taken off. */
+.m-sea{fill:var(--sea)}
 .geo-map svg{display:block;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
 .geo-map svg.panning{cursor:grabbing}
-.m-land{fill:var(--land);stroke:var(--land-edge);stroke-width:.6;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+/* No borders: the land is one silhouette, and only the places being asked
+   about carry an edge. The stroke matches the fill and exists to close the
+   hairline gaps where two simplified country outlines no longer meet. */
+.m-land{fill:var(--land);stroke:var(--land);stroke-width:1;vector-effect:non-scaling-stroke;stroke-linejoin:round}
 .m-f{cursor:pointer}
 .m-f .m-shape{vector-effect:non-scaling-stroke;stroke-linejoin:round;transition:fill .15s,stroke .15s}
 .m-poly .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:1}
 .m-poly.water .m-shape{fill:var(--pick-water);stroke:var(--pick-water-edge)}
-.m-cont .m-shape{stroke:none}
-.m-cont.tone-1 .m-shape{fill:color-mix(in srgb,var(--pick) 72%,var(--pick-dot))}
-.m-cont.tone-2 .m-shape{fill:color-mix(in srgb,var(--pick) 70%,var(--surface))}
-.m-cont.tone-3 .m-shape{fill:color-mix(in srgb,var(--pick) 78%,var(--ok))}
+/* A continent is drawn from its countries -- and Russia from its federal
+   subjects -- so it strokes itself in its own fill: the borders inside it
+   disappear and the seams between the pieces close up. */
+.m-cont .m-shape{stroke:var(--pick);stroke-width:1}
+.m-cont.tone-1 .m-shape{fill:color-mix(in srgb,var(--pick) 72%,var(--pick-dot));stroke:color-mix(in srgb,var(--pick) 72%,var(--pick-dot))}
+.m-cont.tone-2 .m-shape{fill:color-mix(in srgb,var(--pick) 70%,var(--surface));stroke:color-mix(in srgb,var(--pick) 70%,var(--surface))}
+.m-cont.tone-3 .m-shape{fill:color-mix(in srgb,var(--pick) 78%,var(--ok));stroke:color-mix(in srgb,var(--pick) 78%,var(--ok))}
 @media (hover:hover){ .m-cont:hover .m-shape{stroke:var(--accent);stroke-width:1} }
 .m-line .m-shape{fill:none;stroke:var(--pick-line);stroke-width:2.5;stroke-linecap:round}
 .m-line .m-hit{fill:none;stroke:transparent;stroke-width:16;stroke-linecap:round;vector-effect:non-scaling-stroke}
@@ -951,6 +961,9 @@ button{font:inherit;color:inherit}
   .m-f:hover .m-shape{stroke:var(--accent);stroke-width:2}
   .m-dot:hover .m-shape{stroke:var(--accent)}
 }
+.m-cont.is-ok .m-shape{stroke:var(--ok)}
+.m-cont.is-late .m-shape{stroke:var(--almost)}
+.m-cont.is-failed .m-shape{stroke:var(--bad)}
 .m-f.is-ok .m-shape{fill:var(--ok)}
 .m-f.is-late .m-shape{fill:var(--almost)}
 .m-f.is-failed .m-shape{fill:var(--bad)}
@@ -976,6 +989,7 @@ button{font:inherit;color:inherit}
 .geo-ask{font-size:15px;color:var(--muted)}
 .geo-ask b{font-family:var(--serif);font-size:23px;font-weight:600;color:var(--ink);margin-left:4px}
 .geo-hud-right{display:flex;gap:12px;align-items:center}
+.geo-limit button{padding:5px 9px;font-size:12px}
 .geo-progress{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .geo-stage{position:relative;padding:8px}
 .geo-zoom{position:absolute;top:18px;right:18px;display:flex;flex-direction:column;border:1px solid var(--rule);border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
@@ -1360,8 +1374,14 @@ button{font:inherit;color:inherit}
     <div class="geo-hud">
       <div class="geo-ask" id="geo-ask" aria-live="polite">Click on <b id="geo-target">&nbsp;</b></div>
       <div class="geo-hud-right">
+        <div class="seg geo-limit" id="geo-limit-seg" role="group" aria-label="Time limit for the round">
+          <button type="button" data-secs="0" aria-pressed="true">Off</button>
+          <button type="button" data-secs="60" aria-pressed="false">1m</button>
+          <button type="button" data-secs="120" aria-pressed="false">2m</button>
+          <button type="button" data-secs="300" aria-pressed="false">5m</button>
+        </div>
         <span class="geo-progress" id="geo-progress">0 / 0</span>
-        <span class="total-clock" id="geo-clock" title="Time this round">0:00</span>
+        <span class="clock" id="geo-clock" title="Time this round">0:00</span>
         <span class="score" id="geo-score" title="Right clicks out of all clicks">100%</span>
       </div>
     </div>
@@ -1504,7 +1524,7 @@ button{font:inherit;color:inherit}
   /* ---------------- state ---------------- */
   var deck = null;
   var opts = { dir: "ab", accents: false, typo: true, retry: true, limit: 0,
-               mode: "type", choices: 4 };
+               mode: "type", choices: 4, geoLimit: 0 };
   var game = null;
   var ticker = null;
 
@@ -4821,6 +4841,43 @@ button{font:inherit;color:inherit}
   // Neighbouring continents never share a tone.
   var CONT_TONE = { Asia: 0, Africa: 1, Europe: 2, Oceania: 3, "North America": 3, "South America": 2, Antarctica: 1 };
 
+  /* The outline of the whole world: the 180th meridian down each side, the
+     poles across the top and bottom. The projection narrows towards the
+     poles, so the sides already bow out like a barrel; taking the four
+     corners off with a curve finishes the oval. Everything inside it is
+     sea, and outside it is the page. */
+  var worldOutline = null;
+  function worldPath() {
+    if (worldOutline) return worldOutline;
+    var topY = project(0, 90)[1], botY = project(0, -90)[1];
+    var topX = project(180, 90)[0];
+    var cut = topX * 0.22;               // how far in from each corner
+    var drop = Math.abs(topY) * 0.1;     // and how far down the side
+    var side = function (lon) {          // one meridian, pole to pole
+      var out = [];
+      for (var lat = 90; lat >= -90; lat -= 2) {
+        var p = project(lon, lat);
+        if (p[1] > topY + drop && p[1] < botY - drop) out.push(p);
+      }
+      return out;
+    };
+    var east = side(180), west = side(-180).reverse();
+    var n = function (v) { return Math.round(v * 100) / 100; };
+    var line = function (pts) {
+      return pts.map(function (p) { return "L" + n(p[0]) + " " + n(p[1]); }).join("");
+    };
+    var corner = function (cx, cy, to) { return "Q" + n(cx) + " " + n(cy) + " " + n(to[0]) + " " + n(to[1]); };
+    worldOutline =
+      "M" + n(-topX + cut) + " " + n(topY) +
+      "L" + n(topX - cut) + " " + n(topY) +
+      corner(topX, topY, east[0]) + line(east.slice(1)) +
+      corner(topX, botY, [topX - cut, botY]) +
+      "L" + n(-topX + cut) + " " + n(botY) +
+      corner(-topX, botY, west[0]) + line(west.slice(1)) +
+      corner(-topX, topY, [-topX + cut, topY]) + "Z";
+    return worldOutline;
+  }
+
   var basePath = null;
   function landPath() {
     if (!basePath) {
@@ -4843,12 +4900,26 @@ button{font:inherit;color:inherit}
      and dots are resized on every move, so both stay the same on screen
      whatever the zoom.
   -------------------------------------------- */
+  var mapSeq = 0;
   function makeMap(host, places, onPick) {
     host.textContent = "";
     var svg = svgEl("svg", { role: "img", "aria-label": "Map" });
-    svg.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
+    // Everything is clipped to the world's outline, so Antarctica and the
+    // far ends of Russia stop at the edge instead of spilling past the
+    // corners that were rounded off.
+    var clipId = "m-clip-" + (++mapSeq);
+    var defs = svgEl("defs");
+    var clip = svgEl("clipPath", { id: clipId, clipPathUnits: "userSpaceOnUse" });
+    clip.appendChild(svgEl("path", { d: worldPath() }));
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    var world = svgEl("g", { "clip-path": "url(#" + clipId + ")" });
+    world.appendChild(svgEl("path", { "class": "m-sea", d: worldPath() }));
+    world.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
     var layer = svgEl("g");
-    svg.appendChild(layer);
+    world.appendChild(layer);
+    svg.appendChild(world);
     host.appendChild(svg);
 
     var tip = document.createElement("div");
@@ -5675,7 +5746,9 @@ button{font:inherit;color:inherit}
       $("geo-quit").hidden = false;
       $("geo-ask").hidden = false;
       stopGeoClock();
-      geoTicker = setInterval(geoHud, 1000);
+      // A countdown wants a finer tick than a clock that only counts seconds.
+      geoTicker = setInterval(geoHud, 250);
+      applyGeoLimit();
       geoHud();
     }, function () {
       setTab("geo");
@@ -5688,6 +5761,9 @@ button{font:inherit;color:inherit}
     return clicks ? Math.round(g.right / clicks * 100) : 100;
   }
 
+  /* The round clock. Off, it counts up and nothing is at stake; set to a
+     limit, it counts down and the round ends when it reaches zero, with
+     whatever is left unfound counting as missed. */
   function geoHud() {
     var g = geoGame;
     if (!g) return;
@@ -5696,8 +5772,47 @@ button{font:inherit;color:inherit}
     $("geo-progress").textContent = Math.min(g.i + 1, n) + " / " + n;
     $("geo-track").style.width = (g.i / n * 100) + "%";
     $("geo-score").textContent = geoScore() + "%";
-    $("geo-clock").textContent = clockText((g.over ? g.t1 : Date.now()) - g.t0);
+
+    var clock = $("geo-clock"), gone = (g.over ? g.t1 : Date.now()) - g.t0;
+    var limit = opts.geoLimit * 1000;
+    clock.classList.remove("warn", "urgent");
+    if (!limit) { clock.textContent = clockText(gone); return; }
+    var left = limit - gone;
+    if (left <= 0 && !g.over) { timeUp(); return; }
+    clock.textContent = clockText(Math.max(left, 0)) + " left";
+    if (left <= 8000) clock.classList.add("urgent");
+    else if (left <= 20000) clock.classList.add("warn");
   }
+
+  function timeUp() {
+    var g = geoGame;
+    if (!g || g.over) return;
+    g.timedOut = true;
+    // Everything still unfound is a miss, and is shown where it was.
+    g.order.forEach(function (id) {
+      if (g.results[id]) return;
+      g.results[id] = "is-failed";
+      g.wrong++;
+      geoMap.mark(id, "is-failed");
+    });
+    g.i = g.order.length;
+    finishGeo();
+  }
+
+  function applyGeoLimit() {
+    Array.prototype.forEach.call($("geo-limit-seg").children, function (b) {
+      b.setAttribute("aria-pressed", Number(b.dataset.secs) === opts.geoLimit ? "true" : "false");
+    });
+  }
+
+  $("geo-limit-seg").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    opts.geoLimit = Number(b.dataset.secs);
+    writeStore("qp:opts", opts);
+    applyGeoLimit();
+    geoHud();
+  });
 
   function onGeoPick(ids, e) {
     var g = geoGame;
@@ -5747,6 +5862,7 @@ button{font:inherit;color:inherit}
     g.t1 = Date.now();
     stopGeoClock();
     geoHud();
+    if (g.timedOut) $("geo-clock").textContent = "0:00 left";
 
     var answered = Object.keys(g.results).length, n = g.order.length;
     var score = geoScore();
@@ -5757,7 +5873,8 @@ button{font:inherit;color:inherit}
 
     $("geo-ask").hidden = true;
     $("geo-done").hidden = false;
-    $("geo-done-title").textContent = answered < n ? "Ended after " + answered + " of " + n
+    $("geo-done-title").textContent = g.timedOut ? "Time's up"
+      : answered < n ? "Ended after " + answered + " of " + n
       : score === 100 ? "Flawless" : score >= 80 ? "Nicely done" : score >= 50 ? "Getting there" : "Keep at it";
     $("geo-done-score").textContent = score + "%";
     $("geo-st-first").textContent = g.first + "/" + n;
@@ -5885,8 +6002,10 @@ button{font:inherit;color:inherit}
       opts.limit = [0, 10, 20, 30].indexOf(storedOpts.limit) >= 0 ? storedOpts.limit : 0;
       opts.mode = storedOpts.mode === "choice" ? "choice" : "type";
       opts.choices = storedOpts.choices >= 2 && storedOpts.choices <= 6 ? storedOpts.choices : 4;
+      opts.geoLimit = [0, 60, 120, 300].indexOf(storedOpts.geoLimit) >= 0 ? storedOpts.geoLimit : 0;
     }
     applyOpts();
+    applyGeoLimit();
     renderStarters();
     renderGeoPicked();
     if (readStore("qp:tab", "vocab") === "geo") setTab("geo");
@@ -5915,7 +6034,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 91de9f38</p>
+<p class="build-stamp">build b7f9d88d</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
