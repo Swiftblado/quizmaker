@@ -894,7 +894,10 @@ button{font:inherit;color:inherit}
   --pick:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
 }
 
-.geo-map{position:relative;width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);min-height:260px;background:var(--sea);border-radius:11px;overflow:hidden}
+/* The box is sized to the map, not the other way round: the script gives
+   it the width and height that hold the quiz at the right proportions,
+   and it sits in the middle of the card. */
+.geo-map{position:relative;margin:0 auto;max-width:100%;background:var(--sea);border-radius:11px;overflow:hidden}
 .geo-map svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none;cursor:pointer}
 /* Land that is not in the quiz: one grey silhouette with no borders in it.
    The stroke matches the fill and exists only to close the hairline gaps
@@ -907,8 +910,8 @@ button{font:inherit;color:inherit}
    inside the place are painted over, so what is left is the outer edge
    alone -- which is how a continent gets one outline instead of an
    outline round each of the countries it is made of. */
-.m-edge{fill:none;stroke:var(--pick-edge);stroke-width:4;vector-effect:non-scaling-stroke;stroke-linejoin:round;pointer-events:none}
-.m-poly .m-shape{fill:var(--pick);stroke:var(--pick);stroke-width:1.2}
+.m-edge{fill:none;stroke:var(--pick-edge);stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round;pointer-events:none}
+.m-poly .m-shape{fill:var(--pick);stroke:var(--pick);stroke-width:.8}
 .m-cont{--m-tone:var(--pick)}
 .m-cont.is-ok{--m-tone:var(--ok)}
 .m-cont.is-late{--m-tone:var(--almost)}
@@ -918,11 +921,11 @@ button{font:inherit;color:inherit}
 .m-line .m-hit{fill:none;stroke:transparent;stroke-width:16;stroke-linecap:round;vector-effect:non-scaling-stroke}
 /* A place marked by a dot is only the dot: white, with the same edge the
    territories carry. */
-.m-dot .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:2}
+.m-dot .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:1.2}
 .m-dot .m-hit,.m-ring .m-hit{fill:transparent;stroke:none}
 /* A place too small to hit at this scale gets a ring round it, as Seterra
    does for the island nations. */
-.m-ring{fill:none;stroke:var(--pick-edge);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.m-ring{fill:none;stroke:var(--pick-edge);stroke-width:1.2;vector-effect:non-scaling-stroke}
 @media (hover:hover){
   .m-poly:hover .m-shape,.m-dot:hover .m-shape{fill:var(--accent-soft)}
   .m-poly:hover .m-shape{stroke:var(--accent-soft)}
@@ -945,7 +948,7 @@ button{font:inherit;color:inherit}
 .m-line.is-wrong .m-shape{stroke:var(--bad);fill:none}
 /* Last word on a continent, after every state above: one colour, filled and
    stroked with it, so no border inside it can ever show. */
-.m-poly.m-cont .m-shape{fill:var(--m-tone);stroke:var(--m-tone);stroke-width:1.2}
+.m-poly.m-cont .m-shape{fill:var(--m-tone);stroke:var(--m-tone);stroke-width:.8}
 @media (hover:hover){
   .m-poly.m-cont:hover .m-shape{fill:var(--accent-soft);stroke:var(--accent-soft)}
 }
@@ -1009,7 +1012,7 @@ button{font:inherit;color:inherit}
 .geo-chip button{border:0;background:none;cursor:pointer;color:var(--faint);padding:0 6px;font-size:15px;line-height:1;border-radius:999px}
 .geo-chip button:hover{color:var(--bad);background:var(--bad-soft)}
 .geo-preview{margin-top:12px}
-.geo-preview .geo-map{aspect-ratio:16/9;border:1px solid var(--rule-soft)}
+.geo-preview .geo-map{border:1px solid var(--rule-soft)}
 .geo-preview{position:relative}
 .quiz-card .geo-tag{
   align-self:flex-start;font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
@@ -4683,14 +4686,18 @@ button{font:inherit;color:inherit}
     return out;
   }
 
-  // Longitude and latitude straight onto the page. The world is then a
-  // plain rectangle that fills its frame corner to corner -- which is what
-  // was asked for, in place of the curved-edged projection that drew it as
-  // an oval. The price is the usual one: the far north is stretched wide.
+  // Mercator, the proportions a world map is usually drawn in: a square
+  // rather than the two-to-one band that plain latitude gives, which read
+  // as far too wide. Latitude is cut off at 85 degrees, as every Mercator
+  // map must cut it somewhere -- the projection sends the poles to
+  // infinity -- and that cut is what makes the world square.
   var DEG = 1.5;
-  var WORLD = { x: -180 * DEG, y: -90 * DEG, w: 360 * DEG, h: 180 * DEG };
+  var MERC_MAX = 85.05112878;
+  var MERC_R = DEG * 180 / Math.PI;
+  var WORLD = { x: -180 * DEG, y: -180 * DEG, w: 360 * DEG, h: 360 * DEG };
   function project(lon, lat) {
-    return [lon * DEG, -lat * DEG];
+    var p = Math.max(-MERC_MAX, Math.min(MERC_MAX, lat)) * Math.PI / 180;
+    return [lon * DEG, -MERC_R * Math.log(Math.tan(Math.PI / 4 + p / 2))];
   }
 
   // What a quiz's place resolves to: a place found online carries its own
@@ -4749,19 +4756,22 @@ button{font:inherit;color:inherit}
     return b;
   }
 
-  // The box a map fits itself to. A small piece across the date line --
-  // Russia's Chukotka, the far Aleutians, part of Fiji -- would otherwise
-  // stretch the box round the whole world, and a quiz on Asia would open
-  // on a map of everything.
+  /* The box a map fits itself to. A small piece a long way from the rest
+     is left out of it -- French Guiana off France, Chukotka off Russia --
+     or a quiz on Europe would open on a map that reached South America.
+     The piece is still drawn and can still be clicked; it just does not
+     get a say in where the map looks. */
   function fitBoxOf(rings) {
     if (rings.length < 2) return boxOf(rings);
     var boxes = rings.map(function (r) { return boxOf([r]); });
     var area = function (b) { return (b[2] - b[0]) * (b[3] - b[1]); };
     var main = boxes.reduce(function (m, b) { return area(b) > area(m) ? b : m; });
-    var mx = (main[0] + main[2]) / 2;
+    var mx = (main[0] + main[2]) / 2, my = (main[1] + main[3]) / 2;
+    var reach = Math.max(main[2] - main[0], main[3] - main[1]) * 1.2 + 20;
     var kept = rings.filter(function (r, i) {
-      var b = boxes[i], cx = (b[0] + b[2]) / 2;
-      return !(cx * mx < 0 && Math.abs(cx) > 180 && Math.abs(cx - mx) > 200 && area(b) < area(main) * 0.25);
+      var b = boxes[i];
+      if (area(b) >= area(main) * 0.25) return true;      // a piece of real size always counts
+      return Math.hypot((b[0] + b[2]) / 2 - mx, (b[1] + b[3]) / 2 - my) <= reach;
     });
     return boxOf(kept.length ? kept : rings);
   }
@@ -4956,16 +4966,18 @@ button{font:inherit;color:inherit}
       return Math.max(view.w / w, view.h / h);
     }
 
-    /* The frame takes the shape of what is in it, within what the page can
-       give it, so the map fills its box edge to edge instead of sitting in
-       a band of empty space. */
+    /* The box takes the shape of what is in it, as large as the page can
+       give it, so the map fills it edge to edge rather than sitting in a
+       band of empty sea. */
     function shapeFrame(b) {
-      var availW = host.clientWidth || (host.parentNode && host.parentNode.clientWidth) || 800;
-      var maxH = Math.max(260, Math.min(window.innerHeight - 250, 620));
+      var availW = (host.parentNode && host.parentNode.clientWidth) || 800;
+      var maxH = Math.max(240, Math.min(window.innerHeight - 250, 620));
       var want = (b[2] - b[0]) / Math.max(b[3] - b[1], 0.001);
-      var a = Math.min(Math.max(want, availW / maxH), availW / 260);
-      host.style.aspectRatio = String(a);
-      void host.clientHeight;      // settle the new height before measuring
+      var a = Math.min(Math.max(want, 0.55), 3.2);
+      var h = Math.min(maxH, availW / a);
+      host.style.width = Math.round(h * a) + "px";
+      host.style.height = Math.round(h) + "px";
+      void host.clientHeight;      // settle the new size before measuring
     }
 
     /* The view never reaches past the edge of the world, and stops a
@@ -4979,8 +4991,11 @@ button{font:inherit;color:inherit}
       var w = Math.max((b[2] - b[0]) * 1.06, 14), h = Math.max((b[3] - b[1]) * 1.06, 9);
       var a = aspect();
       if (w / h > a) h = w / a; else w = h * a;
-      if (w > BOUND.w) { w = BOUND.w; h = w / a; }
-      if (h > BOUND.h) { h = BOUND.h; w = h * a; }
+      // Never reach past the edge of the world -- but never crop the quiz
+      // to manage it either: the two are clamped apart, and whatever the
+      // frame has left over is sea.
+      w = Math.min(w, BOUND.w);
+      h = Math.min(h, BOUND.h);
       var cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
       cx = Math.min(Math.max(cx, BOUND.x + w / 2), BOUND.x + BOUND.w - w / 2);
       cy = Math.min(Math.max(cy, BOUND.y + h / 2), BOUND.y + BOUND.h - h / 2);
@@ -5091,8 +5106,8 @@ button{font:inherit;color:inherit}
     };
 
     // Dots and rings are sized in screen pixels, so a resize redraws them.
-    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (view) setView(fitTo(all)); }) : null;
-    if (ro) ro.observe(host);
+    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (view) api.fit(); }) : null;
+    if (ro && host.parentNode) ro.observe(host.parentNode);
     return api;
   }
 
