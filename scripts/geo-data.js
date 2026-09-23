@@ -63,21 +63,50 @@ function ringArea(r) {
   return Math.abs(a / 2);
 }
 
-function encode(pts) {
+// Rounded to the grid and with any point that lands on top of the last one
+// dropped. A third value rides along on each point: 1 where the outline is
+// shared with another territory, 0 where it is coast. Quantising and
+// encoding are split so that the flags stay lined up with the points that
+// actually survive.
+function quantise(pts) {
+  const out = [];
+  let px = null, py = null;
+  for (const p of pts) {
+    const x = Math.round(p[0] * Q), y = Math.round(p[1] * Q);
+    if (px !== null && x === px && y === py) continue;
+    out.push([x, y, p[2] || 0]);
+    px = x; py = y;
+  }
+  return out;
+}
+
+function encodeQ(q) {
   const out = [];
   let px = 0, py = 0;
-  pts.forEach((p, i) => {
-    const x = Math.round(p[0] * Q), y = Math.round(p[1] * Q);
-    if (i && x === px && y === py) return;
-    out.push(x - px, y - py);
-    px = x; py = y;
-  });
+  for (const p of q) { out.push(p[0] - px, p[1] - py); px = p[0]; py = p[1]; }
   return out;
+}
+
+function encode(pts) { return encodeQ(quantise(pts)); }
+
+// The flags as run lengths, starting with a run of shared points -- which
+// is 0 long when the ring starts on a coast.
+function runsOf(q) {
+  const runs = [];
+  let want = 1, n = 0;
+  for (const p of q) {
+    if ((p[2] ? 1 : 0) === want) { n++; continue; }
+    runs.push(n);
+    want = 1 - want;
+    n = 1;
+  }
+  runs.push(n);
+  return runs;
 }
 
 // Outer rings only: a hole in a desert or a sea is not something anyone is
 // asked to click, and filling it keeps the shape one path.
-function polys(geom, tol, minArea) {
+function ringsOf(geom, tol, minArea) {
   const list = geom.type === "Polygon" ? [geom.coordinates]
     : geom.type === "MultiPolygon" ? geom.coordinates : [];
   let rings = list.map((p) => douglasPeucker(p[0], tol)).filter((r) => r.length >= 4);
@@ -85,7 +114,17 @@ function polys(geom, tol, minArea) {
   // Specks are dropped, but never the last ring: a small island nation is
   // still a country.
   rings = rings.filter((r, i) => i === 0 || ringArea(r) >= minArea);
-  return rings.map(encode).filter((r) => r.length >= 6);
+  return rings.map(quantise).filter((q) => q.length >= 3);
+}
+
+function polys(geom, tol, minArea) {
+  return ringsOf(geom, tol, minArea).map(encodeQ);
+}
+
+// The same, with the shared/coast runs beside each ring.
+function polysFlagged(geom, tol, minArea) {
+  const rings = ringsOf(geom, tol, minArea);
+  return { g: rings.map(encodeQ), b: rings.map(runsOf) };
 }
 
 function lines(geom, tol) {
@@ -113,16 +152,56 @@ function alts(...names) {
   return names.map(tidy).filter((n) => n && !seen.has(n.toLowerCase()) && seen.add(n.toLowerCase()));
 }
 
+/* Which stretches of an outline are a border with another territory, and
+   which are coast. Natural Earth cuts neighbours from the same geometry, so
+   a point that belongs to two countries is a border and a point that
+   belongs to one is a coast. Provinces are counted in a band of their own,
+   or every coastal point would be shared -- once by the province and once
+   by the country it is part of. */
+const owners = new Map();
+const ownerKey = (lon, lat) => lon.toFixed(5) + "," + lat.toFixed(5);
+
+function claim(geom, who, band) {
+  const list = geom.type === "Polygon" ? [geom.coordinates]
+    : geom.type === "MultiPolygon" ? geom.coordinates : [];
+  list.forEach((poly) => poly.forEach((ring) => ring.forEach((p) => {
+    const k = ownerKey(p[0], p[1]);
+    let e = owners.get(k);
+    if (!e) { e = { c: new Set(), p: new Set() }; owners.set(k, e); }
+    e[band].add(who);
+  })));
+}
+
+function sharedAt(lon, lat, asProvince) {
+  const e = owners.get(ownerKey(lon, lat));
+  if (!e) return false;
+  return e.c.size >= 2 || (asProvince && e.p.size >= 2);
+}
+
+// The same geometry with each point carrying its flag.
+function flagged(geom, asProvince) {
+  const conv = (ring) => ring.map((p) => [p[0], p[1], sharedAt(p[0], p[1], asProvince) ? 1 : 0]);
+  if (geom.type === "Polygon") return { type: "Polygon", coordinates: geom.coordinates.map(conv) };
+  if (geom.type === "MultiPolygon") {
+    return { type: "MultiPolygon", coordinates: geom.coordinates.map((poly) => poly.map(conv)) };
+  }
+  return geom;
+}
+
 // Countries: the base map as well as something to search for. Their
 // continent is kept so a continent can be drawn as its countries.
 const countries = read("ne_50m_admin_0_countries");
+const provinces = read("ne_50m_admin_1_states_provinces").filter((p) => p.properties.admin === "Russia");
+countries.forEach((f) => claim(f.geometry, f.properties.ADM0_A3 || f.properties.NAME, "c"));
+provinces.forEach((f) => claim(f.geometry, f.properties.adm1_code || f.properties.name, "p"));
+
 countries.forEach((f) => {
   const p = f.properties;
   if (p.TYPE === "Indeterminate" && !p.NAME_EN) return;
-  const g = polys(f.geometry, 0.03, 0.02);
+  const { g, b } = polysFlagged(flagged(f.geometry, false), 0.03, 0.02);
   const name = p.NAME_EN || p.NAME;
   const a = alts(p.NAME_LONG, p.FORMAL_EN, p.ADMIN, p.NAME).filter((n) => n.toLowerCase() !== name.toLowerCase());
-  add(name, "Country", "p", g, { c: p.CONTINENT, ...(a.length ? { a } : {}) });
+  add(name, "Country", "p", g, { b, c: p.CONTINENT, ...(a.length ? { a } : {}) });
 });
 
 // Continents, drawn from the countries that make them up rather than from
@@ -140,31 +219,65 @@ countries.forEach((f) => {
 // Everything east of the Urals crest, by the usual reckoning. Anything not
 // named here is European Russia -- including the subjects that straddle the
 // ridge and are counted west of it (Perm, Bashkortostan, Orenburg, Komi).
+/* A piece of one country that belongs to another continent. French Guiana
+   is a department of France and sits on the shoulder of South America; on
+   a continents map it has to be South American land, not a speck of Europe
+   across the Atlantic. */
+const CONTINENT_PIECES = [
+  { country: "France", box: [-55.5, 1.5, -50.0, 6.5], to: "South America" },
+];
+
+// The corners of a stored ring, back in degrees.
+function ringBox(ring) {
+  let x = 0, y = 0, b = [Infinity, Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < ring.length; i += 2) {
+    x += ring[i]; y += ring[i + 1];
+    b[0] = Math.min(b[0], x / Q); b[1] = Math.min(b[1], y / Q);
+    b[2] = Math.max(b[2], x / Q); b[3] = Math.max(b[3], y / Q);
+  }
+  return b;
+}
+
 const RUS_ASIA = ["Tomsk", "Chukotka", "Chelyabinsk", "Kurgan", "Yamalo-Nenets", "Sverdlovsk",
   "Khanty-Mansi", "Omsk", "Tyumen", "Altai", "Kemerovo", "Khakassia", "Novosibirsk", "Irkutsk",
   "Krasnoyarsk", "Tuva", "Buryatia", "Amur", "Zabaykalsky", "Primorsky", "Sakha", "Jewish",
   "Khabarovsk", "Magadan", "Sakhalin", "Kamchatka"];
 {
   const from = {}, own = {};
+  const keep = (cont, g, b) => {
+    const o = own[cont] = own[cont] || { g: [], b: [] };
+    o.g.push(...g);
+    o.b.push(...b);
+  };
+
   out.filter((f) => f.k === "Country").forEach((f) => {
     const c = f.c;
     if (!c || c === "Seven seas (open ocean)") return;
-    if (f.n !== "Russia") (from[c] = from[c] || []).push(f);
+    if (f.n === "Russia") return;                       // split by its provinces below
+    const rules = CONTINENT_PIECES.filter((r) => r.country === f.n);
+    if (!rules.length) return (from[c] = from[c] || []).push(f);
+    // This country has a piece filed under another continent, so it cannot
+    // be taken whole: its rings are dealt out one at a time.
+    f.g.forEach((ring, i) => {
+      const box = ringBox(ring);
+      const cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
+      const rule = rules.find((r) => cx >= r.box[0] && cx <= r.box[2] && cy >= r.box[1] && cy <= r.box[3]);
+      keep(rule ? rule.to : c, [ring], [f.b[i]]);
+    });
   });
 
-  read("ne_50m_admin_1_states_provinces")
-    .filter((p) => p.properties.admin === "Russia")
-    .forEach((p) => {
-      const name = p.properties.name_en || p.properties.name || "";
-      const asia = RUS_ASIA.some((k) => name.indexOf(k) >= 0);
-      const rings = polys(p.geometry, 0.03, 0.02);
-      (own[asia ? "Asia" : "Europe"] = own[asia ? "Asia" : "Europe"] || []).push(...rings);
-    });
+  provinces.forEach((p) => {
+    const name = p.properties.name_en || p.properties.name || "";
+    const asia = RUS_ASIA.some((k) => name.indexOf(k) >= 0);
+    const { g, b } = polysFlagged(flagged(p.geometry, true), 0.03, 0.02);
+    keep(asia ? "Asia" : "Europe", g, b);
+  });
   const extra = { "North America": ["N. America"], "South America": ["S. America"],
     Oceania: ["Australia (continent)", "Australasia"] };
   Object.keys(from).forEach((c) => {
-    out.push({ n: c, k: "Continent", s: "p", g: own[c] || [],
-      from: from[c].map((f) => f), ...(extra[c] ? { a: extra[c] } : {}) });
+    out.push({ n: c, k: "Continent", s: "p", g: (own[c] || { g: [] }).g,
+      b: (own[c] || { b: [] }).b, from: from[c].map((f) => f),
+      ...(extra[c] ? { a: extra[c] } : {}) });
   });
 }
 

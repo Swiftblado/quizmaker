@@ -941,7 +941,7 @@ button{font:inherit;color:inherit}
    inside the place are painted over, so what is left is the outer edge
    alone -- which is how a continent gets one outline instead of an
    outline round each of the countries it is made of. */
-.m-edge{fill:none;stroke:var(--pick-edge);stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round;pointer-events:none}
+.m-edge{fill:none;stroke:var(--pick-edge);stroke-width:2.4;stroke-linecap:round;vector-effect:non-scaling-stroke;stroke-linejoin:round;pointer-events:none}
 .m-poly .m-shape{fill:var(--pick);stroke:var(--pick);stroke-width:.8}
 .m-cont{--m-tone:var(--pick)}
 .m-cont.is-ok{--m-tone:var(--found)}
@@ -988,6 +988,14 @@ button{font:inherit;color:inherit}
 @media (hover:hover){
   .m-f.unfound.m-poly.m-cont:hover .m-shape{fill:var(--accent-soft);stroke:var(--accent-soft)}
 }
+/* Found. A ring opens out from where it was clicked and the place itself
+   gives a small nod -- enough to catch the eye, over before it is in the
+   way of the next question. */
+.m-pop{fill:none;stroke:var(--ok);stroke-width:2.5;vector-effect:non-scaling-stroke;pointer-events:none;
+  animation:m-ripple .45s ease-out forwards}
+@keyframes m-ripple{from{r:var(--r0);opacity:.85}to{r:var(--r1);opacity:0}}
+.m-f.is-pop{transform-box:fill-box;transform-origin:center;animation:m-found .38s ease-out}
+@keyframes m-found{0%{transform:scale(1)}35%{transform:scale(1.05)}100%{transform:scale(1)}}
 .m-f.is-blink{animation:m-blink .5s steps(2,start) 4}
 @keyframes m-blink{to{opacity:.15}}
 
@@ -995,7 +1003,11 @@ button{font:inherit;color:inherit}
   position:absolute;z-index:3;pointer-events:none;transform:translate(-50%,calc(-100% - 12px));
   padding:5px 10px;border-radius:7px;font-size:13px;font-weight:600;white-space:nowrap;
   background:var(--ink);color:var(--surface);box-shadow:var(--shadow);
+  opacity:1;transition:opacity .32s ease;
 }
+/* It goes out rather than vanishing: a name that blinks off mid-read is
+   worse than no name. */
+.geo-tip.fading{opacity:0}
 .geo-tip.bad{background:var(--bad);color:#fff}
 
 .geo-hud{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
@@ -1014,6 +1026,7 @@ button{font:inherit;color:inherit}
 .geo-progress{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .geo-stage{position:relative;padding:8px}
 .geo-done{margin-top:14px}
+.geo-keep{margin-top:14px}
 
 /* ---------------- building a map quiz ---------------- */
 .geo-search input{
@@ -1424,6 +1437,10 @@ button{font:inherit;color:inherit}
       <div class="missed" id="geo-missed-box" hidden>
         <div class="eyebrow">Worth another look</div>
         <ul id="geo-missed-list"></ul>
+        <div class="sub-new geo-keep" id="geo-keep" hidden>
+          <input id="geo-keep-name" maxlength="40" autocomplete="off" placeholder="Name a list of these">
+          <button class="btn btn-sm" id="geo-keep-save" type="button">Keep them</button>
+        </div>
       </div>
     </div>
 
@@ -3236,12 +3253,18 @@ button{font:inherit;color:inherit}
       body.appendChild(el);
     }
 
-    // Opening the whole list lands on the deck screen, where the options
-    // are; a sub-list is a smaller thing and goes straight into a round.
-    item("Whole list", words(d.pairs.length) + " · opens the quiz", true, function () {
-      closeSidePanel();
-      loadDeck(JSON.parse(JSON.stringify(d)));
-    });
+    var geo = isGeo(d);
+
+    // Opening the whole thing lands where its settings are -- the deck
+    // screen for a word list, the builder for a map -- while a sub-list is
+    // a smaller thing and goes straight into a round.
+    item(geo ? "Whole map" : "Whole list",
+      (geo ? places((d.places || []).length) : words(d.pairs.length)) + " · opens the quiz", true,
+      function () {
+        closeSidePanel();
+        if (geo) editGeo(deckById(d.id) || d);
+        else loadDeck(JSON.parse(JSON.stringify(d)));
+      });
 
     var subs = d.subs || [];
     label(subs.length ? (subs.length === 1 ? "Sub-list" : "Sub-lists") : "Sub-lists");
@@ -3249,20 +3272,29 @@ button{font:inherit;color:inherit}
     if (!subs.length) {
       var none = document.createElement("span");
       none.className = "sub-none";
-      none.textContent = "None yet. While playing, “Add to list” under any answer puts that word into one.";
+      none.textContent = geo
+        ? "None yet. At the end of a round you can keep the places you missed as one."
+        : "None yet. While playing, “Add to list” under any answer puts that word into one.";
       body.appendChild(none);
     }
 
     subs.forEach(function (s, j) {
-      var n = (s.keys || []).length;
-      var row = item(s.name, n ? words(n) + " · drag out to shelve it" : "empty", n > 0, function () {
+      var n = geo ? geoSubPlaces(d, s).length : (s.keys || []).length;
+      var row = item(s.name, n ? (geo ? places(n) : words(n)) + " · drag out to shelve it" : "empty", n > 0, function () {
         closeSidePanel();
+        if (geo) {
+          var live = deckById(d.id) || d;
+          var ids = geoSubPlaces(live, (live.subs || [])[j] || s).map(function (p) { return p.id; });
+          if (!ids.length) { geoStatus("“" + s.name + "” has no places left in it.", true); return; }
+          startGeo(live, ids, s.name);
+          return;
+        }
         loadDeck(JSON.parse(JSON.stringify(d)));
-        var live = subsOf(deck)[j];
-        if (!live) return;
-        var pairs = subPairs(deck, live);
-        if (!pairs.length) { flash("“" + live.name + "” has no words left in it."); return; }
-        startGame(pairs, live.name);
+        var live2 = subsOf(deck)[j];
+        if (!live2) return;
+        var pairs = subPairs(deck, live2);
+        if (!pairs.length) { flash("“" + live2.name + "” has no words left in it."); return; }
+        startGame(pairs, live2.name);
       });
 
       // A sub-list can be dragged out of here and onto the shelf, where it
@@ -4335,11 +4367,12 @@ button{font:inherit;color:inherit}
     title.className = "saved-name static";
     title.textContent = ref.subName;
 
+    var geoRef = found && isGeo(found.deck);
     var meta = document.createElement("div");
     meta.className = "deck-meta";
     if (found) {
-      var n = subPairs(found.deck, found.sub).length;
-      meta.textContent = words(n) + " · from " + (found.deck.title || "a quiz");
+      var n = geoRef ? geoSubPlaces(found.deck, found.sub).length : subPairs(found.deck, found.sub).length;
+      meta.textContent = (geoRef ? places(n) : words(n)) + " · from " + (found.deck.title || "a quiz");
     } else {
       meta.textContent = "The quiz this came from is gone";
     }
@@ -4348,10 +4381,15 @@ button{font:inherit;color:inherit}
     play.type = "button";
     play.className = "btn btn-sm";
     play.textContent = "Play";
-    play.disabled = !found || !subPairs(found.deck, found.sub).length;
+    play.disabled = !found ||
+      !(geoRef ? geoSubPlaces(found.deck, found.sub).length : subPairs(found.deck, found.sub).length);
     play.addEventListener("click", function () {
       var live = subRefTarget(ref);
       if (!live) return;
+      if (isGeo(live.deck)) {
+        startGeo(live.deck, geoSubPlaces(live.deck, live.sub).map(function (p) { return p.id; }), live.sub.name);
+        return;
+      }
       loadDeck(JSON.parse(JSON.stringify(live.deck)));
       var s = findSub(deck, ref.subName);
       if (!s) return;
@@ -4823,8 +4861,13 @@ button{font:inherit;color:inherit}
     if (f.s === "d") {
       rings = [[project(f.g[0] / q, f.g[1] / q)]];
     } else {
-      var src = f.g.slice();
-      (f.from || []).forEach(function (id) { var c = GEO.byId[id]; if (c) src = src.concat(c.g); });
+      var src = f.g.slice(), runs = (f.b || []).slice();
+      (f.from || []).forEach(function (id) {
+        var c = GEO.byId[id];
+        if (!c) return;
+        src = src.concat(c.g);
+        runs = runs.concat(c.b || []);
+      });
       var raw = src.map(function (r) { return decodeRing(r, q); });
 
       /* A piece that lies across the date line from the rest of its own
@@ -4847,16 +4890,17 @@ button{font:inherit;color:inherit}
         return pts.map(function (p) { return [p[0] + shift, p[1]]; });
       });
 
-      rings = raw.map(function (pts) {
+      rings = raw.map(function (pts, ri) {
         // Which points sit on the edge of the world is remembered, so the
         // outline can leave those stretches out: they are where the map was
         // cut, not a coast, and drawing them puts a seam between a piece
         // and the rest of its place.
         var out = pts.map(function (pt) { return project(pt[0], pt[1]); });
-        out.cut = pts.map(function (pt, i) {
+        out.cut = pts.map(function (pt) {
           var lon = pt[0];
           return (Math.abs(pt[1]) >= 89.5 || Math.abs(((lon + 540) % 360) - 180) >= 179.5) ? 1 : 0;
         });
+        out.coast = spread(runs[ri], pts.length);
         return out;
       });
     }
@@ -4868,11 +4912,15 @@ button{font:inherit;color:inherit}
      edge of the world are left out. Antarctica's southern edge and the
      sides of anything cut at the date line are joins, not coasts. */
   function edgePath(r) {
-    var out = "", open = false, n = r.length, cut = r.cut;
+    var out = "", open = false, n = r.length, cut = r.cut, coast = r.coast;
     if (!cut) return ringPath(r, true);
     for (var i = 0; i < n; i++) {
       var j = (i + 1) % n;
+      // A coast needs no line: the land is one colour and the sea another,
+      // and the eye reads that edge without help. Only where one territory
+      // meets another is an outline drawn.
       if (cut[i] && cut[j]) { open = false; continue; }
+      if (coast && coast[i] && coast[j]) { open = false; continue; }
       if (!open) { out += "M" + round2(r[i][0]) + " " + round2(r[i][1]); open = true; }
       out += "L" + round2(r[j][0]) + " " + round2(r[j][1]);
     }
@@ -4880,6 +4928,20 @@ button{font:inherit;color:inherit}
   }
 
   function round2(v) { return Math.round(v * 100) / 100; }
+
+  /* The runs say which stretches of a ring are a border with another
+     territory and which are coast, as a count of each in turn beginning
+     with a border. Spread back out, one flag per point: 1 is coast. */
+  function spread(runs, n) {
+    var out = new Uint8Array(n);
+    if (!runs) return out;                      // nothing said: treat it all as border
+    var at = 0, coast = 0;
+    for (var i = 0; i < runs.length && at < n; i++) {
+      for (var k = 0; k < runs[i] && at < n; k++) out[at++] = coast;
+      coast = 1 - coast;
+    }
+    return out;
+  }
 
   function ringPath(r, close) {
     var s = "";
@@ -5174,6 +5236,14 @@ button{font:inherit;color:inherit}
       });
     }
 
+    function toSvg(clientX, clientY) {
+      var m = svg.getScreenCTM();
+      if (!m) return null;
+      var p = svg.createSVGPoint();
+      p.x = clientX; p.y = clientY;
+      return p.matrixTransform(m.inverse());
+    }
+
     function toClient(x, y) {
       var m = svg.getScreenCTM();
       if (!m) return { x: 0, y: 0 };
@@ -5196,7 +5266,7 @@ button{font:inherit;color:inherit}
       if (onPick) onPick(ids, e);
     });
 
-    var tipTimer = null;
+    var tipTimer = null, tipGone = null;
     function showTip(text, clientX, clientY, bad) {
       var r = host.getBoundingClientRect();
       tip.textContent = text;
@@ -5205,7 +5275,11 @@ button{font:inherit;color:inherit}
       tip.style.top = Math.max(clientY - r.top, 40) + "px";
       tip.hidden = false;
       clearTimeout(tipTimer);
-      tipTimer = setTimeout(function () { tip.hidden = true; }, 1500);
+      clearTimeout(tipGone);
+      tipTimer = setTimeout(function () {
+        tip.classList.add("fading");
+        tipGone = setTimeout(function () { tip.hidden = true; }, 340);
+      }, 1400);
     }
 
     var flashes = [];
@@ -5232,6 +5306,23 @@ button{font:inherit;color:inherit}
         flashes.push(setTimeout(function () { it.g.classList.remove(cls); }, ms));
       },
       tip: function (text, e, bad) { showTip(text, e.clientX, e.clientY, bad); },
+      // The ring opens from where the click landed, or from the middle of
+      // the place when nothing was clicked -- a place found by running the
+      // clock out is not found anywhere in particular.
+      pop: function (id, e) {
+        var it = byId[id];
+        if (!it) return;
+        var at = e && toSvg(e.clientX, e.clientY);
+        if (!at) at = { x: (it.box[0] + it.box[2]) / 2, y: (it.box[1] + it.box[3]) / 2 };
+        var u = upp();
+        var ring = svgEl("circle", { "class": "m-pop", cx: at.x, cy: at.y, r: 4 * u });
+        ring.style.setProperty("--r0", (5 * u) + "px");
+        ring.style.setProperty("--r1", (34 * u) + "px");
+        svg.appendChild(ring);
+        it.g.classList.add("is-pop");
+        flashes.push(setTimeout(function () { it.g.classList.remove("is-pop"); }, 420));
+        flashes.push(setTimeout(function () { if (ring.parentNode) ring.parentNode.removeChild(ring); }, 520));
+      },
       ask: function (text) {
         asking = text || "";
         cursor.textContent = asking ? "Click on " + asking : "";
@@ -5481,6 +5572,24 @@ button{font:inherit;color:inherit}
   var osmFor = "";
 
   function isGeo(d) { return d && d.kind === "geo"; }
+
+  // A map quiz's sub-list holds place ids. A place taken out of the quiz
+  // simply falls out of its lists, as a deleted word does.
+  function geoSubPlaces(d, sub) {
+    var want = {};
+    (sub.keys || []).forEach(function (k) { want[k] = true; });
+    return (d.places || []).filter(function (p) { return want[p.id]; });
+  }
+
+  function addGeoSub(d, name, ids) {
+    updateDeck(d.id, function (x) {
+      x.subs = x.subs || [];
+      var at = null;
+      x.subs.forEach(function (sb) { if (sb.name === name) at = sb; });
+      if (!at) { at = { name: name, keys: [] }; x.subs.push(at); }
+      ids.forEach(function (id) { if (at.keys.indexOf(id) < 0) at.keys.push(id); });
+    });
+  }
   function places(n) { return n + (n === 1 ? " place" : " places"); }
   function geoHas(id) { return geoPicked.some(function (p) { return p.id === id; }); }
 
@@ -5812,7 +5921,7 @@ button{font:inherit;color:inherit}
   function geoBestKey(d) { return "qp:geobest:" + (d.id || d.title); }
 
   // only: ids to play, for drilling the misses; the whole quiz otherwise.
-  function startGeo(d, only) {
+  function startGeo(d, only, subName) {
     loadGeo().then(function () {
       var all = (d.places || []).filter(function (p) { return placeShape(p); });
       var inPlay = only ? all.filter(function (p) { return only.indexOf(p.id) >= 0; }) : all;
@@ -5831,7 +5940,7 @@ button{font:inherit;color:inherit}
 
       geoGame = { deck: d, order: shuffle(inPlay.map(function (p) { return p.id; })),
                   names: names, i: 0, tries: 0, results: {}, right: 0, wrong: 0, first: 0,
-                  t0: Date.now(), over: false, drill: !!only, skips: 0 };
+                  t0: Date.now(), over: false, drill: !!only, skips: 0, subName: subName || null };
       $("geo-done").hidden = true;
       $("geo-again").hidden = $("geo-drill").hidden = $("geo-edit").hidden = true;
       $("geo-quit").hidden = false;
@@ -5923,6 +6032,7 @@ button{font:inherit;color:inherit}
       g.right++;
       if (!g.tries) g.first++;
       geoMap.mark(target, state);
+      geoMap.pop(target, e);
       nextGeo();
       return;
     }
@@ -5987,6 +6097,8 @@ button{font:inherit;color:inherit}
     $("geo-skip").hidden = true;
     if (geoMap) geoMap.ask("");
     $("geo-done").hidden = false;
+    $("geo-done").querySelector(".eyebrow").textContent =
+      g.subName ? "Round complete · " + g.subName : "Round complete";
     $("geo-done-title").textContent = g.timedOut ? "Time's up"
       : answered < n ? "Ended after " + answered + " of " + n
       : score === 100 ? "Flawless" : score >= 80 ? "Nicely done" : score >= 50 ? "Getting there" : "Keep at it";
@@ -6015,12 +6127,35 @@ button{font:inherit;color:inherit}
     $("geo-missed-box").hidden = !missed.length;
     g.missed = missed;
 
+    // The misses are worth keeping: named here, they become a sub-list of
+    // the quiz and can be played on their own from its card afterwards.
+    var keep = $("geo-keep");
+    keep.hidden = !missed.length || !isSavedDeck(g.deck);
+    $("geo-keep-name").value = "";
+    $("geo-keep-save").textContent = "Keep them";
+    $("geo-keep-save").disabled = false;
+
     $("geo-quit").hidden = true;
     $("geo-again").hidden = false;
     $("geo-drill").hidden = !missed.length;
     $("geo-edit").hidden = !isSavedDeck(g.deck);
     $("geo-done").scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
+
+  $("geo-keep-save").addEventListener("click", function () {
+    var g = geoGame;
+    if (!g || !g.missed || !g.missed.length) return;
+    var live = deckById(g.deck.id);
+    if (!live) return;
+    var name = $("geo-keep-name").value.trim() || "Worth another look";
+    addGeoSub(live, name, g.missed.slice());
+    renderSaved();
+    this.textContent = "Kept in “" + name + "”";
+    this.disabled = true;
+  });
+  $("geo-keep-name").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); $("geo-keep-save").click(); }
+  });
 
   $("geo-quit").addEventListener("click", finishGeo);
   $("geo-again").addEventListener("click", function () {
@@ -6054,6 +6189,7 @@ button{font:inherit;color:inherit}
       }
     });
 
+    var subs = (d.subs || []).length;
     var meta = document.createElement("div");
     meta.className = "deck-meta";
     var kinds = {};
@@ -6063,22 +6199,25 @@ button{font:inherit;color:inherit}
     if (top.length) {
       bits.push(top.slice(0, 2).map(kindPlural).join(", ") + (top.length > 2 ? "…" : ""));
     }
+    if (subs) bits.push(subs + (subs === 1 ? " sub-list" : " sub-lists"));
     var best = readStore(geoBestKey(d), 0);
     if (best) bits.push("best " + best + "%");
     meta.textContent = bits.join(" · ");
 
-    var edit = document.createElement("button");
-    edit.type = "button";
-    edit.className = "btn btn-sm";
-    edit.textContent = "Edit";
-    edit.title = "Add or remove places";
-    edit.addEventListener("click", function () { editGeo(deckById(d.id) || d); });
+    var lists = document.createElement("button");
+    lists.type = "button";
+    lists.className = "btn btn-sm";
+    lists.textContent = "Sub-lists" + (subs ? " · " + subs : "");
+    lists.title = "Open this quiz's lists";
+    lists.setAttribute("aria-haspopup", "dialog");
+    lists.addEventListener("click", function () { openSidePanel(deckById(d.id) || d); });
 
-    var play = document.createElement("button");
-    play.type = "button";
-    play.className = "btn btn-sm";
-    play.textContent = "Play";
-    play.addEventListener("click", function () { startGeo(deckById(d.id) || d); });
+    var open = document.createElement("button");
+    open.type = "button";
+    open.className = "btn btn-sm";
+    open.textContent = "Open";
+    open.title = "Open this map, to play it or change what is in it";
+    open.addEventListener("click", function () { editGeo(deckById(d.id) || d); });
 
     var sp = document.createElement("span");
     sp.className = "sp";
@@ -6086,8 +6225,8 @@ button{font:inherit;color:inherit}
     foot.className = "quiz-card-foot";
     foot.appendChild(colourSwatch(d, card));
     foot.appendChild(sp);
-    foot.appendChild(edit);
-    foot.appendChild(play);
+    foot.appendChild(lists);
+    foot.appendChild(open);
 
     card.appendChild(binButton("Delete this quiz", "Delete quiz?", function () {
       trashDeck(d.id);
@@ -6146,7 +6285,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 3b93815f</p>
+<p class="build-stamp">build 6b489e0e</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
