@@ -1000,7 +1000,15 @@ button{font:inherit;color:inherit}
 .geo-hud{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .geo-ask{font-size:15px;color:var(--muted)}
 .geo-ask b{font-family:var(--serif);font-size:23px;font-weight:600;color:var(--ink);margin-left:4px}
+.geo-ask .geo-skip{margin-left:10px;vertical-align:middle;padding:4px 11px}
 .geo-hud-right{display:flex;gap:12px;align-items:center}
+/* What to click, kept under the eye rather than up in the corner. */
+.geo-cursor{
+  position:absolute;z-index:4;pointer-events:none;transform:translate(15px,17px);
+  padding:4px 10px;border-radius:7px;font-size:12.5px;font-weight:600;white-space:nowrap;
+  background:var(--ink);color:var(--surface);box-shadow:var(--shadow);opacity:.92;
+}
+.geo-cursor.flip{transform:translate(calc(-100% - 15px),17px)}
 .geo-limit button{padding:5px 9px;font-size:12px}
 .geo-progress{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .geo-stage{position:relative;padding:8px}
@@ -1384,7 +1392,9 @@ button{font:inherit;color:inherit}
   <!-- ============ MAP QUIZ ============ -->
   <section id="scr-geo" hidden>
     <div class="geo-hud">
-      <div class="geo-ask" id="geo-ask" aria-live="polite">Click on <b id="geo-target">&nbsp;</b></div>
+      <div class="geo-ask" id="geo-ask" aria-live="polite">Click on <b id="geo-target">&nbsp;</b>
+        <button class="btn btn-sm geo-skip" id="geo-skip" type="button" title="Ask this one again later">Skip</button>
+      </div>
       <div class="geo-hud-right">
         <div class="seg geo-limit" id="geo-limit-seg" role="group" aria-label="Time limit for the round">
           <button type="button" data-secs="0" aria-pressed="true">Off</button>
@@ -1415,6 +1425,7 @@ button{font:inherit;color:inherit}
       <div class="stats">
         <div class="stat"><b id="geo-st-first">0</b><span>First try</span></div>
         <div class="stat"><b id="geo-st-miss">0</b><span>Wrong clicks</span></div>
+        <div class="stat"><b id="geo-st-skips">0</b><span>Skipped</span></div>
         <div class="stat"><b id="geo-st-time">0:00</b><span>Time</span></div>
         <div class="stat"><b id="geo-st-best">0%</b><span>Quiz best</span></div>
       </div>
@@ -5004,6 +5015,23 @@ button{font:inherit;color:inherit}
     tip.hidden = true;
     host.appendChild(tip);
 
+    // What is being asked, carried along under the pointer: the prompt in
+    // the corner is a long way from where the eyes are while hunting.
+    var cursor = document.createElement("div");
+    cursor.className = "geo-cursor";
+    cursor.hidden = true;
+    host.appendChild(cursor);
+    var asking = "";
+    svg.addEventListener("pointermove", function (e) {
+      if (!asking || e.pointerType === "touch") return;
+      var r = host.getBoundingClientRect();
+      cursor.classList.toggle("flip", e.clientX - r.left > r.width - 170);
+      cursor.style.left = (e.clientX - r.left) + "px";
+      cursor.style.top = (e.clientY - r.top) + "px";
+      cursor.hidden = false;
+    });
+    svg.addEventListener("pointerleave", function () { cursor.hidden = true; });
+
     var items = [], byId = {};
     places.forEach(function (p) {
       var f = placeShape(p);
@@ -5235,6 +5263,11 @@ button{font:inherit;color:inherit}
         flashes.push(setTimeout(function () { it.g.classList.remove(cls); }, ms));
       },
       tip: function (text, e, bad) { showTip(text, e.clientX, e.clientY, bad); },
+      ask: function (text) {
+        asking = text || "";
+        cursor.textContent = asking ? "Click on " + asking : "";
+        if (!asking) cursor.hidden = true;
+      },
       tipAt: function (id, text, bad) {
         var it = byId[id];
         if (!it) return;
@@ -5826,11 +5859,12 @@ button{font:inherit;color:inherit}
 
       geoGame = { deck: d, order: shuffle(inPlay.map(function (p) { return p.id; })),
                   names: names, i: 0, tries: 0, results: {}, right: 0, wrong: 0, first: 0,
-                  t0: Date.now(), over: false, drill: !!only };
+                  t0: Date.now(), over: false, drill: !!only, skips: 0 };
       $("geo-done").hidden = true;
       $("geo-again").hidden = $("geo-drill").hidden = $("geo-edit").hidden = true;
       $("geo-quit").hidden = false;
       $("geo-ask").hidden = false;
+      $("geo-skip").hidden = false;
       stopGeoClock();
       // A countdown wants a finer tick than a clock that only counts seconds.
       geoTicker = setInterval(geoHud, 250);
@@ -5854,7 +5888,11 @@ button{font:inherit;color:inherit}
     var g = geoGame;
     if (!g) return;
     var n = g.order.length;
-    $("geo-target").textContent = g.over ? "" : g.names[g.order[g.i]];
+    var asking = g.over ? "" : g.names[g.order[g.i]];
+    $("geo-target").textContent = asking;
+    if (geoMap) geoMap.ask(asking);
+    // Skipping the last one left would only ask it again.
+    $("geo-skip").disabled = g.over || g.order.length - g.i < 2;
     $("geo-progress").textContent = Math.min(g.i + 1, n) + " / " + n;
     $("geo-track").style.width = (g.i / n * 100) + "%";
     $("geo-score").textContent = geoScore() + "%";
@@ -5933,6 +5971,22 @@ button{font:inherit;color:inherit}
     geoHud();
   }
 
+  /* Skipping does not let a place off: it goes to the back of the queue and
+     is asked again once the rest have been. The count is kept and shown at
+     the end, because a round with six skips is not the same round as one
+     with none. */
+  function skipGeo() {
+    var g = geoGame;
+    if (!g || g.over || g.order.length - g.i < 2) return;
+    var id = g.order.splice(g.i, 1)[0];
+    g.order.push(id);
+    g.skips++;
+    g.tries = 0;          // the next run at it starts clean
+    geoHud();
+  }
+
+  $("geo-skip").addEventListener("click", skipGeo);
+
   function nextGeo() {
     var g = geoGame;
     g.i++;
@@ -5958,6 +6012,8 @@ button{font:inherit;color:inherit}
     if (!g.drill && answered === n && score > best) { best = score; writeStore(geoBestKey(g.deck), best); }
 
     $("geo-ask").hidden = true;
+    $("geo-skip").hidden = true;
+    if (geoMap) geoMap.ask("");
     $("geo-done").hidden = false;
     $("geo-done-title").textContent = g.timedOut ? "Time's up"
       : answered < n ? "Ended after " + answered + " of " + n
@@ -5965,6 +6021,7 @@ button{font:inherit;color:inherit}
     $("geo-done-score").textContent = score + "%";
     $("geo-st-first").textContent = g.first + "/" + n;
     $("geo-st-miss").textContent = g.wrong;
+    $("geo-st-skips").textContent = g.skips;
     $("geo-st-time").textContent = clockText(g.t1 - g.t0);
     $("geo-st-best").textContent = best + "%";
 
@@ -6120,7 +6177,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build c58c3aa4</p>
+<p class="build-stamp">build 9060cc2d</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
