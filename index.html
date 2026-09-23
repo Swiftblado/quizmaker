@@ -929,6 +929,16 @@ button{font:inherit;color:inherit}
 .m-line .m-shape{fill:none;stroke:var(--pick-line);stroke-width:2.5;stroke-linecap:round}
 .m-line .m-hit{fill:none;stroke:transparent;stroke-width:16;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .m-dot .m-shape{fill:var(--pick-dot);stroke:var(--surface);stroke-width:1.5}
+/* A place marked by a dot: the dot is what is clicked, and the outline
+   lying pale beneath it is there to be read, not hit. */
+.m-dot.water .m-shape{fill:var(--pick-water-edge)}
+.m-faint{pointer-events:none;fill:var(--pick);opacity:.45;stroke:none}
+.m-area.water .m-faint{fill:var(--pick-water);opacity:.5}
+.m-f.is-ok .m-faint{fill:var(--ok)}
+.m-f.is-late .m-faint{fill:var(--almost)}
+.m-f.is-failed .m-faint{fill:var(--bad)}
+.m-f.is-wrong .m-faint{fill:var(--bad)}
+@media (hover:hover){ .m-area:hover .m-faint{opacity:.55} }
 .m-dot .m-hit,.m-ring .m-hit{fill:transparent;stroke:none}
 /* A place too small to hit at this scale gets a ring round it, as Seterra
    does for the island nations. */
@@ -4839,6 +4849,71 @@ button{font:inherit;color:inherit}
      and dots are resized on every move, so both stay the same on screen
      whatever the zoom.
   -------------------------------------------- */
+  /* Which places are marked with a dot rather than filled in. Everything
+     physical -- oceans, seas, gulfs, straits, lakes, deserts, ranges,
+     islands, peninsulas -- because a sea drawn as a shape swallows half
+     the map and reads as land. Countries and continents stay shapes,
+     since their outline is the thing being asked about, and a river stays
+     a line. */
+  function markedByDot(f) {
+    return f.s === "p" && f.k !== "Country" && f.k !== "Continent";
+  }
+
+  function inRing(ring, x, y) {
+    var hit = false;
+    for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      var a = ring[i], b = ring[j];
+      if ((a[1] > y) !== (b[1] > y) &&
+          x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) hit = !hit;
+    }
+    return hit;
+  }
+
+  function distToRing(ring, x, y) {
+    var best = Infinity;
+    for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      var a = ring[i], b = ring[j];
+      var px = a[0], py = a[1], dx = b[0] - px, dy = b[1] - py;
+      if (dx || dy) {
+        var t = ((x - px) * dx + (y - py) * dy) / (dx * dx + dy * dy);
+        if (t > 1) { px = b[0]; py = b[1]; } else if (t > 0) { px += dx * t; py += dy * t; }
+      }
+      var d = (x - px) * (x - px) + (y - py) * (y - py);
+      if (d < best) best = d;
+    }
+    return Math.sqrt(best);
+  }
+
+  /* Where the dot sits: the point furthest from the edges of the place's
+     largest piece. The middle of its box would do for a circle, but the
+     Red Sea's box has Egypt and Arabia in it, and a dot for the Red Sea
+     has to be in the water. */
+  function anchorIn(rings) {
+    var main = rings[0], mainArea = -1;
+    rings.forEach(function (r) {
+      var b = boxOf([r]), a = (b[2] - b[0]) * (b[3] - b[1]);
+      if (a > mainArea) { mainArea = a; main = r; }
+    });
+    var box = boxOf([main]);
+    var best = null, bestD = -1;
+    var scan = function (x0, y0, x1, y1, n) {
+      for (var i = 0; i <= n; i++) {
+        for (var j = 0; j <= n; j++) {
+          var x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * j / n;
+          if (!inRing(main, x, y)) continue;
+          var d = distToRing(main, x, y);
+          if (d > bestD) { bestD = d; best = [x, y]; }
+        }
+      }
+    };
+    scan(box[0], box[1], box[2], box[3], 20);
+    if (best) {
+      var step = Math.max(box[2] - box[0], box[3] - box[1]) / 20;
+      scan(best[0] - step, best[1] - step, best[0] + step, best[1] + step, 8);
+    }
+    return best || [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
+  }
+
   var mapSeq = 0;
   function makeMap(host, places, onPick) {
     host.textContent = "";
@@ -4871,26 +4946,39 @@ button{font:inherit;color:inherit}
       var f = placeShape(p);
       if (!f) return;
       var rings = ringsOf(f), box = fitBoxOf(rings);
-      items.push({ id: p.id, f: f, rings: rings, box: box,
+      var dotted = markedByDot(f);
+      items.push({ id: p.id, f: f, rings: rings, box: box, dot: dotted,
+                   anchor: dotted ? anchorIn(rings) : null,
                    area: (box[2] - box[0]) * (box[3] - box[1]) });
     });
     // Big shapes first so small ones sit on top of them; rivers and dots
     // over everything.
-    var layerOf = { p: 0, l: 1, d: 2 };
-    items.sort(function (a, b) { return layerOf[a.f.s] - layerOf[b.f.s] || b.area - a.area; });
+    // Shapes first, then rivers, then the marked places, then the dots that
+    // were always dots -- so nothing large is ever drawn over a small mark.
+    var layerOf = { p: 0, l: 1, d: 3 };
+    var depth = function (it) { return it.dot ? 2 : layerOf[it.f.s]; };
+    items.sort(function (a, b) { return depth(a) - depth(b) || b.area - a.area; });
 
     var dots = [], rings = [], tone = 0;
     items.forEach(function (it) {
       // A continent is drawn from its countries, so their borders are hidden
       // and each continent takes its own tone -- otherwise Europe and Asia
       // would read as one shape.
-      var cls = it.f.s === "p" ? "m-poly" + (WATER[it.f.k] ? " water" : "") +
+      var cls = it.dot ? "m-dot m-area" + (WATER[it.f.k] ? " water" : "")
+              : it.f.s === "p" ? "m-poly" + (WATER[it.f.k] ? " water" : "") +
                   (it.f.from ? " m-cont tone-" + (CONT_TONE[it.f.n] != null ? CONT_TONE[it.f.n] : tone++ % 4) : "")
               : it.f.s === "l" ? "m-line" : "m-dot";
       var g = svgEl("g", { "class": "m-f " + cls });
       g.setAttribute("data-id", it.id);
-      if (it.f.s === "d") {
-        var pt = it.rings[0][0];
+      if (it.f.s === "d" || it.dot) {
+        // A sea or a desert is marked, not filled: the dot is what is
+        // clicked, and its own outline lies pale underneath so you can
+        // still see how far the place reaches.
+        if (it.dot) {
+          var faint = it.rings.map(function (r) { return ringPath(r, true); }).join("");
+          g.appendChild(svgEl("path", { "class": "m-faint", d: faint }));
+        }
+        var pt = it.dot ? it.anchor : it.rings[0][0];
         var hit = svgEl("circle", { "class": "m-hit", cx: pt[0], cy: pt[1], r: 1 });
         var dot = svgEl("circle", { "class": "m-shape", cx: pt[0], cy: pt[1], r: 1 });
         g.appendChild(hit);
@@ -4950,7 +5038,7 @@ button{font:inherit;color:inherit}
     function ringSmall() {
       var u = upp();
       items.forEach(function (it) {
-        if (it.f.s !== "p") return;
+        if (it.f.s !== "p" || it.dot) return;
         if (Math.max(it.box[2] - it.box[0], it.box[3] - it.box[1]) / u >= 12) return;
         var cx = (it.box[0] + it.box[2]) / 2, cy = (it.box[1] + it.box[3]) / 2;
         var ring = svgEl("circle", { "class": "m-ring", cx: cx, cy: cy, r: 1 });
