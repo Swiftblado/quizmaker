@@ -958,16 +958,8 @@ button{font:inherit;color:inherit}
 .m-line .m-shape{fill:none;stroke:var(--pick-line);stroke-width:2.5;stroke-linecap:round}
 .m-line .m-hit{fill:none;stroke:transparent;stroke-width:16;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .m-dot .m-shape{fill:var(--pick-dot);stroke:var(--surface);stroke-width:1.5}
-/* A place marked by a dot: the dot is what is clicked, and the outline
-   lying pale beneath it is there to be read, not hit. */
+/* A place marked by a dot is only the dot: water blue, land red. */
 .m-dot.water .m-shape{fill:var(--pick-water-edge)}
-.m-faint{pointer-events:none;fill:var(--pick);opacity:.45;stroke:none}
-.m-area.water .m-faint{fill:var(--pick-water);opacity:.5}
-.m-f.is-ok .m-faint{fill:var(--ok)}
-.m-f.is-late .m-faint{fill:var(--almost)}
-.m-f.is-failed .m-faint{fill:var(--bad)}
-.m-f.is-wrong .m-faint{fill:var(--bad)}
-@media (hover:hover){ .m-area:hover .m-faint{opacity:.55} }
 .m-dot .m-hit,.m-ring .m-hit{fill:transparent;stroke:none}
 /* A place too small to hit at this scale gets a ring round it, as Seterra
    does for the island nations. */
@@ -5042,13 +5034,9 @@ button{font:inherit;color:inherit}
       var g = svgEl("g", { "class": "m-f " + cls });
       g.setAttribute("data-id", it.id);
       if (it.f.s === "d" || it.dot) {
-        // A sea or a desert is marked, not filled: the dot is what is
-        // clicked, and its own outline lies pale underneath so you can
-        // still see how far the place reaches.
-        if (it.dot) {
-          var faint = it.rings.map(function (r) { return ringPath(r, true); }).join("");
-          g.appendChild(svgEl("path", { "class": "m-faint", d: faint }));
-        }
+        // A sea or a desert is marked, not filled: the dot is the whole of
+        // it. Its outline was drawn pale underneath for a while and was
+        // asked to go -- a dot with a cloud round it is not a dot.
         var pt = it.dot ? it.anchor : it.rings[0][0];
         var hit = svgEl("circle", { "class": "m-hit", cx: pt[0], cy: pt[1], r: 1 });
         var dot = svgEl("circle", { "class": "m-shape", cx: pt[0], cy: pt[1], r: 1 });
@@ -6132,7 +6120,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 1067a6de</p>
+<p class="build-stamp">build c58c3aa4</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
