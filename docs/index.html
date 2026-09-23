@@ -910,17 +910,17 @@ button{font:inherit;color:inherit}
    water, so what can be clicked is obvious before anything is asked. */
 :root{
   --sea:#CFE0EF;--land:#C7CCD4;
-  --pick:#FFFFFF;--pick-edge:#3B4354;--pick-line:#2F6BC9;
+  --pick:#B7DFA5;--found:#FFFFFF;--pick-edge:#3B4354;--pick-line:#2F6BC9;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --sea:#15233A;--land:#3A4150;
-    --pick:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
+    --pick:#5F8C57;--found:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
   }
 }
 :root[data-theme="dark"]{
   --sea:#15233A;--land:#3A4150;
-  --pick:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
+  --pick:#5F8C57;--found:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
 }
 
 /* The box is sized to the map, not the other way round: the script gives
@@ -933,7 +933,9 @@ button{font:inherit;color:inherit}
    where two simplified country outlines no longer quite meet. */
 .m-land{fill:var(--land);stroke:var(--land);stroke-width:1;vector-effect:non-scaling-stroke;stroke-linejoin:round}
 .m-f{cursor:pointer}
-.m-f .m-shape{vector-effect:non-scaling-stroke;stroke-linejoin:round;transition:fill .15s,stroke .15s}
+/* No transition anywhere on the map: a place lights up the moment the
+   pointer is on it and stops the moment it leaves. */
+.m-f .m-shape{vector-effect:non-scaling-stroke;stroke-linejoin:round}
 /* Everything in the quiz is white. A place is told from its neighbour by
    its outline, drawn as a thick stroke UNDER the fill: the parts of it
    inside the place are painted over, so what is left is the outer edge
@@ -942,7 +944,7 @@ button{font:inherit;color:inherit}
 .m-edge{fill:none;stroke:var(--pick-edge);stroke-width:2.4;vector-effect:non-scaling-stroke;stroke-linejoin:round;pointer-events:none}
 .m-poly .m-shape{fill:var(--pick);stroke:var(--pick);stroke-width:.8}
 .m-cont{--m-tone:var(--pick)}
-.m-cont.is-ok{--m-tone:var(--ok)}
+.m-cont.is-ok{--m-tone:var(--found)}
 .m-cont.is-late{--m-tone:var(--almost)}
 .m-cont.is-failed{--m-tone:var(--bad)}
 .m-cont.is-wrong{--m-tone:var(--bad)}
@@ -951,25 +953,30 @@ button{font:inherit;color:inherit}
 /* A place marked by a dot is only the dot: white, with the same edge the
    territories carry. */
 .m-dot .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:1.2}
-.m-dot .m-hit,.m-ring .m-hit{fill:transparent;stroke:none}
+/* Every hit area is invisible. This once read `.m-ring .m-hit`, which
+   matches nothing -- the two are siblings -- so the hit circle round a
+   small country was painted in the default black. */
+.m-hit{fill:transparent;stroke:none}
 /* A place too small to hit at this scale gets a ring round it, as Seterra
    does for the island nations. */
 .m-ring{fill:none;stroke:var(--pick-edge);stroke-width:1.2;vector-effect:non-scaling-stroke}
+/* Only a place still to be found lights up. One already answered is
+   settled, and lighting it again says something happened when it did not. */
 @media (hover:hover){
-  .m-poly:hover .m-shape,.m-dot:hover .m-shape{fill:var(--accent-soft)}
-  .m-poly:hover .m-shape{stroke:var(--accent-soft)}
-  .m-line:hover .m-shape{stroke:var(--accent)}
+  .m-f.unfound.m-poly:hover .m-shape,.m-f.unfound.m-dot:hover .m-shape{fill:var(--accent-soft)}
+  .m-f.unfound.m-poly:hover .m-shape{stroke:var(--accent-soft)}
+  .m-f.unfound.m-line:hover .m-shape{stroke:var(--accent)}
 }
-.m-f.is-ok .m-shape{fill:var(--ok)}
+.m-f.is-ok .m-shape{fill:var(--found)}
 .m-f.is-late .m-shape{fill:var(--almost)}
 .m-f.is-failed .m-shape{fill:var(--bad)}
-.m-poly.is-ok .m-shape{stroke:var(--ok)}
+.m-poly.is-ok .m-shape{stroke:var(--found)}
 .m-poly.is-late .m-shape{stroke:var(--almost)}
 .m-poly.is-failed .m-shape{stroke:var(--bad)}
-.m-line.is-ok .m-shape{stroke:var(--ok);fill:none}
+.m-line.is-ok .m-shape{stroke:var(--found);fill:none}
 .m-line.is-late .m-shape{stroke:var(--almost);fill:none}
 .m-line.is-failed .m-shape{stroke:var(--bad);fill:none}
-.m-f.is-ok .m-ring{stroke:var(--ok)}
+.m-f.is-ok .m-ring{stroke:var(--found)}
 .m-f.is-late .m-ring{stroke:var(--almost)}
 .m-f.is-failed .m-ring{stroke:var(--bad)}
 .m-f.is-wrong .m-shape{fill:var(--bad)}
@@ -979,7 +986,7 @@ button{font:inherit;color:inherit}
    stroked with it, so no border inside it can ever show. */
 .m-poly.m-cont .m-shape{fill:var(--m-tone);stroke:var(--m-tone);stroke-width:.8}
 @media (hover:hover){
-  .m-poly.m-cont:hover .m-shape{fill:var(--accent-soft);stroke:var(--accent-soft)}
+  .m-f.unfound.m-poly.m-cont:hover .m-shape{fill:var(--accent-soft);stroke:var(--accent-soft)}
 }
 .m-f.is-blink{animation:m-blink .5s steps(2,start) 4}
 @keyframes m-blink{to{opacity:.15}}
@@ -4818,13 +4825,61 @@ button{font:inherit;color:inherit}
     } else {
       var src = f.g.slice();
       (f.from || []).forEach(function (id) { var c = GEO.byId[id]; if (c) src = src.concat(c.g); });
-      rings = src.map(function (r) {
-        return decodeRing(r, q).map(function (pt) { return project(pt[0], pt[1]); });
+      var raw = src.map(function (r) { return decodeRing(r, q); });
+
+      /* A piece that lies across the date line from the rest of its own
+         place -- Russia's far east, the last of the Aleutians, half of
+         Fiji -- is carried round the world by 360 degrees so that it is
+         drawn joined on to the rest instead of stranded at the far side
+         of the map. There is open water beyond the edge for it to sit in. */
+      var lonOf = function (pts) {
+        var lo = Infinity, hi = -Infinity;
+        pts.forEach(function (p) { if (p[0] < lo) lo = p[0]; if (p[0] > hi) hi = p[0]; });
+        return { mid: (lo + hi) / 2, span: hi - lo };
+      };
+      var spans = raw.map(lonOf);
+      var main = 0;
+      raw.forEach(function (pts, i) { if (spans[i].span > spans[main].span) main = i; });
+      var anchor = spans[main].mid;
+      raw = raw.map(function (pts, i) {
+        var shift = spans[i].mid - anchor > 180 ? -360 : anchor - spans[i].mid > 180 ? 360 : 0;
+        if (!shift) return pts;
+        return pts.map(function (p) { return [p[0] + shift, p[1]]; });
+      });
+
+      rings = raw.map(function (pts) {
+        // Which points sit on the edge of the world is remembered, so the
+        // outline can leave those stretches out: they are where the map was
+        // cut, not a coast, and drawing them puts a seam between a piece
+        // and the rest of its place.
+        var out = pts.map(function (pt) { return project(pt[0], pt[1]); });
+        out.cut = pts.map(function (pt, i) {
+          var lon = pt[0];
+          return (Math.abs(pt[1]) >= 89.5 || Math.abs(((lon + 540) % 360) - 180) >= 179.5) ? 1 : 0;
+        });
+        return out;
       });
     }
     projected.set(f, rings);
     return rings;
   }
+
+  /* The outline of a ring, in pieces: the stretches that run along the
+     edge of the world are left out. Antarctica's southern edge and the
+     sides of anything cut at the date line are joins, not coasts. */
+  function edgePath(r) {
+    var out = "", open = false, n = r.length, cut = r.cut;
+    if (!cut) return ringPath(r, true);
+    for (var i = 0; i < n; i++) {
+      var j = (i + 1) % n;
+      if (cut[i] && cut[j]) { open = false; continue; }
+      if (!open) { out += "M" + round2(r[i][0]) + " " + round2(r[i][1]); open = true; }
+      out += "L" + round2(r[j][0]) + " " + round2(r[j][1]);
+    }
+    return out;
+  }
+
+  function round2(v) { return Math.round(v * 100) / 100; }
 
   function ringPath(r, close) {
     var s = "";
@@ -4865,24 +4920,6 @@ button{font:inherit;color:inherit}
       return Math.hypot((b[0] + b[2]) / 2 - mx, (b[1] + b[3]) / 2 - my) <= reach;
     });
     return boxOf(kept.length ? kept : rings);
-  }
-
-  /* The edge of the world, drawn a whisker inside the true one and used to
-     clip the land. Antarctica's outline runs along the pole and up both
-     sides of the date line; clipped this way those three straight lines
-     fall outside and are never drawn, while the real coast is untouched.
-     The sea is not clipped -- it fills the frame, which is what leaves a
-     berth of ocean beyond the land on either side. */
-  var worldEdge = null;
-  function worldPath() {
-    if (worldEdge) return worldEdge;
-    var pts = [], lat;
-    for (lat = 89.6; lat >= -89.6; lat -= 2) pts.push(project(179.5, lat));
-    for (lat = -89.6; lat <= 89.6; lat += 2) pts.push(project(-179.5, lat));
-    worldEdge = pts.map(function (p, i) {
-      return (i ? "L" : "M") + (Math.round(p[0] * 100) / 100) + " " + (Math.round(p[1] * 100) / 100);
-    }).join("") + "Z";
-    return worldEdge;
   }
 
   var basePath = null;
@@ -4972,22 +5009,12 @@ button{font:inherit;color:inherit}
     return best || [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
   }
 
-  var mapSeq = 0;
   function makeMap(host, places, onPick) {
     host.textContent = "";
     var svg = svgEl("svg", { role: "img", "aria-label": "Map" });
-    var clipId = "m-clip-" + (++mapSeq);
-    var defs = svgEl("defs");
-    var clip = svgEl("clipPath", { id: clipId, clipPathUnits: "userSpaceOnUse" });
-    clip.appendChild(svgEl("path", { d: worldPath() }));
-    defs.appendChild(clip);
-    svg.appendChild(defs);
-
-    var world = svgEl("g", { "clip-path": "url(#" + clipId + ")" });
-    world.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
+    svg.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
     var layer = svgEl("g");
-    world.appendChild(layer);
-    svg.appendChild(world);
+    svg.appendChild(layer);
     host.appendChild(svg);
 
     var tip = document.createElement("div");
@@ -5038,7 +5065,7 @@ button{font:inherit;color:inherit}
       var cls = it.dot ? "m-dot m-area"
               : it.f.s === "p" ? "m-poly" + (it.f.from ? " m-cont" : "")
               : it.f.s === "l" ? "m-line" : "m-dot";
-      var g = svgEl("g", { "class": "m-f " + cls });
+      var g = svgEl("g", { "class": "m-f unfound " + cls });
       g.setAttribute("data-id", it.id);
       if (it.f.s === "d" || it.dot) {
         // A sea or a desert is marked, not filled: the dot is the whole of
@@ -5056,7 +5083,10 @@ button{font:inherit;color:inherit}
         // The outline goes under the fill, which paints over the half of it
         // that falls inside the place -- and over every border between the
         // pieces a continent is made of.
-        if (it.f.s === "p") g.appendChild(svgEl("path", { "class": "m-edge", d: d }));
+        if (it.f.s === "p") {
+          g.appendChild(svgEl("path", { "class": "m-edge",
+            d: it.rings.map(edgePath).join("") }));
+        }
         g.appendChild(svgEl("path", { "class": "m-shape", d: d }));
       }
       layer.appendChild(g);
@@ -5191,6 +5221,7 @@ button{font:inherit;color:inherit}
         if (!it) return;
         it.g.classList.remove("is-ok", "is-late", "is-failed");
         if (cls) it.g.classList.add(cls);
+        it.g.classList.toggle("unfound", !cls);
       },
       flash: function (id, cls, ms) {
         var it = byId[id];
@@ -5213,7 +5244,10 @@ button{font:inherit;color:inherit}
         showTip(text, c.x, c.y, bad);
       },
       clear: function () {
-        items.forEach(function (it) { it.g.classList.remove("is-ok", "is-late", "is-failed", "is-wrong", "is-blink"); });
+        items.forEach(function (it) {
+          it.g.classList.remove("is-ok", "is-late", "is-failed", "is-wrong", "is-blink");
+          it.g.classList.add("unfound");
+        });
       },
       destroy: function () {
         flashes.forEach(clearTimeout);
@@ -6112,7 +6146,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 579b039b</p>
+<p class="build-stamp">build 3b93815f</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
