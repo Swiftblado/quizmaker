@@ -4686,18 +4686,38 @@ button{font:inherit;color:inherit}
     return out;
   }
 
-  // Mercator, the proportions a world map is usually drawn in: a square
-  // rather than the two-to-one band that plain latitude gives, which read
-  // as far too wide. Latitude is cut off at 85 degrees, as every Mercator
-  // map must cut it somewhere -- the projection sends the poles to
-  // infinity -- and that cut is what makes the world square.
-  var DEG = 1.5;
-  var MERC_MAX = 85.05112878;
-  var MERC_R = DEG * 180 / Math.PI;
-  var WORLD = { x: -180 * DEG, y: -180 * DEG, w: 360 * DEG, h: 360 * DEG };
+  /* Robinson: the world map most atlases are drawn in. It is a table, not
+     a formula -- Robinson chose the numbers by eye -- giving the length of
+     each parallel and its distance from the equator, at five degree steps.
+     Between the steps the two are interpolated through the three nearest
+     rows, which keeps the meridians curving smoothly instead of kinking
+     every five degrees. */
+  var ROBINSON = [
+    [1.0000, 0.0000], [0.9986, 0.0620], [0.9954, 0.1240], [0.9900, 0.1860],
+    [0.9822, 0.2480], [0.9730, 0.3100], [0.9600, 0.3720], [0.9427, 0.4340],
+    [0.9216, 0.4958], [0.8962, 0.5571], [0.8679, 0.6176], [0.8350, 0.6769],
+    [0.7986, 0.7346], [0.7597, 0.7903], [0.7186, 0.8435], [0.6732, 0.8936],
+    [0.6213, 0.9394], [0.5722, 0.9761], [0.5322, 1.0000]
+  ];
+  var ROB_R = 101.26;                       // so the equator is 540 units long
+  var WORLD = { x: -270, y: -136.95, w: 540, h: 273.9 };
+
+  function robAt(absLat) {
+    var t = Math.min(absLat, 90) / 5;
+    var i = Math.min(Math.max(Math.floor(t) - 1, 0), ROBINSON.length - 3);
+    var f = t - i;                           // where we are among the three rows
+    var out = [0, 0];
+    for (var k = 0; k < 2; k++) {
+      var a = ROBINSON[i][k], b = ROBINSON[i + 1][k], c = ROBINSON[i + 2][k];
+      out[k] = a * (f - 1) * (f - 2) / 2 - b * f * (f - 2) + c * f * (f - 1) / 2;
+    }
+    return out;
+  }
+
   function project(lon, lat) {
-    var p = Math.max(-MERC_MAX, Math.min(MERC_MAX, lat)) * Math.PI / 180;
-    return [lon * DEG, -MERC_R * Math.log(Math.tan(Math.PI / 4 + p / 2))];
+    var r = robAt(Math.abs(lat));
+    return [0.8487 * ROB_R * r[0] * lon * Math.PI / 180,
+            -Math.sign(lat) * 1.3523 * ROB_R * r[1]];
   }
 
   // What a quiz's place resolves to: a place found online carries its own
@@ -4774,6 +4794,24 @@ button{font:inherit;color:inherit}
       return Math.hypot((b[0] + b[2]) / 2 - mx, (b[1] + b[3]) / 2 - my) <= reach;
     });
     return boxOf(kept.length ? kept : rings);
+  }
+
+  /* The edge of the world, drawn a whisker inside the true one and used to
+     clip the land. Antarctica's outline runs along the pole and up both
+     sides of the date line; clipped this way those three straight lines
+     fall outside and are never drawn, while the real coast is untouched.
+     The sea is not clipped -- it fills the frame, which is what leaves a
+     berth of ocean beyond the land on either side. */
+  var worldEdge = null;
+  function worldPath() {
+    if (worldEdge) return worldEdge;
+    var pts = [], lat;
+    for (lat = 89.6; lat >= -89.6; lat -= 2) pts.push(project(179.5, lat));
+    for (lat = -89.6; lat <= 89.6; lat += 2) pts.push(project(-179.5, lat));
+    worldEdge = pts.map(function (p, i) {
+      return (i ? "L" : "M") + (Math.round(p[0] * 100) / 100) + " " + (Math.round(p[1] * 100) / 100);
+    }).join("") + "Z";
+    return worldEdge;
   }
 
   var basePath = null;
@@ -4867,9 +4905,18 @@ button{font:inherit;color:inherit}
   function makeMap(host, places, onPick) {
     host.textContent = "";
     var svg = svgEl("svg", { role: "img", "aria-label": "Map" });
-    svg.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
+    var clipId = "m-clip-" + (++mapSeq);
+    var defs = svgEl("defs");
+    var clip = svgEl("clipPath", { id: clipId, clipPathUnits: "userSpaceOnUse" });
+    clip.appendChild(svgEl("path", { d: worldPath() }));
+    defs.appendChild(clip);
+    svg.appendChild(defs);
+
+    var world = svgEl("g", { "clip-path": "url(#" + clipId + ")" });
+    world.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
     var layer = svgEl("g");
-    svg.appendChild(layer);
+    world.appendChild(layer);
+    svg.appendChild(world);
     host.appendChild(svg);
 
     var tip = document.createElement("div");
@@ -4980,12 +5027,13 @@ button{font:inherit;color:inherit}
       void host.clientHeight;      // settle the new size before measuring
     }
 
-    /* The view never reaches past the edge of the world, and stops a
-       whisker short of it: Antarctica's outline runs along the pole and up
-       both sides of the date line, and those three straight lines would
-       otherwise be drawn across the sea as a box round the map. */
-    var EDGE = 4;
-    var BOUND = { x: WORLD.x + EDGE, y: WORLD.y + EDGE, w: WORLD.w - EDGE * 2, h: WORLD.h - EDGE * 2 };
+    /* How far the view may reach: a little beyond the world on every side,
+       so the far ends of Asia and the Aleutians have open water beside them
+       rather than running off the edge. Only the ocean is added -- the land
+       is drawn at the same scale either way. */
+    var BERTH_X = 26, BERTH_Y = 12;
+    var BOUND = { x: WORLD.x - BERTH_X, y: WORLD.y - BERTH_Y,
+                  w: WORLD.w + BERTH_X * 2, h: WORLD.h + BERTH_Y * 2 };
 
     function fitTo(b) {
       var w = Math.max((b[2] - b[0]) * 1.06, 14), h = Math.max((b[3] - b[1]) * 1.06, 9);
