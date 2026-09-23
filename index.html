@@ -913,13 +913,19 @@ button{font:inherit;color:inherit}
 .m-poly .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:1}
 .m-poly.water .m-shape{fill:var(--pick-water);stroke:var(--pick-water-edge)}
 /* A continent is drawn from its countries -- and Russia from its federal
-   subjects -- so it strokes itself in its own fill: the borders inside it
-   disappear and the seams between the pieces close up. */
-.m-cont .m-shape{stroke:var(--pick);stroke-width:1}
-.m-cont.tone-1 .m-shape{fill:color-mix(in srgb,var(--pick) 72%,var(--pick-dot));stroke:color-mix(in srgb,var(--pick) 72%,var(--pick-dot))}
-.m-cont.tone-2 .m-shape{fill:color-mix(in srgb,var(--pick) 70%,var(--surface));stroke:color-mix(in srgb,var(--pick) 70%,var(--surface))}
-.m-cont.tone-3 .m-shape{fill:color-mix(in srgb,var(--pick) 78%,var(--ok));stroke:color-mix(in srgb,var(--pick) 78%,var(--ok))}
-@media (hover:hover){ .m-cont:hover .m-shape{stroke:var(--accent);stroke-width:1} }
+   subjects -- so its colour is held in one place, as --m-tone, and the
+   pieces are both filled and stroked with it. Nothing may put a different
+   colour on that stroke in any state: an outline round each piece is an
+   outline round every country inside the continent. The rule that enforces
+   it sits after the state colours, at the end of this block. */
+.m-cont{--m-tone:var(--pick)}
+.m-cont.tone-1{--m-tone:color-mix(in srgb,var(--pick) 72%,var(--pick-dot))}
+.m-cont.tone-2{--m-tone:color-mix(in srgb,var(--pick) 70%,var(--surface))}
+.m-cont.tone-3{--m-tone:color-mix(in srgb,var(--pick) 78%,var(--ok))}
+.m-cont.is-ok{--m-tone:var(--ok)}
+.m-cont.is-late{--m-tone:var(--almost)}
+.m-cont.is-failed{--m-tone:var(--bad)}
+.m-cont.is-wrong{--m-tone:var(--bad)}
 .m-line .m-shape{fill:none;stroke:var(--pick-line);stroke-width:2.5;stroke-linecap:round}
 .m-line .m-hit{fill:none;stroke:transparent;stroke-width:16;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .m-dot .m-shape{fill:var(--pick-dot);stroke:var(--surface);stroke-width:1.5}
@@ -932,9 +938,6 @@ button{font:inherit;color:inherit}
   .m-f:hover .m-shape{stroke:var(--accent);stroke-width:2}
   .m-dot:hover .m-shape{stroke:var(--accent)}
 }
-.m-cont.is-ok .m-shape{stroke:var(--ok)}
-.m-cont.is-late .m-shape{stroke:var(--almost)}
-.m-cont.is-failed .m-shape{stroke:var(--bad)}
 .m-f.is-ok .m-shape{fill:var(--ok)}
 .m-f.is-late .m-shape{fill:var(--almost)}
 .m-f.is-failed .m-shape{fill:var(--bad)}
@@ -946,6 +949,13 @@ button{font:inherit;color:inherit}
 .m-f.is-failed .m-ring{stroke:var(--bad)}
 .m-f.is-wrong .m-shape{fill:var(--bad-soft);stroke:var(--bad);stroke-width:2}
 .m-line.is-wrong .m-shape{stroke:var(--bad);fill:none}
+/* Last word on a continent, after every state above: one colour, filled and
+   stroked, so no border inside it can ever show. Hovering brightens it
+   instead of outlining it, for the same reason. */
+.m-poly.m-cont .m-shape{fill:var(--m-tone);stroke:var(--m-tone);stroke-width:1.2}
+@media (hover:hover){
+  .m-poly.m-cont:hover .m-shape{fill:var(--m-tone);stroke:var(--m-tone);filter:brightness(1.14) saturate(1.1)}
+}
 .m-f.is-blink{animation:m-blink .5s steps(2,start) 4}
 @keyframes m-blink{to{opacity:.15}}
 
