@@ -880,83 +880,74 @@ button{font:inherit;color:inherit}
    places in play picked out in a warm tone on land and a deeper blue on
    water, so what can be clicked is obvious before anything is asked. */
 :root{
-  --sea:#CFE0EF;--land:#F4F1E8;--land-edge:#BDB7A8;
-  --pick:#EFCB68;--pick-edge:#A8852A;--pick-water:#86AEDA;--pick-water-edge:#4F7FB5;
-  --pick-dot:#C8492C;--pick-line:#2F6BC9;
+  --sea:#CFE0EF;--land:#C7CCD4;
+  --pick:#FFFFFF;--pick-edge:#3B4354;--pick-line:#2F6BC9;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --sea:#15233A;--land:#2A303C;--land-edge:#454E60;
-    --pick:#9A8440;--pick-edge:#CDB265;--pick-water:#2D5687;--pick-water-edge:#6D9BD4;
-    --pick-dot:#F08A5D;--pick-line:#7FB2FF;
+    --sea:#15233A;--land:#3A4150;
+    --pick:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
   }
 }
 :root[data-theme="dark"]{
-  --sea:#15233A;--land:#2A303C;--land-edge:#454E60;
-  --pick:#9A8440;--pick-edge:#CDB265;--pick-water:#2D5687;--pick-water-edge:#6D9BD4;
-  --pick-dot:#F08A5D;--pick-line:#7FB2FF;
+  --sea:#15233A;--land:#3A4150;
+  --pick:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
 }
 
-.geo-map{position:relative;width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);min-height:260px;background:transparent;border-radius:11px;overflow:hidden}
-/* The sea is the world itself rather than the box it sits in: a path along
-   the 180th meridian and the poles, which the projection already draws as a
-   barrel with the corners taken off. */
-.m-sea{fill:var(--sea)}
-.geo-map svg{display:block;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
-.geo-map svg.panning{cursor:grabbing}
-/* No borders: the land is one silhouette, and only the places being asked
-   about carry an edge. The stroke matches the fill and exists to close the
-   hairline gaps where two simplified country outlines no longer meet. */
+.geo-map{position:relative;width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);min-height:260px;background:var(--sea);border-radius:11px;overflow:hidden}
+.geo-map svg{display:block;width:100%;height:100%;user-select:none;-webkit-user-select:none;cursor:pointer}
+/* Land that is not in the quiz: one grey silhouette with no borders in it.
+   The stroke matches the fill and exists only to close the hairline gaps
+   where two simplified country outlines no longer quite meet. */
 .m-land{fill:var(--land);stroke:var(--land);stroke-width:1;vector-effect:non-scaling-stroke;stroke-linejoin:round}
 .m-f{cursor:pointer}
 .m-f .m-shape{vector-effect:non-scaling-stroke;stroke-linejoin:round;transition:fill .15s,stroke .15s}
-.m-poly .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:1}
-.m-poly.water .m-shape{fill:var(--pick-water);stroke:var(--pick-water-edge)}
-/* A continent is drawn from its countries -- and Russia from its federal
-   subjects -- so its colour is held in one place, as --m-tone, and the
-   pieces are both filled and stroked with it. Nothing may put a different
-   colour on that stroke in any state: an outline round each piece is an
-   outline round every country inside the continent. The rule that enforces
-   it sits after the state colours, at the end of this block. */
+/* Everything in the quiz is white. A place is told from its neighbour by
+   its outline, drawn as a thick stroke UNDER the fill: the parts of it
+   inside the place are painted over, so what is left is the outer edge
+   alone -- which is how a continent gets one outline instead of an
+   outline round each of the countries it is made of. */
+.m-edge{fill:none;stroke:var(--pick-edge);stroke-width:4;vector-effect:non-scaling-stroke;stroke-linejoin:round;pointer-events:none}
+.m-poly .m-shape{fill:var(--pick);stroke:var(--pick);stroke-width:1.2}
 .m-cont{--m-tone:var(--pick)}
-.m-cont.tone-1{--m-tone:color-mix(in srgb,var(--pick) 72%,var(--pick-dot))}
-.m-cont.tone-2{--m-tone:color-mix(in srgb,var(--pick) 70%,var(--surface))}
-.m-cont.tone-3{--m-tone:color-mix(in srgb,var(--pick) 78%,var(--ok))}
 .m-cont.is-ok{--m-tone:var(--ok)}
 .m-cont.is-late{--m-tone:var(--almost)}
 .m-cont.is-failed{--m-tone:var(--bad)}
 .m-cont.is-wrong{--m-tone:var(--bad)}
 .m-line .m-shape{fill:none;stroke:var(--pick-line);stroke-width:2.5;stroke-linecap:round}
 .m-line .m-hit{fill:none;stroke:transparent;stroke-width:16;stroke-linecap:round;vector-effect:non-scaling-stroke}
-.m-dot .m-shape{fill:var(--pick-dot);stroke:var(--surface);stroke-width:1.5}
-/* A place marked by a dot is only the dot: water blue, land red. */
-.m-dot.water .m-shape{fill:var(--pick-water-edge)}
+/* A place marked by a dot is only the dot: white, with the same edge the
+   territories carry. */
+.m-dot .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:2}
 .m-dot .m-hit,.m-ring .m-hit{fill:transparent;stroke:none}
 /* A place too small to hit at this scale gets a ring round it, as Seterra
    does for the island nations. */
 .m-ring{fill:none;stroke:var(--pick-edge);stroke-width:1.5;vector-effect:non-scaling-stroke}
-.m-poly.water .m-ring{stroke:var(--pick-water-edge)}
 @media (hover:hover){
-  .m-f:hover .m-shape{stroke:var(--accent);stroke-width:2}
-  .m-dot:hover .m-shape{stroke:var(--accent)}
+  .m-poly:hover .m-shape,.m-dot:hover .m-shape{fill:var(--accent-soft)}
+  .m-poly:hover .m-shape{stroke:var(--accent-soft)}
+  .m-line:hover .m-shape{stroke:var(--accent)}
 }
 .m-f.is-ok .m-shape{fill:var(--ok)}
 .m-f.is-late .m-shape{fill:var(--almost)}
 .m-f.is-failed .m-shape{fill:var(--bad)}
+.m-poly.is-ok .m-shape{stroke:var(--ok)}
+.m-poly.is-late .m-shape{stroke:var(--almost)}
+.m-poly.is-failed .m-shape{stroke:var(--bad)}
 .m-line.is-ok .m-shape{stroke:var(--ok);fill:none}
 .m-line.is-late .m-shape{stroke:var(--almost);fill:none}
 .m-line.is-failed .m-shape{stroke:var(--bad);fill:none}
 .m-f.is-ok .m-ring{stroke:var(--ok)}
 .m-f.is-late .m-ring{stroke:var(--almost)}
 .m-f.is-failed .m-ring{stroke:var(--bad)}
-.m-f.is-wrong .m-shape{fill:var(--bad-soft);stroke:var(--bad);stroke-width:2}
+.m-f.is-wrong .m-shape{fill:var(--bad)}
+.m-poly.is-wrong .m-shape{stroke:var(--bad)}
 .m-line.is-wrong .m-shape{stroke:var(--bad);fill:none}
 /* Last word on a continent, after every state above: one colour, filled and
-   stroked, so no border inside it can ever show. Hovering brightens it
-   instead of outlining it, for the same reason. */
+   stroked with it, so no border inside it can ever show. */
 .m-poly.m-cont .m-shape{fill:var(--m-tone);stroke:var(--m-tone);stroke-width:1.2}
 @media (hover:hover){
-  .m-poly.m-cont:hover .m-shape{fill:var(--m-tone);stroke:var(--m-tone);filter:brightness(1.14) saturate(1.1)}
+  .m-poly.m-cont:hover .m-shape{fill:var(--accent-soft);stroke:var(--accent-soft)}
 }
 .m-f.is-blink{animation:m-blink .5s steps(2,start) 4}
 @keyframes m-blink{to{opacity:.15}}
@@ -983,10 +974,6 @@ button{font:inherit;color:inherit}
 .geo-limit button{padding:5px 9px;font-size:12px}
 .geo-progress{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .geo-stage{position:relative;padding:8px}
-.geo-zoom{position:absolute;top:18px;right:18px;display:flex;flex-direction:column;border:1px solid var(--rule);border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
-.geo-zoom button{width:34px;height:32px;border:0;background:var(--surface);cursor:pointer;font-size:17px;font-weight:600;color:var(--ink)}
-.geo-zoom button+button{border-top:1px solid var(--rule-soft)}
-.geo-zoom button:hover{background:var(--surface-2)}
 .geo-done{margin-top:14px}
 
 /* ---------------- building a map quiz ---------------- */
@@ -1340,11 +1327,6 @@ button{font:inherit;color:inherit}
 
     <div class="card geo-stage" id="geo-stage">
       <div class="geo-map" id="geo-map"></div>
-      <div class="geo-zoom" role="group" aria-label="Zoom the map">
-        <button type="button" id="geo-zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
-        <button type="button" id="geo-zoom-out" aria-label="Zoom out" title="Zoom out">&minus;</button>
-        <button type="button" id="geo-zoom-fit" aria-label="Show the whole quiz" title="Show the whole quiz">&#10530;</button>
-      </div>
     </div>
 
     <div class="card result geo-done" id="geo-done" hidden>
@@ -4639,10 +4621,6 @@ button{font:inherit;color:inherit}
   var GEO = null, geoLoading = null;
   var SVGNS = "http://www.w3.org/2000/svg";
 
-  // Kinds drawn as water: blue when in play, rather than the land tone.
-  var WATER = { Ocean: 1, Sea: 1, Bay: 1, Gulf: 1, Strait: 1, Channel: 1, Sound: 1, Fjord: 1,
-    Lagoon: 1, Reef: 1, Inlet: 1, "Sea area": 1, Lake: 1, Reservoir: 1 };
-
   // How results are ordered when two names match equally well: the things a
   // geography quiz is usually about come before the thousand small towns.
   var KIND_RANK = ["Continent", "Ocean", "Country", "Sea", "Desert", "Mountain range", "River",
@@ -4705,16 +4683,14 @@ button{font:inherit;color:inherit}
     return out;
   }
 
-  // The Natural Earth projection: a compromise that keeps the whole world
-  // recognisable and closes in over the poles, where plain latitude and
-  // longitude would stretch Greenland to the size of Africa.
-  var MAP_R = 100;
-  var WORLD = { x: -280, y: -146, w: 560, h: 292 };
+  // Longitude and latitude straight onto the page. The world is then a
+  // plain rectangle that fills its frame corner to corner -- which is what
+  // was asked for, in place of the curved-edged projection that drew it as
+  // an oval. The price is the usual one: the far north is stretched wide.
+  var DEG = 1.5;
+  var WORLD = { x: -180 * DEG, y: -90 * DEG, w: 360 * DEG, h: 180 * DEG };
   function project(lon, lat) {
-    var l = lon * Math.PI / 180, p = lat * Math.PI / 180, p2 = p * p, p4 = p2 * p2;
-    var x = l * (0.8707 - 0.131979 * p2 + p4 * (-0.013791 + p4 * (0.003971 * p2 - 0.001529 * p4)));
-    var y = p * (1.007226 + p2 * (0.015085 + p4 * (-0.044475 + 0.028874 * p2 - 0.005916 * p4)));
-    return [x * MAP_R, -y * MAP_R];
+    return [lon * DEG, -lat * DEG];
   }
 
   // What a quiz's place resolves to: a place found online carries its own
@@ -4788,46 +4764,6 @@ button{font:inherit;color:inherit}
       return !(cx * mx < 0 && Math.abs(cx) > 180 && Math.abs(cx - mx) > 200 && area(b) < area(main) * 0.25);
     });
     return boxOf(kept.length ? kept : rings);
-  }
-
-  // Neighbouring continents never share a tone.
-  var CONT_TONE = { Asia: 0, Africa: 1, Europe: 2, Oceania: 3, "North America": 3, "South America": 2, Antarctica: 1 };
-
-  /* The outline of the whole world: the 180th meridian down each side, the
-     poles across the top and bottom. The projection narrows towards the
-     poles, so the sides already bow out like a barrel; taking the four
-     corners off with a curve finishes the oval. Everything inside it is
-     sea, and outside it is the page. */
-  var worldOutline = null;
-  function worldPath() {
-    if (worldOutline) return worldOutline;
-    var topY = project(0, 90)[1], botY = project(0, -90)[1];
-    var topX = project(180, 90)[0];
-    var cut = topX * 0.22;               // how far in from each corner
-    var drop = Math.abs(topY) * 0.1;     // and how far down the side
-    var side = function (lon) {          // one meridian, pole to pole
-      var out = [];
-      for (var lat = 90; lat >= -90; lat -= 2) {
-        var p = project(lon, lat);
-        if (p[1] > topY + drop && p[1] < botY - drop) out.push(p);
-      }
-      return out;
-    };
-    var east = side(180), west = side(-180).reverse();
-    var n = function (v) { return Math.round(v * 100) / 100; };
-    var line = function (pts) {
-      return pts.map(function (p) { return "L" + n(p[0]) + " " + n(p[1]); }).join("");
-    };
-    var corner = function (cx, cy, to) { return "Q" + n(cx) + " " + n(cy) + " " + n(to[0]) + " " + n(to[1]); };
-    worldOutline =
-      "M" + n(-topX + cut) + " " + n(topY) +
-      "L" + n(topX - cut) + " " + n(topY) +
-      corner(topX, topY, east[0]) + line(east.slice(1)) +
-      corner(topX, botY, [topX - cut, botY]) +
-      "L" + n(-topX + cut) + " " + n(botY) +
-      corner(-topX, botY, west[0]) + line(west.slice(1)) +
-      corner(-topX, topY, [-topX + cut, topY]) + "Z";
-    return worldOutline;
   }
 
   var basePath = null;
@@ -4921,22 +4857,9 @@ button{font:inherit;color:inherit}
   function makeMap(host, places, onPick) {
     host.textContent = "";
     var svg = svgEl("svg", { role: "img", "aria-label": "Map" });
-    // Everything is clipped to the world's outline, so Antarctica and the
-    // far ends of Russia stop at the edge instead of spilling past the
-    // corners that were rounded off.
-    var clipId = "m-clip-" + (++mapSeq);
-    var defs = svgEl("defs");
-    var clip = svgEl("clipPath", { id: clipId, clipPathUnits: "userSpaceOnUse" });
-    clip.appendChild(svgEl("path", { d: worldPath() }));
-    defs.appendChild(clip);
-    svg.appendChild(defs);
-
-    var world = svgEl("g", { "clip-path": "url(#" + clipId + ")" });
-    world.appendChild(svgEl("path", { "class": "m-sea", d: worldPath() }));
-    world.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
+    svg.appendChild(svgEl("path", { "class": "m-land", d: landPath() }));
     var layer = svgEl("g");
-    world.appendChild(layer);
-    svg.appendChild(world);
+    svg.appendChild(layer);
     host.appendChild(svg);
 
     var tip = document.createElement("div");
@@ -4979,14 +4902,13 @@ button{font:inherit;color:inherit}
     var depth = function (it) { return it.dot ? 2 : layerOf[it.f.s]; };
     items.sort(function (a, b) { return depth(a) - depth(b) || b.area - a.area; });
 
-    var dots = [], rings = [], tone = 0;
+    var dots = [], rings = [];
     items.forEach(function (it) {
       // A continent is drawn from its countries, so their borders are hidden
       // and each continent takes its own tone -- otherwise Europe and Asia
       // would read as one shape.
-      var cls = it.dot ? "m-dot m-area" + (WATER[it.f.k] ? " water" : "")
-              : it.f.s === "p" ? "m-poly" + (WATER[it.f.k] ? " water" : "") +
-                  (it.f.from ? " m-cont tone-" + (CONT_TONE[it.f.n] != null ? CONT_TONE[it.f.n] : tone++ % 4) : "")
+      var cls = it.dot ? "m-dot m-area"
+              : it.f.s === "p" ? "m-poly" + (it.f.from ? " m-cont" : "")
               : it.f.s === "l" ? "m-line" : "m-dot";
       var g = svgEl("g", { "class": "m-f " + cls });
       g.setAttribute("data-id", it.id);
@@ -5003,6 +4925,10 @@ button{font:inherit;color:inherit}
       } else {
         var d = it.rings.map(function (r) { return ringPath(r, it.f.s === "p"); }).join("");
         if (it.f.s === "l") g.appendChild(svgEl("path", { "class": "m-hit", d: d }));
+        // The outline goes under the fill, which paints over the half of it
+        // that falls inside the place -- and over every border between the
+        // pieces a continent is made of.
+        if (it.f.s === "p") g.appendChild(svgEl("path", { "class": "m-edge", d: d }));
         g.appendChild(svgEl("path", { "class": "m-shape", d: d }));
       }
       layer.appendChild(g);
@@ -5017,40 +4943,59 @@ button{font:inherit;color:inherit}
 
     var view = null;
 
+    /* The map does not zoom and does not pan: it is fitted once to the
+       places in the quiz and stays there, so a click is only ever an
+       answer and the wheel belongs to the page. */
     function aspect() {
       var w = host.clientWidth, h = host.clientHeight;
       return w && h ? w / h : 16 / 10;
     }
-    // World units per screen pixel. The SVG letterboxes ("meet"), so the
-    // tighter of the two axes decides.
+    // World units per screen pixel, for the dots, which are sized in pixels.
     function upp() {
       var w = host.clientWidth || 1, h = host.clientHeight || 1;
       return Math.max(view.w / w, view.h / h);
     }
 
+    /* The frame takes the shape of what is in it, within what the page can
+       give it, so the map fills its box edge to edge instead of sitting in
+       a band of empty space. */
+    function shapeFrame(b) {
+      var availW = host.clientWidth || (host.parentNode && host.parentNode.clientWidth) || 800;
+      var maxH = Math.max(260, Math.min(window.innerHeight - 250, 620));
+      var want = (b[2] - b[0]) / Math.max(b[3] - b[1], 0.001);
+      var a = Math.min(Math.max(want, availW / maxH), availW / 260);
+      host.style.aspectRatio = String(a);
+      void host.clientHeight;      // settle the new height before measuring
+    }
+
+    /* The view never reaches past the edge of the world, and stops a
+       whisker short of it: Antarctica's outline runs along the pole and up
+       both sides of the date line, and those three straight lines would
+       otherwise be drawn across the sea as a box round the map. */
+    var EDGE = 4;
+    var BOUND = { x: WORLD.x + EDGE, y: WORLD.y + EDGE, w: WORLD.w - EDGE * 2, h: WORLD.h - EDGE * 2 };
+
     function fitTo(b) {
-      var w = Math.max((b[2] - b[0]) * 1.14, 14), h = Math.max((b[3] - b[1]) * 1.14, 9);
-      var cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2, a = aspect();
+      var w = Math.max((b[2] - b[0]) * 1.06, 14), h = Math.max((b[3] - b[1]) * 1.06, 9);
+      var a = aspect();
       if (w / h > a) h = w / a; else w = h * a;
+      if (w > BOUND.w) { w = BOUND.w; h = w / a; }
+      if (h > BOUND.h) { h = BOUND.h; w = h * a; }
+      var cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+      cx = Math.min(Math.max(cx, BOUND.x + w / 2), BOUND.x + BOUND.w - w / 2);
+      cy = Math.min(Math.max(cy, BOUND.y + h / 2), BOUND.y + BOUND.h - h / 2);
       return { x: cx - w / 2, y: cy - h / 2, w: w, h: h };
     }
 
     function setView(v) {
-      var a = v.w / v.h;
-      var w = Math.min(Math.max(v.w, 3), WORLD.w * 1.6);
-      var h = w / a;
-      var cx = v.x + v.w / 2, cy = v.y + v.h / 2;
-      // Keep some of the world in view: panning off into empty space helps no one.
-      cx = Math.min(Math.max(cx, WORLD.x), WORLD.x + WORLD.w);
-      cy = Math.min(Math.max(cy, WORLD.y), WORLD.y + WORLD.h);
-      view = { x: cx - w / 2, y: cy - h / 2, w: w, h: h };
+      view = v;
       svg.setAttribute("viewBox", view.x + " " + view.y + " " + view.w + " " + view.h);
       var u = upp();
-      dots.forEach(function (d) { d.dot.setAttribute("r", 5 * u); d.hit.setAttribute("r", 13 * u); });
+      dots.forEach(function (d) { d.dot.setAttribute("r", 5.5 * u); d.hit.setAttribute("r", 13 * u); });
       rings.forEach(function (r) { r.ring.setAttribute("r", 10 * u); r.hit.setAttribute("r", 13 * u); });
     }
 
-    // Places too small to hit at the fitted scale get a ring round them.
+    // Places too small to hit at this scale get a ring round them.
     function ringSmall() {
       var u = upp();
       items.forEach(function (it) {
@@ -5065,13 +5010,6 @@ button{font:inherit;color:inherit}
       });
     }
 
-    function toSvg(clientX, clientY) {
-      var m = svg.getScreenCTM();
-      if (!m) return { x: 0, y: 0 };
-      var p = svg.createSVGPoint();
-      p.x = clientX; p.y = clientY;
-      return p.matrixTransform(m.inverse());
-    }
     function toClient(x, y) {
       var m = svg.getScreenCTM();
       if (!m) return { x: 0, y: 0 };
@@ -5080,68 +5018,9 @@ button{font:inherit;color:inherit}
       return p.matrixTransform(m);
     }
 
-    function zoomAt(clientX, clientY, f) {
-      var p = toSvg(clientX, clientY);
-      setView({ x: p.x - (p.x - view.x) * f, y: p.y - (p.y - view.y) * f, w: view.w * f, h: view.h * f });
-    }
-
-    /* Dragging pans, two fingers pinch, the wheel zooms. A press that
-       travels is a pan, not a click, and does not count as an answer. */
-    var ptrs = {}, gesture = null, moved = false;
-    function ptrList() { return Object.keys(ptrs).map(function (k) { return ptrs[k]; }); }
-    function startGesture() {
-      var list = ptrList();
-      if (list.length === 1) gesture = { x: list[0].x, y: list[0].y, v: view };
-      else if (list.length >= 2) {
-        gesture = { d: Math.hypot(list[0].x - list[1].x, list[0].y - list[1].y) || 1,
-                    mx: (list[0].x + list[1].x) / 2, my: (list[0].y + list[1].y) / 2, v: view };
-      }
-    }
-    svg.addEventListener("pointerdown", function (e) {
-      if (e.button !== undefined && e.button !== 0 && e.pointerType === "mouse") return;
-      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
-      try { svg.setPointerCapture(e.pointerId); } catch (err) { /* old browsers */ }
-      if (ptrList().length === 1) moved = false;
-      startGesture();
-    });
-    svg.addEventListener("pointermove", function (e) {
-      if (!ptrs[e.pointerId] || !gesture) return;
-      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
-      var list = ptrList(), u;
-      if (list.length === 1 && gesture.x !== undefined) {
-        var dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
-        if (!moved && Math.hypot(dx, dy) < 6) return;
-        moved = true;
-        svg.classList.add("panning");
-        view = gesture.v;
-        u = upp();
-        setView({ x: gesture.v.x - dx * u, y: gesture.v.y - dy * u, w: gesture.v.w, h: gesture.v.h });
-      } else if (list.length >= 2 && gesture.d) {
-        moved = true;
-        var d = Math.hypot(list[0].x - list[1].x, list[0].y - list[1].y) || 1;
-        view = gesture.v;
-        var f = gesture.d / d;
-        var p = toSvg(gesture.mx, gesture.my);
-        setView({ x: p.x - (p.x - gesture.v.x) * f, y: p.y - (p.y - gesture.v.y) * f,
-                  w: gesture.v.w * f, h: gesture.v.h * f });
-      }
-    });
-    function endPtr(e) {
-      delete ptrs[e.pointerId];
-      svg.classList.remove("panning");
-      if (ptrList().length) startGesture(); else gesture = null;
-    }
-    svg.addEventListener("pointerup", endPtr);
-    svg.addEventListener("pointercancel", endPtr);
-    svg.addEventListener("wheel", function (e) {
-      e.preventDefault();
-      zoomAt(e.clientX, e.clientY, Math.exp(Math.max(-60, Math.min(60, e.deltaY)) * 0.004));
-    }, { passive: false });
-
     // Everything under the pointer, top first, so a continent can still be
     // found beneath a country that is also in play.
     svg.addEventListener("click", function (e) {
-      if (moved) { moved = false; return; }
       var ids = [];
       document.elementsFromPoint(e.clientX, e.clientY).forEach(function (n) {
         var g = n.closest && n.closest(".m-f");
@@ -5168,14 +5047,10 @@ button{font:inherit;color:inherit}
     var flashes = [];
     var api = {
       fit: function () {
-        view = fitTo(all);
-        setView(view);
+        shapeFrame(all);
+        setView(fitTo(all));
         if (!rings.length) ringSmall();
-        setView(view);
-      },
-      zoom: function (f) {
-        var r = host.getBoundingClientRect();
-        zoomAt(r.left + r.width / 2, r.top + r.height / 2, f);
+        setView(fitTo(all));
       },
       mark: function (id, cls) {
         var it = byId[id];
@@ -5216,7 +5091,7 @@ button{font:inherit;color:inherit}
     };
 
     // Dots and rings are sized in screen pixels, so a resize redraws them.
-    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (view) setView(view); }) : null;
+    var ro = window.ResizeObserver ? new ResizeObserver(function () { if (view) setView(fitTo(all)); }) : null;
     if (ro) ro.observe(host);
     return api;
   }
@@ -5990,9 +5865,6 @@ button{font:inherit;color:inherit}
     var d = geoGame && deckById(geoGame.deck.id);
     if (d) editGeo(d);
   });
-  $("geo-zoom-in").addEventListener("click", function () { if (geoMap) geoMap.zoom(1 / 1.6); });
-  $("geo-zoom-out").addEventListener("click", function () { if (geoMap) geoMap.zoom(1.6); });
-  $("geo-zoom-fit").addEventListener("click", function () { if (geoMap) geoMap.fit(); });
 
   /* ---------------- a map quiz on the shelf ---------------- */
   function geoCard(d) {
