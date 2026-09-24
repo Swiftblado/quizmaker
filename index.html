@@ -1033,7 +1033,9 @@ button{font:inherit;color:inherit}
   background:var(--surface);color:var(--ink);font:inherit;font-size:15px;
 }
 .geo-typing input:focus{outline:none;border-color:var(--accent)}
-.geo-stage{position:relative;padding:8px}
+/* The card holds the map and nothing else, so it is cut to its size: a
+   map narrower than the page used to sit in a wide white surround. */
+.geo-stage{position:relative;padding:8px;width:fit-content;max-width:100%;margin-inline:auto}
 .geo-done{margin-top:14px}
 .geo-keep{margin-top:14px}
 
@@ -5270,7 +5272,17 @@ button{font:inherit;color:inherit}
        give it, so the map fills it edge to edge rather than sitting in a
        band of empty sea. */
     function shapeFrame(b) {
-      var availW = (host.parentNode && host.parentNode.clientWidth) || 800;
+      /* How much room there is. The card around the map on the quiz screen
+         is cut to the map's own size, so asking it would be circular -- it
+         is as wide as the map, and the map as wide as it. The page is asked
+         instead, less what the card puts round it. */
+      var box = host.parentNode, availW;
+      if (box && box.classList.contains("geo-stage")) {
+        var page = host.closest("section");
+        availW = ((page && page.clientWidth) || 800) - 20;
+      } else {
+        availW = (box && box.clientWidth) || 800;
+      }
       var maxH = Math.max(260, Math.min(window.innerHeight - 150, 900));
       var want = (b[2] - b[0]) / Math.max(b[3] - b[1], 0.001);
       var a = Math.min(Math.max(want, 0.55), 3.2);
