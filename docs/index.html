@@ -912,18 +912,18 @@ button{font:inherit;color:inherit}
    places in play picked out in a warm tone on land and a deeper blue on
    water, so what can be clicked is obvious before anything is asked. */
 :root{
-  --sea:#AFCADF;--land:#BFC5CE;
-  --pick:#6BAC50;--found:#FFFFFF;--pick-edge:#3B4354;--pick-line:#2F6BC9;
+  --sea:#A4D1DC;--land:#C2C8CC;
+  --pick:#166C38;--found:#FFFFFF;--pick-edge:#123B22;--pick-line:#2F6BC9;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --sea:#0D182A;--land:#343B49;
-    --pick:#3C6636;--found:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
+    --sea:#16333C;--land:#3A4148;
+    --pick:#135C30;--found:#FFFFFF;--pick-edge:#06170D;--pick-line:#7FB2FF;
   }
 }
 :root[data-theme="dark"]{
-  --sea:#0D182A;--land:#343B49;
-  --pick:#3C6636;--found:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
+  --sea:#16333C;--land:#3A4148;
+  --pick:#135C30;--found:#FFFFFF;--pick-edge:#06170D;--pick-line:#7FB2FF;
 }
 
 /* The box is sized to the map, not the other way round: the script gives
@@ -961,6 +961,10 @@ button{font:inherit;color:inherit}
    territory would have taken: white found first time, amber found late,
    red never found. (The rule keeping the dot itself white has to come
    after the state colours further down, so it lives at the end.) */
+/* The pointer on a dot draws a ring round it, standing clear of the dot
+   rather than sitting on its edge, so the dot itself is not redrawn. */
+.m-halo{display:none;fill:none;stroke:#000;stroke-width:1.6;vector-effect:non-scaling-stroke;pointer-events:none}
+@media (hover:hover){ .m-dot:hover .m-halo{display:block} }
 .m-pip{display:none;stroke:var(--pick-edge);stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
 .m-dot.is-ok .m-pip{display:block;fill:var(--found)}
 .m-dot.is-late .m-pip{display:block;fill:var(--almost)}
@@ -5046,9 +5050,16 @@ button{font:inherit;color:inherit}
     return hit;
   }
 
-  function distToRing(ring, x, y) {
-    var best = Infinity;
+  /* Distance to the nearest edge -- optionally ignoring the edges that are
+     not really there. A sea's outline is closed along the pole and down the
+     date line, and those lines are where the map was cut, not a shore. The
+     Arctic Ocean's mark sat off in the Beaufort Sea because it was keeping
+     its distance from the North Pole. */
+  function distToRing(ring, x, y, realOnly) {
+    var best = Infinity, cut = realOnly && ring.cut, seen = 0;
     for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      if (cut && cut[i] && cut[j]) continue;
+      seen++;
       var a = ring[i], b = ring[j];
       var px = a[0], py = a[1], dx = b[0] - px, dy = b[1] - py;
       if (dx || dy) {
@@ -5058,6 +5069,8 @@ button{font:inherit;color:inherit}
       var d = (x - px) * (x - px) + (y - py) * (y - py);
       if (d < best) best = d;
     }
+    // A ring that is all artificial edge still needs an answer.
+    if (!seen) return distToRing(ring, x, y, false);
     return Math.sqrt(best);
   }
 
@@ -5072,25 +5085,52 @@ button{font:inherit;color:inherit}
       if (a > mainArea) { mainArea = a; main = r; }
     });
     var box = boxOf([main]);
+    // Never above 85 degrees. Longitudes crowd together towards the pole
+    // and this projection draws the pole itself as the whole top edge, so a
+    // mark up there is both hard to judge and hard to click.
+    var cap = Math.abs(project(0, 85)[1]);
+    box = [box[0], Math.max(box[1], -cap), box[2], Math.min(box[3], cap)];
+    if (box[1] > box[3]) box = boxOf([main]);
+    var mid = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
     var best = null, bestD = -1;
+
+    /* Furthest from the real edges -- and, among the points that are very
+       nearly as far, the one closest to the middle of the place. Without
+       that second rule the Arctic Ocean's mark went to the North Pole,
+       which this projection draws as the whole top edge of the map, so a
+       dot at the pole is a dot in the top left corner. */
     var scan = function (x0, y0, x1, y1, n) {
+      // Never outside the box, however close a finer pass looks.
+      x0 = Math.max(x0, box[0]); x1 = Math.min(x1, box[2]);
+      y0 = Math.max(y0, box[1]); y1 = Math.min(y1, box[3]);
+      var found = [];
       for (var i = 0; i <= n; i++) {
         for (var j = 0; j <= n; j++) {
           var x = x0 + (x1 - x0) * i / n, y = y0 + (y1 - y0) * j / n;
           if (!inRing(main, x, y)) continue;
-          var d = distToRing(main, x, y);
-          if (d > bestD) { bestD = d; best = [x, y]; }
+          var d = distToRing(main, x, y, true);
+          found.push([x, y, d]);
+          if (d > bestD) bestD = d;
         }
       }
+      found.forEach(function (p) {
+        if (p[2] < bestD * 0.75) return;
+        var away = Math.hypot(p[0] - mid[0], p[1] - mid[1]);
+        if (!best || away < best[2]) best = [p[0], p[1], away];
+      });
     };
     scan(box[0], box[1], box[2], box[3], 20);
     if (best) {
-      var step = Math.max(box[2] - box[0], box[3] - box[1]) / 20;
-      scan(best[0] - step, best[1] - step, best[0] + step, best[1] + step, 8);
+      // A finer look around the point the coarse pass settled on.
+      var coarse = best, step = Math.max(box[2] - box[0], box[3] - box[1]) / 20;
+      best = null;
+      scan(coarse[0] - step, coarse[1] - step, coarse[0] + step, coarse[1] + step, 8);
+      if (!best) best = coarse;
     }
-    return best || [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2];
+    return best ? [best[0], best[1]] : mid;
   }
 
+  var DOT_R = 5.5;
   function makeMap(host, places, onPick) {
     host.textContent = "";
     var svg = svgEl("svg", { role: "img", "aria-label": "Map" });
@@ -5157,10 +5197,12 @@ button{font:inherit;color:inherit}
         var hit = svgEl("circle", { "class": "m-hit", cx: pt[0], cy: pt[1], r: 1 });
         var dot = svgEl("circle", { "class": "m-shape", cx: pt[0], cy: pt[1], r: 1 });
         var pip = svgEl("circle", { "class": "m-pip", cx: pt[0], cy: pt[1], r: 1 });
+        var halo = svgEl("circle", { "class": "m-halo", cx: pt[0], cy: pt[1], r: 1 });
         g.appendChild(hit);
+        g.appendChild(halo);
         g.appendChild(dot);
         g.appendChild(pip);
-        dots.push({ hit: hit, dot: dot, pip: pip });
+        dots.push({ hit: hit, dot: dot, pip: pip, halo: halo });
       } else {
         var d = it.rings.map(function (r) { return ringPath(r, it.f.s === "p"); }).join("");
         if (it.f.s === "l") g.appendChild(svgEl("path", { "class": "m-hit", d: d }));
@@ -5203,7 +5245,7 @@ button{font:inherit;color:inherit}
        band of empty sea. */
     function shapeFrame(b) {
       var availW = (host.parentNode && host.parentNode.clientWidth) || 800;
-      var maxH = Math.max(260, Math.min(window.innerHeight - 190, 820));
+      var maxH = Math.max(260, Math.min(window.innerHeight - 150, 900));
       var want = (b[2] - b[0]) / Math.max(b[3] - b[1], 0.001);
       var a = Math.min(Math.max(want, 0.55), 3.2);
       var h = Math.min(maxH, availW / a);
@@ -5216,7 +5258,7 @@ button{font:inherit;color:inherit}
        so the far ends of Asia and the Aleutians have open water beside them
        rather than running off the edge. Only the ocean is added -- the land
        is drawn at the same scale either way. */
-    var BERTH_X = 11, BERTH_Y = 8;
+    var BERTH_X = 4, BERTH_Y = 7;
     var BOUND = { x: WORLD.x - BERTH_X, y: WORLD.y - BERTH_Y,
                   w: WORLD.w + BERTH_X * 2, h: WORLD.h + BERTH_Y * 2 };
 
@@ -5240,9 +5282,12 @@ button{font:inherit;color:inherit}
       svg.setAttribute("viewBox", view.x + " " + view.y + " " + view.w + " " + view.h);
       var u = upp();
       dots.forEach(function (d) {
-        d.dot.setAttribute("r", 5.5 * u);
-        d.hit.setAttribute("r", 13 * u);
+        d.dot.setAttribute("r", DOT_R * u);
+        // Four diameters out. A dot is a small target for a shaky hand, and
+        // where two of these reaches overlap the nearer dot wins.
+        d.hit.setAttribute("r", DOT_R * 8 * u);
         if (d.pip) d.pip.setAttribute("r", 2.4 * u);
+        if (d.halo) d.halo.setAttribute("r", (DOT_R + 4.5) * u);
       });
       rings.forEach(function (r) { r.ring.setAttribute("r", 10 * u); r.hit.setAttribute("r", 13 * u); });
     }
@@ -5278,17 +5323,42 @@ button{font:inherit;color:inherit}
       return p.matrixTransform(m);
     }
 
-    // Everything under the pointer, top first, so a continent can still be
-    // found beneath a country that is also in play.
+    // Where a dot sits on screen, for judging how near a click came.
+    function dotAt(it) {
+      var p = it.dot ? it.anchor : it.f.s === "d" ? it.rings[0][0] : null;
+      return p ? toClient(p[0], p[1]) : null;
+    }
+
+    /* Everything under the pointer, top first, so a continent can still be
+       found beneath a country that is also in play. A dot's reach is wide,
+       so only the nearest dot counts: standing between two seas must not
+       answer for both, and the one further off has no claim on the click. */
     svg.addEventListener("click", function (e) {
-      var ids = [];
+      var here = [];
       document.elementsFromPoint(e.clientX, e.clientY).forEach(function (n) {
         var g = n.closest && n.closest(".m-f");
         if (g && svg.contains(g)) {
           var id = g.getAttribute("data-id");
-          if (ids.indexOf(id) < 0) ids.push(id);
+          if (here.indexOf(id) < 0) here.push(id);
         }
       });
+
+      var ids = [], nearest = null, nearestAway = Infinity;
+      here.forEach(function (id) {
+        var it = byId[id];
+        var mark = it && dotAt(it);
+        if (!mark) { ids.push(id); return; }
+        var away = Math.hypot(e.clientX - mark.x, e.clientY - mark.y);
+        if (away < nearestAway) { nearestAway = away; nearest = id; }
+      });
+      if (nearest) {
+        // A dot is drawn at DOT_R pixels whatever the map's scale, so the
+        // distance to it can be judged in pixels too. A click on the dot
+        // itself answers it before whatever lies underneath; a click merely
+        // near it comes after, so clicking a country still answers the
+        // country.
+        if (nearestAway <= DOT_R * 1.6) ids.unshift(nearest); else ids.push(nearest);
+      }
       if (onPick) onPick(ids, e);
     });
 
@@ -5856,11 +5926,19 @@ button{font:inherit;color:inherit}
       "Cerro Aconcagua", "Mount Fuji", "Matterhorn", "Mount Kosciuszko", "Vinson Massif"] }
   ];
 
+  /* The place actually called this, before any place that merely answers
+     to it: Natural Earth lists "Pacific Ocean" as another name for the
+     North Pacific, which had the ready-made map of oceans asking for its
+     top half. */
   function findByName(name) {
-    var key = gfold(name), best = null;
+    var key = gfold(name), best = null, bestScore = -1;
     GEO.list.forEach(function (f) {
-      if (f.key !== key && f.akeys.indexOf(key) < 0) return;
-      if (!best || kindRank(f.k) < kindRank(best.k)) best = f;
+      var score = f.key === key ? 2 : f.akeys.indexOf(key) >= 0 ? 1 : 0;
+      if (!score) return;
+      if (score > bestScore || (score === bestScore && kindRank(f.k) < kindRank(best.k))) {
+        best = f;
+        bestScore = score;
+      }
     });
     return best;
   }
@@ -6314,7 +6392,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 5782e1d0</p>
+<p class="build-stamp">build e62d8d1f</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>

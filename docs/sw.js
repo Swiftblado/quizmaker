@@ -1,4 +1,4 @@
-const CACHE = "quizmaker-5782e1d0";
+const CACHE = "quizmaker-e62d8d1f";
 const SHELL = ["./", "./index.html", "./icon.svg", "./icon-192.png", "./manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
