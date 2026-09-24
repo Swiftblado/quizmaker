@@ -1062,9 +1062,7 @@ button{font:inherit;color:inherit}
   background:var(--surface);color:var(--ink);font:inherit;font-size:15px;
 }
 .geo-typing input:focus{outline:none;border-color:var(--accent)}
-/* The card holds the map and nothing else, so it is cut to its size: a
-   map narrower than the page used to sit in a wide white surround. */
-.geo-stage{position:relative;padding:8px;width:fit-content;max-width:100%;margin-inline:auto}
+.geo-stage{position:relative;padding:8px}
 .geo-done{margin-top:14px}
 .geo-keep{margin-top:14px}
 
@@ -5343,23 +5341,17 @@ button{font:inherit;color:inherit}
        give it, so the map fills it edge to edge rather than sitting in a
        band of empty sea. */
     function shapeFrame(b) {
-      /* How much room there is. The card around the map on the quiz screen
-         is cut to the map's own size, so asking it would be circular -- it
-         is as wide as the map, and the map as wide as it. The page is asked
-         instead, less what the card puts round it. */
-      var box = host.parentNode, availW;
-      if (box && box.classList.contains("geo-stage")) {
-        var page = host.closest("section");
-        availW = ((page && page.clientWidth) || 800) - 20;
-      } else {
-        availW = (box && box.clientWidth) || 800;
-      }
+      var availW = (host.parentNode && host.parentNode.clientWidth) || 800;
       var maxH = Math.max(260, Math.min(window.innerHeight - 150, 900));
+      /* The map is always the full width it is given: what the quiz does not
+         need is sea, not white space beside the card. Its height is what the
+         quiz needs at that width, up to what the page can give -- so a tall
+         quiz is as large as it can be and the room left over at its sides is
+         open water. */
       var want = (b[2] - b[0]) / Math.max(b[3] - b[1], 0.001);
-      var a = Math.min(Math.max(want, 0.55), 3.2);
-      var h = Math.min(maxH, availW / a);
-      host.style.width = Math.round(h * a) + "px";
-      host.style.height = Math.round(h) + "px";
+      var h = Math.min(maxH, availW / Math.max(want, 0.35));
+      host.style.width = Math.round(availW) + "px";
+      host.style.height = Math.round(Math.max(h, 240)) + "px";
       void host.clientHeight;      // settle the new size before measuring
     }
 
@@ -6664,7 +6656,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 1c033826</p>
+<p class="build-stamp">build b3af8dbf</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
