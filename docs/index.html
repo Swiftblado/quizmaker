@@ -129,6 +129,9 @@ body{
 .wrap{max-width:660px;margin:0 auto;padding-inline:20px;padding-block:28px 64px;transition:max-width .2s ease}
 /* The results screen earns the extra width: it carries the log alongside. */
 .wrap.wide{max-width:1010px}
+/* The map earns more: it is the thing being read, and a small map is a
+   harder quiz than a large one for the wrong reason. */
+.wrap.map{max-width:1300px}
 h1,h2,h3{margin:0;text-wrap:balance}
 p{margin:0}
 button{font:inherit;color:inherit}
@@ -950,9 +953,11 @@ button{font:inherit;color:inherit}
 .m-cont.is-wrong{--m-tone:var(--bad)}
 .m-line .m-shape{fill:none;stroke:var(--pick-line);stroke-width:2.5;stroke-linecap:round}
 .m-line .m-hit{fill:none;stroke:transparent;stroke-width:16;stroke-linecap:round;vector-effect:non-scaling-stroke}
-/* A place marked by a dot is only the dot: white, with the same edge the
-   territories carry. */
-.m-dot .m-shape{fill:var(--pick);stroke:var(--pick-edge);stroke-width:1.2}
+/* A place marked by a dot is only the dot, and it is white from the start
+   -- a dot is small enough that a colour on it reads as a different kind
+   of thing rather than a state. */
+.m-dot .m-shape{fill:var(--found);stroke:var(--pick-edge);stroke-width:1.2}
+.m-dot.is-ok .m-shape{fill:var(--found)}
 /* Every hit area is invisible. This once read `.m-ring .m-hit`, which
    matches nothing -- the two are siblings -- so the hit circle round a
    small country was painted in the default black. */
@@ -1715,6 +1720,7 @@ button{font:inherit;color:inherit}
     $("back-arrow").setAttribute("aria-label", $("back-arrow").title);
     // The results and the map both earn the extra width.
     document.querySelector(".wrap").classList.toggle("wide", name === "done" || name === "geo");
+    document.querySelector(".wrap").classList.toggle("map", name === "geo");
     ["intake", "deck", "quiz", "done", "geo"].forEach(function (s) {
       $("scr-" + s).hidden = (s !== name);
     });
@@ -4862,11 +4868,14 @@ button{font:inherit;color:inherit}
       rings = [[project(f.g[0] / q, f.g[1] / q)]];
     } else {
       var src = f.g.slice(), runs = (f.b || []).slice();
+      // A continent takes each country's continent-border runs rather than
+      // its own: every border inside a continent is one of its own, and
+      // drawing them puts a line through the middle of it.
       (f.from || []).forEach(function (id) {
         var c = GEO.byId[id];
         if (!c) return;
         src = src.concat(c.g);
-        runs = runs.concat(c.b || []);
+        runs = runs.concat((f.from ? c.x : c.b) || c.b || []);
       });
       var raw = src.map(function (r) { return decodeRing(r, q); });
 
@@ -5181,7 +5190,7 @@ button{font:inherit;color:inherit}
        band of empty sea. */
     function shapeFrame(b) {
       var availW = (host.parentNode && host.parentNode.clientWidth) || 800;
-      var maxH = Math.max(240, Math.min(window.innerHeight - 250, 620));
+      var maxH = Math.max(260, Math.min(window.innerHeight - 190, 820));
       var want = (b[2] - b[0]) / Math.max(b[3] - b[1], 0.001);
       var a = Math.min(Math.max(want, 0.55), 3.2);
       var h = Math.min(maxH, availW / a);
@@ -5194,7 +5203,7 @@ button{font:inherit;color:inherit}
        so the far ends of Asia and the Aleutians have open water beside them
        rather than running off the edge. Only the ocean is added -- the land
        is drawn at the same scale either way. */
-    var BERTH_X = 26, BERTH_Y = 12;
+    var BERTH_X = 11, BERTH_Y = 8;
     var BOUND = { x: WORLD.x - BERTH_X, y: WORLD.y - BERTH_Y,
                   w: WORLD.w + BERTH_X * 2, h: WORLD.h + BERTH_Y * 2 };
 
@@ -5312,7 +5321,10 @@ button{font:inherit;color:inherit}
       pop: function (id, e) {
         var it = byId[id];
         if (!it) return;
-        var at = e && toSvg(e.clientX, e.clientY);
+        // From the middle of a dot, which is the whole of the place; from
+        // the click on a territory, which is a place you can click anywhere.
+        var mark = it.dot ? it.anchor : it.f.s === "d" ? it.rings[0][0] : null;
+        var at = mark ? { x: mark[0], y: mark[1] } : e && toSvg(e.clientX, e.clientY);
         if (!at) at = { x: (it.box[0] + it.box[2]) / 2, y: (it.box[1] + it.box[3]) / 2 };
         var u = upp();
         var ring = svgEl("circle", { "class": "m-pop", cx: at.x, cy: at.y, r: 4 * u });
@@ -6285,7 +6297,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 6b489e0e</p>
+<p class="build-stamp">build 1bc4040a</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>

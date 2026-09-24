@@ -152,73 +152,6 @@ function alts(...names) {
   return names.map(tidy).filter((n) => n && !seen.has(n.toLowerCase()) && seen.add(n.toLowerCase()));
 }
 
-/* Which stretches of an outline are a border with another territory, and
-   which are coast. Natural Earth cuts neighbours from the same geometry, so
-   a point that belongs to two countries is a border and a point that
-   belongs to one is a coast. Provinces are counted in a band of their own,
-   or every coastal point would be shared -- once by the province and once
-   by the country it is part of. */
-const owners = new Map();
-const ownerKey = (lon, lat) => lon.toFixed(5) + "," + lat.toFixed(5);
-
-function claim(geom, who, band) {
-  const list = geom.type === "Polygon" ? [geom.coordinates]
-    : geom.type === "MultiPolygon" ? geom.coordinates : [];
-  list.forEach((poly) => poly.forEach((ring) => ring.forEach((p) => {
-    const k = ownerKey(p[0], p[1]);
-    let e = owners.get(k);
-    if (!e) { e = { c: new Set(), p: new Set() }; owners.set(k, e); }
-    e[band].add(who);
-  })));
-}
-
-function sharedAt(lon, lat, asProvince) {
-  const e = owners.get(ownerKey(lon, lat));
-  if (!e) return false;
-  return e.c.size >= 2 || (asProvince && e.p.size >= 2);
-}
-
-// The same geometry with each point carrying its flag.
-function flagged(geom, asProvince) {
-  const conv = (ring) => ring.map((p) => [p[0], p[1], sharedAt(p[0], p[1], asProvince) ? 1 : 0]);
-  if (geom.type === "Polygon") return { type: "Polygon", coordinates: geom.coordinates.map(conv) };
-  if (geom.type === "MultiPolygon") {
-    return { type: "MultiPolygon", coordinates: geom.coordinates.map((poly) => poly.map(conv)) };
-  }
-  return geom;
-}
-
-// Countries: the base map as well as something to search for. Their
-// continent is kept so a continent can be drawn as its countries.
-const countries = read("ne_50m_admin_0_countries");
-const provinces = read("ne_50m_admin_1_states_provinces").filter((p) => p.properties.admin === "Russia");
-countries.forEach((f) => claim(f.geometry, f.properties.ADM0_A3 || f.properties.NAME, "c"));
-provinces.forEach((f) => claim(f.geometry, f.properties.adm1_code || f.properties.name, "p"));
-
-countries.forEach((f) => {
-  const p = f.properties;
-  if (p.TYPE === "Indeterminate" && !p.NAME_EN) return;
-  const { g, b } = polysFlagged(flagged(f.geometry, false), 0.03, 0.02);
-  const name = p.NAME_EN || p.NAME;
-  const a = alts(p.NAME_LONG, p.FORMAL_EN, p.ADMIN, p.NAME).filter((n) => n.toLowerCase() !== name.toLowerCase());
-  add(name, "Country", "p", g, { b, c: p.CONTINENT, ...(a.length ? { a } : {}) });
-});
-
-// Continents, drawn from the countries that make them up rather than from
-// Natural Earth's label regions, so they line up exactly with the base map.
-// No second copy of those borders is stored: `from` lists the country ids
-// and the page stitches them together.
-//
-// Natural Earth files all of Russia under Europe, which would leave Asia
-// without Siberia. Russia is therefore split by its own federal subjects
-// (ne_50m_admin_1_states_provinces) rather than cut along a meridian: a
-// straight line down 60°E read as a mistake, because the real division
-// follows the Urals and the administrative borders drawn around them.
-// Those two halves are the only outlines a continent carries of its own.
-//
-// Everything east of the Urals crest, by the usual reckoning. Anything not
-// named here is European Russia -- including the subjects that straddle the
-// ridge and are counted west of it (Perm, Bashkortostan, Orenburg, Komi).
 /* A piece of one country that belongs to another continent. French Guiana
    is a department of France and sits on the shoulder of South America; on
    a continents map it has to be South American land, not a speck of Europe
@@ -242,6 +175,111 @@ const RUS_ASIA = ["Tomsk", "Chukotka", "Chelyabinsk", "Kurgan", "Yamalo-Nenets",
   "Khanty-Mansi", "Omsk", "Tyumen", "Altai", "Kemerovo", "Khakassia", "Novosibirsk", "Irkutsk",
   "Krasnoyarsk", "Tuva", "Buryatia", "Amur", "Zabaykalsky", "Primorsky", "Sakha", "Jewish",
   "Khabarovsk", "Magadan", "Sakhalin", "Kamchatka"];
+
+// Which continent a point of a country belongs to: its own, unless it
+// falls in a piece filed under another.
+function contOfPoint(f, p) {
+  const name = f.properties.NAME_EN || f.properties.NAME;
+  const rule = CONTINENT_PIECES.find((r) => r.country === name &&
+    p[0] >= r.box[0] && p[0] <= r.box[2] && p[1] >= r.box[1] && p[1] <= r.box[3]);
+  return rule ? rule.to : f.properties.CONTINENT;
+}
+
+/* Which stretches of an outline are a border with another territory, and
+   which are coast. Natural Earth cuts neighbours from the same geometry, so
+   a point that belongs to two countries is a border and a point that
+   belongs to one is a coast. Provinces are counted in a band of their own,
+   or every coastal point would be shared -- once by the province and once
+   by the country it is part of. */
+const owners = new Map();
+const ownerKey = (lon, lat) => lon.toFixed(5) + "," + lat.toFixed(5);
+
+// Every point also remembers which continents meet on it, so a continent
+// can be outlined where it meets another continent without every country
+// border inside it being drawn as well.
+function claim(geom, who, band, continent) {
+  const list = geom.type === "Polygon" ? [geom.coordinates]
+    : geom.type === "MultiPolygon" ? geom.coordinates : [];
+  list.forEach((poly) => poly.forEach((ring) => ring.forEach((p) => {
+    const k = ownerKey(p[0], p[1]);
+    let e = owners.get(k);
+    if (!e) { e = { c: new Set(), p: new Set(), cont: new Set() }; owners.set(k, e); }
+    e[band].add(who);
+    if (typeof continent === "function") continent = continent(p);
+    if (continent) e.cont.add(continent);
+  })));
+}
+
+function sharedAt(lon, lat, asProvince) {
+  const e = owners.get(ownerKey(lon, lat));
+  if (!e) return false;
+  return e.c.size >= 2 || (asProvince && e.p.size >= 2);
+}
+
+// Where two continents meet.
+function crossAt(lon, lat) {
+  const e = owners.get(ownerKey(lon, lat));
+  return !!e && e.cont.size >= 2;
+}
+
+/* The same geometry with a flag on each point. A territory is outlined
+   where it borders another territory; a continent only where it borders
+   another continent, because every border inside it is one of its own and
+   is meant to be invisible. */
+function flagged(geom, asProvince, crossOnly) {
+  const flag = (p) => (crossOnly ? crossAt(p[0], p[1]) : sharedAt(p[0], p[1], asProvince)) ? 1 : 0;
+  const conv = (ring) => ring.map((p) => [p[0], p[1], flag(p)]);
+  if (geom.type === "Polygon") return { type: "Polygon", coordinates: geom.coordinates.map(conv) };
+  if (geom.type === "MultiPolygon") {
+    return { type: "MultiPolygon", coordinates: geom.coordinates.map((poly) => poly.map(conv)) };
+  }
+  return geom;
+}
+
+// Countries: the base map as well as something to search for. Their
+// continent is kept so a continent can be drawn as its countries.
+const countries = read("ne_50m_admin_0_countries");
+const provinces = read("ne_50m_admin_1_states_provinces").filter((p) => p.properties.admin === "Russia");
+countries.forEach((f) => {
+  // Russia's continent is settled by its provinces below, not by Natural
+  // Earth's file, which puts all of it in Europe.
+  const cont = f.properties.ADM0_A3 === "RUS" ? null : (p) => contOfPoint(f, p);
+  claim(f.geometry, f.properties.ADM0_A3 || f.properties.NAME, "c", cont);
+});
+provinces.forEach((f) => {
+  const name = f.properties.name_en || f.properties.name || "";
+  const asia = RUS_ASIA.some((k) => name.indexOf(k) >= 0);
+  claim(f.geometry, f.properties.adm1_code || name, "p", asia ? "Asia" : "Europe");
+});
+
+countries.forEach((f) => {
+  const p = f.properties;
+  if (p.TYPE === "Indeterminate" && !p.NAME_EN) return;
+  const { g, b } = polysFlagged(flagged(f.geometry, false, false), 0.03, 0.02);
+  // The same rings again, flagged for continent borders this time: which
+  // of them is drawn depends on whether the country is being shown as
+  // itself or as part of the continent it belongs to.
+  const x = polysFlagged(flagged(f.geometry, false, true), 0.03, 0.02).b;
+  const name = p.NAME_EN || p.NAME;
+  const a = alts(p.NAME_LONG, p.FORMAL_EN, p.ADMIN, p.NAME).filter((n) => n.toLowerCase() !== name.toLowerCase());
+  add(name, "Country", "p", g, { b, x, c: p.CONTINENT, ...(a.length ? { a } : {}) });
+});
+
+// Continents, drawn from the countries that make them up rather than from
+// Natural Earth's label regions, so they line up exactly with the base map.
+// No second copy of those borders is stored: `from` lists the country ids
+// and the page stitches them together.
+//
+// Natural Earth files all of Russia under Europe, which would leave Asia
+// without Siberia. Russia is therefore split by its own federal subjects
+// (ne_50m_admin_1_states_provinces) rather than cut along a meridian: a
+// straight line down 60°E read as a mistake, because the real division
+// follows the Urals and the administrative borders drawn around them.
+// Those two halves are the only outlines a continent carries of its own.
+//
+// Everything east of the Urals crest, by the usual reckoning. Anything not
+// named here is European Russia -- including the subjects that straddle the
+// ridge and are counted west of it (Perm, Bashkortostan, Orenburg, Komi).
 {
   const from = {}, own = {};
   const keep = (cont, g, b) => {
@@ -262,14 +300,14 @@ const RUS_ASIA = ["Tomsk", "Chukotka", "Chelyabinsk", "Kurgan", "Yamalo-Nenets",
       const box = ringBox(ring);
       const cx = (box[0] + box[2]) / 2, cy = (box[1] + box[3]) / 2;
       const rule = rules.find((r) => cx >= r.box[0] && cx <= r.box[2] && cy >= r.box[1] && cy <= r.box[3]);
-      keep(rule ? rule.to : c, [ring], [f.b[i]]);
+      keep(rule ? rule.to : c, [ring], [f.x[i]]);
     });
   });
 
   provinces.forEach((p) => {
     const name = p.properties.name_en || p.properties.name || "";
     const asia = RUS_ASIA.some((k) => name.indexOf(k) >= 0);
-    const { g, b } = polysFlagged(flagged(p.geometry, true), 0.03, 0.02);
+    const { g, b } = polysFlagged(flagged(p.geometry, true, true), 0.03, 0.02);
     keep(asia ? "Asia" : "Europe", g, b);
   });
   const extra = { "North America": ["N. America"], "South America": ["S. America"],
