@@ -5167,8 +5167,11 @@ button{font:inherit;color:inherit}
       if (!f) return;
       var rings = ringsOf(f), box = fitBoxOf(rings);
       var dotted = markedByDot(f);
+      // A few places carry the spot their name is printed on an atlas
+      // (`f.p`); the rest are worked out from their shape.
+      var mark = f.p ? project(f.p[0] / GEO.q, f.p[1] / GEO.q) : null;
       items.push({ id: p.id, f: f, rings: rings, box: box, dot: dotted,
-                   anchor: dotted ? anchorIn(rings) : null,
+                   anchor: dotted ? (mark || anchorIn(rings)) : null,
                    area: (box[2] - box[0]) * (box[3] - box[1]) });
     });
     // Big shapes first so small ones sit on top of them; rivers and dots
@@ -5283,9 +5286,9 @@ button{font:inherit;color:inherit}
       var u = upp();
       dots.forEach(function (d) {
         d.dot.setAttribute("r", DOT_R * u);
-        // Four diameters out. A dot is a small target for a shaky hand, and
+        // Two diameters out. A dot is a small target for a shaky hand, and
         // where two of these reaches overlap the nearer dot wins.
-        d.hit.setAttribute("r", DOT_R * 8 * u);
+        d.hit.setAttribute("r", DOT_R * 4 * u);
         if (d.pip) d.pip.setAttribute("r", 2.4 * u);
         if (d.halo) d.halo.setAttribute("r", (DOT_R + 4.5) * u);
       });
@@ -6392,7 +6395,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build e62d8d1f</p>
+<p class="build-stamp">build f243bf0e</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>

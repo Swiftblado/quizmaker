@@ -397,6 +397,24 @@ read("ne_50m_populated_places_simple").forEach((f) => {
     { ...(p.adm0name ? { r: p.adm0name } : {}), ...(p.pop_max ? { pop: p.pop_max } : {}) });
 });
 
+/* Where an ocean's mark belongs, by eye. The furthest point from any
+   shore is the right answer for a sea with a shape, but an ocean is mostly
+   shapeless: the widest water in the Atlantic is the stretch between
+   Florida and the Sahara, so that is where the mark landed, when anyone
+   looking for the Atlantic looks between Europe and North America. These
+   are the places an atlas prints the name. */
+const LABEL_AT = {
+  "ocean:atlantic ocean": [-35, 45],
+  "ocean:north atlantic ocean": [-40, 40],
+  "ocean:south atlantic ocean": [-18, -28],
+  "ocean:pacific ocean": [-155, 8],
+  "ocean:north pacific ocean": [-165, 30],
+  "ocean:south pacific ocean": [-125, -25],
+  "ocean:indian ocean": [78, -22],
+  "ocean:arctic ocean": [0, 84],
+  "ocean:southern ocean": [0, -64],
+};
+
 // Features that share a name (there are several Georgias and many Lake
 // Victorias) get an id that tells them apart and stays put between runs.
 const seen = {};
@@ -407,6 +425,10 @@ out.forEach((f) => {
 });
 // Continents named their countries by reference until the ids existed.
 out.forEach((f) => { if (f.from) f.from = f.from.map((c) => c.id); });
+out.forEach((f) => {
+  const at = LABEL_AT[f.id];
+  if (at) f.p = [Math.round(at[0] * Q), Math.round(at[1] * Q)];
+});
 
 const file = path.join(HERE, "..", "geo.json");
 fs.writeFileSync(file, JSON.stringify({ q: Q, f: out }));
