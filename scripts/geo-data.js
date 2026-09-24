@@ -407,7 +407,7 @@ const LABEL_AT = {
   "ocean:atlantic ocean": [-35, 45],
   "ocean:north atlantic ocean": [-40, 40],
   "ocean:south atlantic ocean": [-18, -28],
-  "ocean:pacific ocean": [-155, 8],
+  "ocean:pacific ocean": [-145, 8],
   "ocean:north pacific ocean": [-165, 30],
   "ocean:south pacific ocean": [-125, -25],
   "ocean:indian ocean": [78, -22],

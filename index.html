@@ -937,13 +937,18 @@ button{font:inherit;color:inherit}
 .m-halo{display:none;fill:none;stroke:#000;stroke-width:1.6;vector-effect:non-scaling-stroke;pointer-events:none}
 @media (hover:hover){ .m-dot:hover .m-halo{display:block} }
 .m-pip{display:none;stroke:var(--pick-edge);stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
-.m-dot.is-ok .m-pip{display:block;fill:var(--found)}
+.m-dot.is-ok .m-pip{display:block;fill:#000}
 .m-dot.is-late .m-pip{display:block;fill:var(--almost)}
 .m-dot.is-failed .m-pip{display:block;fill:var(--bad)}
 /* Every hit area is invisible. This once read `.m-ring .m-hit`, which
    matches nothing -- the two are siblings -- so the hit circle round a
    small country was painted in the default black. */
 .m-hit{fill:transparent;stroke:none}
+/* Once a place has been answered its wide reach is given up: it cannot be
+   asked for again, and it would otherwise take clicks meant for the dots
+   around it. The dot itself still answers -- clicking one says its name,
+   as it always did. */
+.m-dot.is-ok .m-hit,.m-dot.is-late .m-hit,.m-dot.is-failed .m-hit{pointer-events:none}
 /* A place too small to hit at this scale gets a ring round it, as Seterra
    does for the island nations. */
 .m-ring{fill:none;stroke:var(--pick-edge);stroke-width:1.2;vector-effect:non-scaling-stroke}
@@ -5152,9 +5157,21 @@ button{font:inherit;color:inherit}
       byId[it.id] = it;
     });
 
+    /* What the map is fitted to. Where a quiz holds territories, a dotted
+       place counts as its dot and not as its outline: the Atlantic reaches
+       from Argentina to Norway, and a quiz on a few countries and a sea
+       should not open on half the world because of it. A quiz of nothing
+       but dots still fits their outlines, or a single sea would fill the
+       screen with open water. */
+    var anyShape = items.some(function (it) { return !it.dot; });
+    var fitBox = function (it) {
+      if (!it.dot || !anyShape || !it.anchor) return it.box;
+      return [it.anchor[0], it.anchor[1], it.anchor[0], it.anchor[1]];
+    };
     var all = items.length ? items.reduce(function (b, it) {
-      return [Math.min(b[0], it.box[0]), Math.min(b[1], it.box[1]),
-              Math.max(b[2], it.box[2]), Math.max(b[3], it.box[3])];
+      var x = fitBox(it);
+      return [Math.min(b[0], x[0]), Math.min(b[1], x[1]),
+              Math.max(b[2], x[2]), Math.max(b[3], x[3])];
     }, [Infinity, Infinity, -Infinity, -Infinity]) : [WORLD.x, WORLD.y, WORLD.x + WORLD.w, WORLD.y + WORLD.h];
 
     var view = null;
