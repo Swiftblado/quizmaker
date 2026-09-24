@@ -883,18 +883,18 @@ button{font:inherit;color:inherit}
    places in play picked out in a warm tone on land and a deeper blue on
    water, so what can be clicked is obvious before anything is asked. */
 :root{
-  --sea:#C3D8EA;--land:#C7CCD4;
-  --pick:#8DC776;--found:#FFFFFF;--pick-edge:#3B4354;--pick-line:#2F6BC9;
+  --sea:#AFCADF;--land:#BFC5CE;
+  --pick:#6BAC50;--found:#FFFFFF;--pick-edge:#3B4354;--pick-line:#2F6BC9;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --sea:#121E33;--land:#3A4150;
-    --pick:#4C7845;--found:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
+    --sea:#0D182A;--land:#343B49;
+    --pick:#3C6636;--found:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
   }
 }
 :root[data-theme="dark"]{
-  --sea:#121E33;--land:#3A4150;
-  --pick:#4C7845;--found:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
+  --sea:#0D182A;--land:#343B49;
+  --pick:#3C6636;--found:#FFFFFF;--pick-edge:#0C1018;--pick-line:#7FB2FF;
 }
 
 /* The box is sized to the map, not the other way round: the script gives
@@ -928,7 +928,14 @@ button{font:inherit;color:inherit}
    -- a dot is small enough that a colour on it reads as a different kind
    of thing rather than a state. */
 .m-dot .m-shape{fill:var(--found);stroke:var(--pick-edge);stroke-width:1.2}
-.m-dot.is-ok .m-shape{fill:var(--found)}
+/* What a dot was worth is a smaller dot in its middle, in the colour a
+   territory would have taken: white found first time, amber found late,
+   red never found. (The rule keeping the dot itself white has to come
+   after the state colours further down, so it lives at the end.) */
+.m-pip{display:none;stroke:var(--pick-edge);stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:none}
+.m-dot.is-ok .m-pip{display:block;fill:var(--found)}
+.m-dot.is-late .m-pip{display:block;fill:var(--almost)}
+.m-dot.is-failed .m-pip{display:block;fill:var(--bad)}
 /* Every hit area is invisible. This once read `.m-ring .m-hit`, which
    matches nothing -- the two are siblings -- so the hit circle round a
    small country was painted in the default black. */
@@ -958,6 +965,10 @@ button{font:inherit;color:inherit}
 .m-f.is-wrong .m-shape{fill:var(--bad)}
 .m-poly.is-wrong .m-shape{stroke:var(--bad)}
 .m-line.is-wrong .m-shape{stroke:var(--bad);fill:none}
+/* Last word on a dot: white in every state, because the pip in the middle
+   is what says how it went. */
+.m-f.m-dot .m-shape{fill:var(--found)}
+
 /* Last word on a continent, after every state above: one colour, filled and
    stroked with it, so no border inside it can ever show. */
 .m-poly.m-cont .m-shape{fill:var(--m-tone);stroke:var(--m-tone);stroke-width:.8}
@@ -5074,9 +5085,11 @@ button{font:inherit;color:inherit}
         var pt = it.dot ? it.anchor : it.rings[0][0];
         var hit = svgEl("circle", { "class": "m-hit", cx: pt[0], cy: pt[1], r: 1 });
         var dot = svgEl("circle", { "class": "m-shape", cx: pt[0], cy: pt[1], r: 1 });
+        var pip = svgEl("circle", { "class": "m-pip", cx: pt[0], cy: pt[1], r: 1 });
         g.appendChild(hit);
         g.appendChild(dot);
-        dots.push({ hit: hit, dot: dot });
+        g.appendChild(pip);
+        dots.push({ hit: hit, dot: dot, pip: pip });
       } else {
         var d = it.rings.map(function (r) { return ringPath(r, it.f.s === "p"); }).join("");
         if (it.f.s === "l") g.appendChild(svgEl("path", { "class": "m-hit", d: d }));
@@ -5155,7 +5168,11 @@ button{font:inherit;color:inherit}
       view = v;
       svg.setAttribute("viewBox", view.x + " " + view.y + " " + view.w + " " + view.h);
       var u = upp();
-      dots.forEach(function (d) { d.dot.setAttribute("r", 5.5 * u); d.hit.setAttribute("r", 13 * u); });
+      dots.forEach(function (d) {
+        d.dot.setAttribute("r", 5.5 * u);
+        d.hit.setAttribute("r", 13 * u);
+        if (d.pip) d.pip.setAttribute("r", 2.4 * u);
+      });
       rings.forEach(function (r) { r.ring.setAttribute("r", 10 * u); r.hit.setAttribute("r", 13 * u); });
     }
 
