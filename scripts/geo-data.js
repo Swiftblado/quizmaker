@@ -311,9 +311,12 @@ countries.forEach((f) => {
     keep(asia ? "Asia" : "Europe", g, b);
   });
   const extra = { "North America": ["N. America"], "South America": ["S. America"],
-    Oceania: ["Australia (continent)", "Australasia"] };
+    Oceania: ["Oceania", "Australasia"] };
+  // Natural Earth files the continent as Oceania; it is asked for as
+  // Australia, and answers to both.
+  const shown = { Oceania: "Australia" };
   Object.keys(from).forEach((c) => {
-    out.push({ n: c, k: "Continent", s: "p", g: (own[c] || { g: [] }).g,
+    out.push({ n: shown[c] || c, k: "Continent", s: "p", g: (own[c] || { g: [] }).g,
       b: (own[c] || { b: [] }).b, from: from[c].map((f) => f),
       ...(extra[c] ? { a: extra[c] } : {}) });
   });

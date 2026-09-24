@@ -992,6 +992,10 @@ button{font:inherit;color:inherit}
 @keyframes m-ripple{from{r:var(--r0);opacity:.85}to{r:var(--r1);opacity:0}}
 .m-f.is-pop{transform-box:fill-box;transform-origin:center;animation:m-found .38s ease-out}
 @keyframes m-found{0%{transform:scale(1)}35%{transform:scale(1.05)}100%{transform:scale(1)}}
+/* The place the question is about, when the question is its name. */
+.m-f.is-asking .m-shape{fill:var(--accent);stroke:var(--accent)}
+.m-dot.is-asking .m-shape{fill:var(--accent);stroke:var(--pick-edge)}
+.m-f.is-asking .m-ring{stroke:var(--accent)}
 .m-f.is-blink{animation:m-blink .5s steps(2,start) 4}
 @keyframes m-blink{to{opacity:.15}}
 
@@ -1023,6 +1027,12 @@ button{font:inherit;color:inherit}
 .geo-ask.shown #geo-lead{color:var(--bad);font-weight:600}
 .geo-limit button{padding:5px 9px;font-size:12px}
 .geo-progress{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.geo-typing{display:flex;gap:8px;margin:0 0 12px}
+.geo-typing input{
+  flex:1;min-width:0;padding:11px 13px;border:1px solid var(--rule);border-radius:8px;
+  background:var(--surface);color:var(--ink);font:inherit;font-size:15px;
+}
+.geo-typing input:focus{outline:none;border-color:var(--accent)}
 .geo-stage{position:relative;padding:8px}
 .geo-done{margin-top:14px}
 .geo-keep{margin-top:14px}
@@ -1119,6 +1129,56 @@ button{font:inherit;color:inherit}
         <div class="row" style="margin-top:14px">
           <button class="btn btn-primary" id="geo-build" type="button" disabled>Build quiz</button>
           <button class="btn" id="geo-cancel-edit" type="button" hidden>Stop editing</button>
+        </div>
+      </div>
+
+      <div class="card opts geo-opts">
+        <div class="opt">
+          <div>
+            <div class="opt-label">Answer style</div>
+            <div class="opt-desc" id="geo-mode-desc">Click the place on the map.</div>
+          </div>
+          <div class="seg" id="geo-mode-seg" role="group" aria-label="Answer style">
+            <button type="button" data-mode="click" aria-pressed="true">Clicking</button>
+            <button type="button" data-mode="type" aria-pressed="false">Typing</button>
+          </div>
+        </div>
+        <div class="opt">
+          <div>
+            <div class="opt-label">Time for the round</div>
+            <div class="opt-desc">One clock for the whole round. Run it out and whatever is left unfound counts as missed.</div>
+          </div>
+          <div class="seg" id="geo-limit-seg" role="group" aria-label="Time limit for the round">
+            <button type="button" data-secs="0" aria-pressed="true">Off</button>
+            <button type="button" data-secs="60" aria-pressed="false">1m</button>
+            <button type="button" data-secs="120" aria-pressed="false">2m</button>
+            <button type="button" data-secs="300" aria-pressed="false">5m</button>
+          </div>
+        </div>
+        <div class="opt">
+          <div>
+            <div class="opt-label">Time per place</div>
+            <div class="opt-desc">A clock on each place in turn. Run it out and that one is missed, and shown to you.</div>
+          </div>
+          <div class="seg" id="geo-place-seg" role="group" aria-label="Time for each place">
+            <button type="button" data-secs="0" aria-pressed="true">Off</button>
+            <button type="button" data-secs="5" aria-pressed="false">5s</button>
+            <button type="button" data-secs="10" aria-pressed="false">10s</button>
+            <button type="button" data-secs="20" aria-pressed="false">20s</button>
+          </div>
+        </div>
+        <div class="opt">
+          <div>
+            <div class="opt-label">Wrong guesses allowed</div>
+            <div class="opt-desc" id="geo-tries-desc">Miss this many and the place is shown to you, and counts as missed.</div>
+          </div>
+          <div class="seg" id="geo-tries-seg" role="group" aria-label="Wrong guesses allowed">
+            <button type="button" data-tries="1" aria-pressed="false">1</button>
+            <button type="button" data-tries="2" aria-pressed="false">2</button>
+            <button type="button" data-tries="3" aria-pressed="true">3</button>
+            <button type="button" data-tries="5" aria-pressed="false">5</button>
+            <button type="button" data-tries="0" aria-pressed="false">Never</button>
+          </div>
         </div>
       </div>
 
@@ -1363,18 +1423,19 @@ button{font:inherit;color:inherit}
         <button class="btn btn-sm geo-skip" id="geo-skip" type="button" title="Ask this one again later">Skip</button>
       </div>
       <div class="geo-hud-right">
-        <div class="seg geo-limit" id="geo-limit-seg" role="group" aria-label="Time limit for the round">
-          <button type="button" data-secs="0" aria-pressed="true">Off</button>
-          <button type="button" data-secs="60" aria-pressed="false">1m</button>
-          <button type="button" data-secs="120" aria-pressed="false">2m</button>
-          <button type="button" data-secs="300" aria-pressed="false">5m</button>
-        </div>
         <span class="geo-progress" id="geo-progress">0 / 0</span>
+        <span class="clock" id="geo-place-clock" title="Time on this place" hidden>0:00</span>
         <span class="clock" id="geo-clock" title="Time this round">0:00</span>
         <span class="score" id="geo-score" title="Right clicks out of all clicks">100%</span>
       </div>
     </div>
     <div class="track"><span id="geo-track"></span></div>
+
+    <div class="geo-typing" id="geo-typing" hidden>
+      <input type="text" id="geo-answer" autocomplete="off" autocapitalize="off" autocorrect="off"
+             spellcheck="false" placeholder="type the name of the place shown">
+      <button class="btn btn-sm btn-primary" id="geo-answer-go" type="button">Check</button>
+    </div>
 
     <div class="card geo-stage" id="geo-stage">
       <div class="geo-map" id="geo-map"></div>
@@ -1513,7 +1574,8 @@ button{font:inherit;color:inherit}
   /* ---------------- state ---------------- */
   var deck = null;
   var opts = { dir: "ab", accents: false, typo: true, retry: true, limit: 0,
-               mode: "type", choices: 4, geoLimit: 0 };
+               mode: "type", choices: 4,
+               geoLimit: 0, geoPlace: 0, geoTries: 3, geoMode: "click" };
   var game = null;
   var ticker = null;
 
@@ -5338,6 +5400,10 @@ button{font:inherit;color:inherit}
         if (!rings.length) ringSmall();
         setView(fitTo(all));
       },
+      // Typing mode asks which place this is, so the place is picked out.
+      point: function (id) {
+        items.forEach(function (it) { it.g.classList.toggle("is-asking", it.id === id); });
+      },
       mark: function (id, cls) {
         var it = byId[id];
         if (!it) return;
@@ -6000,13 +6066,14 @@ button{font:inherit;color:inherit}
 
       geoGame = { deck: d, order: shuffle(inPlay.map(function (p) { return p.id; })),
                   names: names, i: 0, tries: 0, results: {}, right: 0, wrong: 0, first: 0,
-                  t0: Date.now(), over: false, drill: !!only, skips: 0, shown: false,
-                  subName: subName || null };
+                  t0: Date.now(), placeAt: Date.now(), over: false, drill: !!only,
+                  skips: 0, shown: false, subName: subName || null };
       $("geo-done").hidden = true;
       $("geo-again").hidden = $("geo-drill").hidden = $("geo-edit").hidden = true;
       $("geo-quit").hidden = false;
       $("geo-ask").hidden = false;
       $("geo-skip").hidden = false;
+      askPlace();
       stopGeoClock();
       // A countdown wants a finer tick than a clock that only counts seconds.
       geoTicker = setInterval(geoHud, 250);
@@ -6043,6 +6110,25 @@ button{font:inherit;color:inherit}
     $("geo-track").style.width = (g.i / n * 100) + "%";
     $("geo-score").textContent = geoScore() + "%";
 
+    // The clock on this place, when there is one.
+    var pc = $("geo-place-clock");
+    pc.hidden = !opts.geoPlace || g.over;
+    if (!pc.hidden) {
+      var left = opts.geoPlace * 1000 - (Date.now() - (g.placeAt || g.t0));
+      if (left <= 0 && !g.shown) { placeOut(); left = 0; }
+      pc.textContent = clockText(Math.max(left, 0));
+      pc.classList.toggle("urgent", left <= 3000);
+      pc.classList.toggle("warn", left > 3000 && left <= 6000);
+    }
+
+    // Typing mode asks for a name rather than a place.
+    var typing = opts.geoMode === "type" && !g.over;
+    $("geo-typing").hidden = !typing;
+    if (typing) {
+      $("geo-lead").textContent = g.shown ? "It was" : "Name the place picked out";
+      $("geo-target").textContent = g.shown ? asking : "";
+    }
+
     var clock = $("geo-clock"), gone = (g.over ? g.t1 : Date.now()) - g.t0;
     var limit = opts.geoLimit * 1000;
     clock.classList.remove("warn", "urgent");
@@ -6069,20 +6155,42 @@ button{font:inherit;color:inherit}
     finishGeo();
   }
 
+  /* The settings a map quiz is played under. They live with the rest of the
+     options rather than with the quiz: they are how you want to be asked,
+     not what you are being asked about. */
   function applyGeoLimit() {
-    Array.prototype.forEach.call($("geo-limit-seg").children, function (b) {
-      b.setAttribute("aria-pressed", Number(b.dataset.secs) === opts.geoLimit ? "true" : "false");
-    });
+    var set = function (id, attr, value) {
+      Array.prototype.forEach.call($(id).children, function (b) {
+        var mine = attr === "mode" ? b.dataset.mode : Number(b.dataset[attr]);
+        b.setAttribute("aria-pressed", mine === value ? "true" : "false");
+      });
+    };
+    set("geo-limit-seg", "secs", opts.geoLimit);
+    set("geo-place-seg", "secs", opts.geoPlace);
+    set("geo-tries-seg", "tries", opts.geoTries);
+    set("geo-mode-seg", "mode", opts.geoMode);
+    $("geo-mode-desc").textContent = opts.geoMode === "type"
+      ? "A place is picked out on the map and you type its name."
+      : "Click the place on the map.";
+    $("geo-tries-desc").textContent = opts.geoTries
+      ? "Miss this many and the place is shown to you, and counts as missed."
+      : "A place is never given away: it is asked until it is found.";
   }
 
-  $("geo-limit-seg").addEventListener("click", function (e) {
-    var b = e.target.closest("button");
-    if (!b) return;
-    opts.geoLimit = Number(b.dataset.secs);
-    writeStore("qp:opts", opts);
-    applyGeoLimit();
-    geoHud();
-  });
+  function wireGeoSeg(id, read) {
+    $(id).addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b) return;
+      read(b);
+      writeStore("qp:opts", opts);
+      applyGeoLimit();
+      geoHud();
+    });
+  }
+  wireGeoSeg("geo-limit-seg", function (b) { opts.geoLimit = Number(b.dataset.secs); });
+  wireGeoSeg("geo-place-seg", function (b) { opts.geoPlace = Number(b.dataset.secs); });
+  wireGeoSeg("geo-tries-seg", function (b) { opts.geoTries = Number(b.dataset.tries); });
+  wireGeoSeg("geo-mode-seg", function (b) { opts.geoMode = b.dataset.mode === "type" ? "type" : "click"; });
 
   function onGeoPick(ids, e) {
     var g = geoGame;
@@ -6091,6 +6199,12 @@ button{font:inherit;color:inherit}
     // the place -- a free look, as in Seterra.
     if (g.over) { geoMap.tip(g.names[ids[0]], e); return; }
     var target = g.order[g.i];
+    // In typing mode the map is the question, not the answer. A click on it
+    // says what a place is called only once that place has been answered.
+    if (opts.geoMode === "type") {
+      if (g.results[ids[0]]) geoMap.tip(g.names[ids[0]], e);
+      return;
+    }
     if (ids.indexOf(target) >= 0) {
       // Shown, and now clicked: it was already marked missed, so this puts
       // nothing on the board. It moves the round on, which is its purpose.
@@ -6114,7 +6228,7 @@ button{font:inherit;color:inherit}
     g.wrong++;
     geoMap.flash(hit, "is-wrong", 650);
     geoMap.tip(g.names[hit], e, true);
-    if (g.tries >= 3) {
+    if (opts.geoTries && g.tries >= opts.geoTries) {
       /* Three wrong and it is missed -- but the round does not move on by
          itself. It is shown in red and waits to be clicked, so the place is
          looked at rather than read off and forgotten. */
@@ -6150,8 +6264,38 @@ button{font:inherit;color:inherit}
     g.i++;
     g.tries = 0;
     g.shown = false;
-    if (g.i >= g.order.length) finishGeo();
-    else geoHud();
+    if (g.i >= g.order.length) { askPlace(); finishGeo(); }
+    else { askPlace(); geoHud(); }
+  }
+
+  /* Starting on a place: its own clock begins, and in typing mode it is
+     picked out on the map, since the question is which place this is. */
+  function askPlace() {
+    var g = geoGame;
+    if (!g) return;
+    g.placeAt = Date.now();
+    if (geoMap) geoMap.point(g.over || g.i >= g.order.length ? null : g.order[g.i]);
+    if (opts.geoMode === "type" && !g.over) {
+      $("geo-answer").value = "";
+      $("geo-answer").focus();
+    }
+  }
+
+  // The place is missed because its own time ran out, and is shown.
+  function placeOut() {
+    var g = geoGame;
+    if (!g || g.over || g.shown) return;
+    var target = g.order[g.i];
+    if (g.results[target]) return;
+    g.results[target] = "is-failed";
+    g.shown = true;
+    // It counts against the score the same as running the round's clock
+    // out does, or a round could be missed all the way through at 100%.
+    g.wrong++;
+    geoMap.mark(target, "is-failed");
+    geoMap.flash(target, "is-blink", 2000);
+    geoMap.tipAt(target, g.names[target], true);
+    geoHud();
   }
 
   function finishGeo() {
@@ -6172,7 +6316,8 @@ button{font:inherit;color:inherit}
 
     $("geo-ask").hidden = true;
     $("geo-skip").hidden = true;
-    if (geoMap) geoMap.ask("");
+    $("geo-typing").hidden = true;
+    if (geoMap) { geoMap.ask(""); geoMap.point(null); }
     $("geo-done").hidden = false;
     $("geo-done").querySelector(".eyebrow").textContent =
       g.subName ? "Round complete · " + g.subName : "Round complete";
@@ -6232,6 +6377,51 @@ button{font:inherit;color:inherit}
   });
   $("geo-keep-name").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); $("geo-keep-save").click(); }
+  });
+
+  /* A typed answer. It is judged the way a word is -- accents forgiven
+     unless asked for, one typo allowed -- and every name the place answers
+     to is accepted. A near miss counts as finding it late, not as a wrong
+     guess: the place was known, the spelling was not. */
+  function answerGeo() {
+    var g = geoGame;
+    if (!g || g.over || opts.geoMode !== "type") return;
+    var target = g.order[g.i];
+    if (g.shown) { nextGeo(); return; }      // it has been given away; move on
+
+    var typed = $("geo-answer").value.trim();
+    if (!typed) return;
+    $("geo-answer").value = "";
+
+    var f = placeShape((g.deck.places || []).filter(function (p) { return p.id === target; })[0]);
+    var accepted = [g.names[target]].concat((f && f.a) || []);
+    var verdict = judge(typed, accepted, false).verdict;
+
+    if (verdict === "bad") {
+      g.tries++;
+      g.wrong++;
+      geoMap.flash(target, "is-wrong", 500);
+      if (opts.geoTries && g.tries >= opts.geoTries) {
+        g.results[target] = "is-failed";
+        g.shown = true;
+        geoMap.mark(target, "is-failed");
+        geoMap.flash(target, "is-blink", 2000);
+      }
+      geoHud();
+      return;
+    }
+    var state = (g.tries || verdict === "almost") ? "is-late" : "is-ok";
+    g.results[target] = state;
+    g.right++;
+    if (state === "is-ok") g.first++;
+    geoMap.mark(target, state);
+    geoMap.pop(target, null);
+    nextGeo();
+  }
+
+  $("geo-answer-go").addEventListener("click", answerGeo);
+  $("geo-answer").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); answerGeo(); }
   });
 
   $("geo-quit").addEventListener("click", finishGeo);
@@ -6331,6 +6521,9 @@ button{font:inherit;color:inherit}
       opts.mode = storedOpts.mode === "choice" ? "choice" : "type";
       opts.choices = storedOpts.choices >= 2 && storedOpts.choices <= 6 ? storedOpts.choices : 4;
       opts.geoLimit = [0, 60, 120, 300].indexOf(storedOpts.geoLimit) >= 0 ? storedOpts.geoLimit : 0;
+      opts.geoPlace = [0, 5, 10, 20].indexOf(storedOpts.geoPlace) >= 0 ? storedOpts.geoPlace : 0;
+      opts.geoTries = [0, 1, 2, 3, 5].indexOf(storedOpts.geoTries) >= 0 ? storedOpts.geoTries : 3;
+      opts.geoMode = storedOpts.geoMode === "type" ? "type" : "click";
     }
     applyOpts();
     applyGeoLimit();
