@@ -1047,6 +1047,9 @@ button{font:inherit;color:inherit}
   background:var(--ink);color:var(--surface);box-shadow:var(--shadow);opacity:.92;
 }
 .geo-cursor.flip{transform:translate(calc(-100% - 15px),17px)}
+/* A place that was missed is being shown, and the round waits on it. */
+.geo-cursor.bad{background:var(--bad);color:#fff}
+.geo-ask.shown #geo-lead{color:var(--bad);font-weight:600}
 .geo-limit button{padding:5px 9px;font-size:12px}
 .geo-progress{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .geo-stage{position:relative;padding:8px}
@@ -1427,7 +1430,7 @@ button{font:inherit;color:inherit}
   <!-- ============ MAP QUIZ ============ -->
   <section id="scr-geo" hidden>
     <div class="geo-hud">
-      <div class="geo-ask" id="geo-ask" aria-live="polite">Click on <b id="geo-target">&nbsp;</b>
+      <div class="geo-ask" id="geo-ask" aria-live="polite"><span id="geo-lead">Click on</span> <b id="geo-target">&nbsp;</b>
         <button class="btn btn-sm geo-skip" id="geo-skip" type="button" title="Ask this one again later">Skip</button>
       </div>
       <div class="geo-hud-right">
@@ -5442,9 +5445,10 @@ button{font:inherit;color:inherit}
         flashes.push(setTimeout(function () { it.g.classList.remove("is-pop"); }, 420));
         flashes.push(setTimeout(function () { if (ring.parentNode) ring.parentNode.removeChild(ring); }, 520));
       },
-      ask: function (text) {
+      ask: function (text, lead) {
         asking = text || "";
-        cursor.textContent = asking ? "Click on " + asking : "";
+        cursor.textContent = asking ? (lead || "Click on") + " " + asking : "";
+        cursor.classList.toggle("bad", /Missed/.test(lead || ""));
         if (!asking) cursor.hidden = true;
       },
       tipAt: function (id, text, bad) {
@@ -6067,7 +6071,8 @@ button{font:inherit;color:inherit}
 
       geoGame = { deck: d, order: shuffle(inPlay.map(function (p) { return p.id; })),
                   names: names, i: 0, tries: 0, results: {}, right: 0, wrong: 0, first: 0,
-                  t0: Date.now(), over: false, drill: !!only, skips: 0, subName: subName || null };
+                  t0: Date.now(), over: false, drill: !!only, skips: 0, shown: false,
+                  subName: subName || null };
       $("geo-done").hidden = true;
       $("geo-again").hidden = $("geo-drill").hidden = $("geo-edit").hidden = true;
       $("geo-quit").hidden = false;
@@ -6097,10 +6102,14 @@ button{font:inherit;color:inherit}
     if (!g) return;
     var n = g.order.length;
     var asking = g.over ? "" : g.names[g.order[g.i]];
+    var lead = g.shown ? "Missed — click" : "Click on";
     $("geo-target").textContent = asking;
-    if (geoMap) geoMap.ask(asking);
-    // Skipping the last one left would only ask it again.
-    $("geo-skip").disabled = g.over || g.order.length - g.i < 2;
+    $("geo-lead").textContent = lead;
+    $("geo-ask").classList.toggle("shown", !!g.shown);
+    if (geoMap) geoMap.ask(asking, lead);
+    // Skipping the last one left would only ask it again, and a place being
+    // shown is not skippable: it is waiting to be clicked.
+    $("geo-skip").disabled = g.over || g.shown || g.order.length - g.i < 2;
     $("geo-progress").textContent = Math.min(g.i + 1, n) + " / " + n;
     $("geo-track").style.width = (g.i / n * 100) + "%";
     $("geo-score").textContent = geoScore() + "%";
@@ -6154,6 +6163,9 @@ button{font:inherit;color:inherit}
     if (g.over) { geoMap.tip(g.names[ids[0]], e); return; }
     var target = g.order[g.i];
     if (ids.indexOf(target) >= 0) {
+      // Shown, and now clicked: it was already marked missed, so this puts
+      // nothing on the board. It moves the round on, which is its purpose.
+      if (g.shown) { nextGeo(); return; }
       var state = g.tries ? "is-late" : "is-ok";
       g.results[target] = state;
       g.right++;
@@ -6165,16 +6177,24 @@ button{font:inherit;color:inherit}
     }
     var hit = ids[0];
     if (g.results[hit]) { geoMap.tip(g.names[hit], e); return; }
+    // While a missed place is being shown, a click elsewhere costs nothing:
+    // the place has already been scored, and the round is waiting on the
+    // one click that says it has been seen.
+    if (g.shown) { geoMap.tip(g.names[hit], e, true); return; }
     g.tries++;
     g.wrong++;
     geoMap.flash(hit, "is-wrong", 650);
     geoMap.tip(g.names[hit], e, true);
     if (g.tries >= 3) {
+      /* Three wrong and it is missed -- but the round does not move on by
+         itself. It is shown in red and waits to be clicked, so the place is
+         looked at rather than read off and forgotten. */
       g.results[target] = "is-failed";
+      g.shown = true;
       geoMap.mark(target, "is-failed");
       geoMap.flash(target, "is-blink", 2000);
       setTimeout(function () { if (geoGame === g) geoMap.tipAt(target, g.names[target]); }, 700);
-      nextGeo();
+      geoHud();
       return;
     }
     geoHud();
@@ -6200,6 +6220,7 @@ button{font:inherit;color:inherit}
     var g = geoGame;
     g.i++;
     g.tries = 0;
+    g.shown = false;
     if (g.i >= g.order.length) finishGeo();
     else geoHud();
   }
@@ -6412,7 +6433,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build 45d773a8</p>
+<p class="build-stamp">build 983550a7</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
