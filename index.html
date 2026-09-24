@@ -1107,78 +1107,11 @@ button{font:inherit;color:inherit}
 
     <div id="pane-geo" role="tabpanel" aria-labelledby="tab-geo" hidden>
       <div class="card entry">
-        <label class="eyebrow" for="geo-name">Name this quiz</label>
-        <input class="entry-name" id="geo-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled map quiz">
-        <label class="eyebrow" for="geo-q" style="display:block;margin-top:16px">Find places</label>
-        <p class="entry-help">Search for anything on a map &mdash; continents, oceans, seas, gulfs, deserts, mountain ranges and peaks, rivers, lakes, countries, cities. Type a kind, like <code class="lit-eg">deserts</code> or <code class="lit-eg">countries of Africa</code>, to add a whole set at once.</p>
-        <div class="geo-search">
-          <input type="search" id="geo-q" autocomplete="off" spellcheck="false" placeholder="Try Sahara, Mediterranean, Alps, oceans…" aria-describedby="geo-status" aria-controls="geo-results">
-        </div>
-        <p class="entry-note" id="geo-status" role="status"></p>
-        <div class="geo-results" id="geo-results"></div>
-
-        <div class="geo-picked-head">
-          <span class="eyebrow">In this quiz</span>
-          <span class="geo-count" id="geo-count"></span>
-          <span class="sp"></span>
-          <button class="btn btn-ghost btn-sm" id="geo-clear" type="button" hidden>Clear all</button>
-        </div>
-        <div class="geo-chips" id="geo-chips"></div>
-        <div class="geo-preview" id="geo-preview" hidden></div>
-
-        <div class="row" style="margin-top:14px">
-          <button class="btn btn-primary" id="geo-build" type="button" disabled>Build quiz</button>
-          <button class="btn" id="geo-cancel-edit" type="button" hidden>Stop editing</button>
-        </div>
-      </div>
-
-      <div class="card opts geo-opts">
-        <div class="opt">
-          <div>
-            <div class="opt-label">Answer style</div>
-            <div class="opt-desc" id="geo-mode-desc">Click the place on the map.</div>
-          </div>
-          <div class="seg" id="geo-mode-seg" role="group" aria-label="Answer style">
-            <button type="button" data-mode="click" aria-pressed="true">Clicking</button>
-            <button type="button" data-mode="type" aria-pressed="false">Typing</button>
-          </div>
-        </div>
-        <div class="opt">
-          <div>
-            <div class="opt-label">Time for the round</div>
-            <div class="opt-desc">One clock for the whole round. Run it out and whatever is left unfound counts as missed.</div>
-          </div>
-          <div class="seg" id="geo-limit-seg" role="group" aria-label="Time limit for the round">
-            <button type="button" data-secs="0" aria-pressed="true">Off</button>
-            <button type="button" data-secs="60" aria-pressed="false">1m</button>
-            <button type="button" data-secs="120" aria-pressed="false">2m</button>
-            <button type="button" data-secs="300" aria-pressed="false">5m</button>
-          </div>
-        </div>
-        <div class="opt">
-          <div>
-            <div class="opt-label">Time per place</div>
-            <div class="opt-desc">A clock on each place in turn. Run it out and that one is missed, and shown to you.</div>
-          </div>
-          <div class="seg" id="geo-place-seg" role="group" aria-label="Time for each place">
-            <button type="button" data-secs="0" aria-pressed="true">Off</button>
-            <button type="button" data-secs="5" aria-pressed="false">5s</button>
-            <button type="button" data-secs="10" aria-pressed="false">10s</button>
-            <button type="button" data-secs="20" aria-pressed="false">20s</button>
-          </div>
-        </div>
-        <div class="opt">
-          <div>
-            <div class="opt-label">Wrong guesses allowed</div>
-            <div class="opt-desc" id="geo-tries-desc">Miss this many and the place is shown to you, and counts as missed.</div>
-          </div>
-          <div class="seg" id="geo-tries-seg" role="group" aria-label="Wrong guesses allowed">
-            <button type="button" data-tries="1" aria-pressed="false">1</button>
-            <button type="button" data-tries="2" aria-pressed="false">2</button>
-            <button type="button" data-tries="3" aria-pressed="true">3</button>
-            <button type="button" data-tries="5" aria-pressed="false">5</button>
-            <button type="button" data-tries="0" aria-pressed="false">Never</button>
-          </div>
+        <span class="eyebrow">A map quiz</span>
+        <p class="entry-help" style="margin-top:6px">Search for anything on a map &mdash; continents, oceans, seas, gulfs, deserts, mountain ranges and peaks, rivers, lakes, countries, cities &mdash; and the round asks you to find each one. Made maps keep their own settings: how long you have, how many wrong guesses, and whether you click a place or name it.</p>
+        <p class="entry-note" id="geo-tab-note" role="status"></p>
+        <div class="row" style="margin-top:12px">
+          <button class="btn btn-primary" id="geo-new" type="button">New map quiz</button>
         </div>
       </div>
 
@@ -1413,6 +1346,85 @@ button{font:inherit;color:inherit}
       <button class="btn btn-primary" id="btn-again" type="button" style="flex:1;min-width:150px">Play again</button>
       <button class="btn" id="btn-drill" type="button" hidden>Drill the misses</button>
       <button class="btn" id="btn-newdeck" type="button">New sheet</button>
+    </div>
+  </section>
+
+  <!-- ============ A MAP QUIZ, OPENED ============ -->
+  <section id="scr-geo-setup" hidden>
+      <div class="card entry">
+        <label class="eyebrow" for="geo-name">Name this quiz</label>
+        <input class="entry-name" id="geo-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled map quiz">
+        <label class="eyebrow" for="geo-q" style="display:block;margin-top:16px">Find places</label>
+        <p class="entry-help">Search for anything on a map &mdash; continents, oceans, seas, gulfs, deserts, mountain ranges and peaks, rivers, lakes, countries, cities. Type a kind, like <code class="lit-eg">deserts</code> or <code class="lit-eg">countries of Africa</code>, to add a whole set at once.</p>
+        <div class="geo-search">
+          <input type="search" id="geo-q" autocomplete="off" spellcheck="false" placeholder="Try Sahara, Mediterranean, Alps, oceans…" aria-describedby="geo-status" aria-controls="geo-results">
+        </div>
+        <p class="entry-note" id="geo-status" role="status"></p>
+        <div class="geo-results" id="geo-results"></div>
+
+        <div class="geo-picked-head">
+          <span class="eyebrow">In this quiz</span>
+          <span class="geo-count" id="geo-count"></span>
+          <span class="sp"></span>
+          <button class="btn btn-ghost btn-sm" id="geo-clear" type="button" hidden>Clear all</button>
+        </div>
+        <div class="geo-chips" id="geo-chips"></div>
+        <div class="geo-preview" id="geo-preview" hidden></div>
+
+      </div>
+
+      <div class="card opts geo-opts">
+        <div class="opt">
+          <div>
+            <div class="opt-label">Answer style</div>
+            <div class="opt-desc" id="geo-mode-desc">Click the place on the map.</div>
+          </div>
+          <div class="seg" id="geo-mode-seg" role="group" aria-label="Answer style">
+            <button type="button" data-mode="click" aria-pressed="true">Clicking</button>
+            <button type="button" data-mode="type" aria-pressed="false">Typing</button>
+          </div>
+        </div>
+        <div class="opt">
+          <div>
+            <div class="opt-label">Time for the round</div>
+            <div class="opt-desc">One clock for the whole round. Run it out and whatever is left unfound counts as missed.</div>
+          </div>
+          <div class="seg" id="geo-limit-seg" role="group" aria-label="Time limit for the round">
+            <button type="button" data-secs="0" aria-pressed="true">Off</button>
+            <button type="button" data-secs="60" aria-pressed="false">1m</button>
+            <button type="button" data-secs="120" aria-pressed="false">2m</button>
+            <button type="button" data-secs="300" aria-pressed="false">5m</button>
+          </div>
+        </div>
+        <div class="opt">
+          <div>
+            <div class="opt-label">Time per place</div>
+            <div class="opt-desc">A clock on each place in turn. Run it out and that one is missed, and shown to you.</div>
+          </div>
+          <div class="seg" id="geo-place-seg" role="group" aria-label="Time for each place">
+            <button type="button" data-secs="0" aria-pressed="true">Off</button>
+            <button type="button" data-secs="5" aria-pressed="false">5s</button>
+            <button type="button" data-secs="10" aria-pressed="false">10s</button>
+            <button type="button" data-secs="20" aria-pressed="false">20s</button>
+          </div>
+        </div>
+        <div class="opt">
+          <div>
+            <div class="opt-label">Wrong guesses allowed</div>
+            <div class="opt-desc" id="geo-tries-desc">Miss this many and the place is shown to you, and counts as missed.</div>
+          </div>
+          <div class="seg" id="geo-tries-seg" role="group" aria-label="Wrong guesses allowed">
+            <button type="button" data-tries="1" aria-pressed="false">1</button>
+            <button type="button" data-tries="2" aria-pressed="false">2</button>
+            <button type="button" data-tries="3" aria-pressed="true">3</button>
+            <button type="button" data-tries="5" aria-pressed="false">5</button>
+            <button type="button" data-tries="0" aria-pressed="false">Never</button>
+          </div>
+        </div>
+      </div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn btn-primary" id="geo-play" type="button" style="flex:1;min-width:180px" disabled>Start quiz</button>
+      <button class="btn btn-sm" id="geo-back" type="button">&larr; Back to your quizzes</button>
     </div>
   </section>
 
@@ -1735,7 +1747,7 @@ button{font:inherit;color:inherit}
     // The results and the map both earn the extra width.
     document.querySelector(".wrap").classList.toggle("wide", name === "done" || name === "geo");
     document.querySelector(".wrap").classList.toggle("map", name === "geo");
-    ["intake", "deck", "quiz", "done", "geo"].forEach(function (s) {
+    ["intake", "deck", "quiz", "done", "geo", "geo-setup"].forEach(function (s) {
       $("scr-" + s).hidden = (s !== name);
     });
     if (name !== "quiz") window.scrollTo(0, 0);
@@ -5712,9 +5724,12 @@ button{font:inherit;color:inherit}
   function geoHas(id) { return geoPicked.some(function (p) { return p.id === id; }); }
 
   function geoStatus(msg, warn) {
-    var el = $("geo-status");
-    el.textContent = msg || "";
-    el.classList.toggle("warn", !!warn);
+    ["geo-status", "geo-tab-note"].forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      el.textContent = msg || "";
+      el.classList.toggle("warn", !!warn);
+    });
   }
 
   function addPlaces(list) {
@@ -5831,10 +5846,9 @@ button{font:inherit;color:inherit}
       host.appendChild(chip);
     });
 
-    var build = $("geo-build");
-    build.disabled = geoPicked.length < 2;
-    build.textContent = geoEditId ? "Save and play" : "Build quiz";
-    $("geo-cancel-edit").hidden = !geoEditId;
+    var play = $("geo-play");
+    play.disabled = geoPicked.length < 2;
+    play.textContent = geoPicked.length < 2 ? "Add two places to start" : "Start quiz";
 
     // The preview is the quiz's own map, so a search that found the wrong
     // Georgia is caught before the round, not during it.
@@ -5868,8 +5882,7 @@ button{font:inherit;color:inherit}
   }
 
   function editGeo(d) {
-    setTab("geo");
-    show("intake");
+    show("geo-setup");
     geoEditId = d.id || null;
     geoPicked = JSON.parse(JSON.stringify(d.places || []));
     $("geo-name").value = d.title || "";
@@ -5878,7 +5891,7 @@ button{font:inherit;color:inherit}
     renderGeoResults();
     loadGeo().then(renderGeoPicked, geoLoadFailed);
     renderGeoPicked();
-    $("geo-q").focus();
+    window.scrollTo(0, 0);
   }
 
   function geoLoadFailed() {
@@ -5905,9 +5918,19 @@ button{font:inherit;color:inherit}
       renderGeoResults();
     });
   });
-  $("geo-cancel-edit").addEventListener("click", resetGeoBuilder);
+  $("geo-new").addEventListener("click", function () {
+    resetGeoBuilder();
+    show("geo-setup");
+    loadGeo().then(renderGeoPicked, geoLoadFailed);
+    $("geo-q").focus();
+  });
 
-  $("geo-build").addEventListener("click", function () {
+  $("geo-back").addEventListener("click", function () {
+    setTab("geo");
+    show("intake");
+  });
+
+  $("geo-play").addEventListener("click", function () {
     if (geoPicked.length < 2) return;
     var title = $("geo-name").value.trim() || "Untitled map quiz";
     var picked = JSON.parse(JSON.stringify(geoPicked));
@@ -5995,9 +6018,11 @@ button{font:inherit;color:inherit}
         geoEditId = null;
         geoPicked = list.map(asPlace);
         $("geo-name").value = s.title;
+        $("geo-q").value = "";
+        show("geo-setup");
         renderGeoPicked();
         renderGeoResults();
-        $("geo-name").scrollIntoView({ block: "center", behavior: "smooth" });
+        window.scrollTo(0, 0);
       });
       host.appendChild(b);
     });
@@ -6019,8 +6044,6 @@ button{font:inherit;color:inherit}
       loadGeo().then(function () {
         if ($("geo-status").textContent === "Loading the world map…") geoStatus("");
         renderGeoStarters();
-        renderGeoPicked();
-        renderGeoResults();
       }, geoLoadFailed);
     } else {
       renderHighlight();
