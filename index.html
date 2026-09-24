@@ -6297,7 +6297,10 @@ button{font:inherit;color:inherit}
     var g = geoGame;
     if (!g) return;
     g.placeAt = Date.now();
-    if (geoMap) geoMap.point(g.over || g.i >= g.order.length ? null : g.order[g.i]);
+    // Only typing picks the place out: it is the question there. Doing it
+    // while clicking would point at the answer.
+    var pick = opts.geoMode === "type" && !g.over && g.i < g.order.length;
+    if (geoMap) geoMap.point(pick ? g.order[g.i] : null);
     if (opts.geoMode === "type" && !g.over) {
       $("geo-answer").value = "";
       $("geo-answer").focus();
