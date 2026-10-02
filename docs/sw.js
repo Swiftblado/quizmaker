@@ -1,4 +1,4 @@
-const CACHE = "quizmaker-b3af8dbf";
+const CACHE = "quizmaker-33fb7751";
 const SHELL = ["./", "./index.html", "./icon.svg", "./icon-192.png", "./manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -14,6 +14,13 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+
+  // A shared quiz is read fresh every time: it is rewritten whenever its
+  // owner changes the quiz, and a link must show what the quiz says now.
+  if (new URL(req.url).pathname.indexOf("/s/") >= 0 && req.url.endsWith(".json")) {
+    e.respondWith(fetch(req, { cache: "no-store" }).catch(() => caches.match(req)));
+    return;
+  }
 
   if (req.mode === "navigate") {
     // Revalidated, never served straight from the HTTP cache -- the host

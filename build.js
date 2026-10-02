@@ -37,8 +37,21 @@ const C = {
   muted: hex("#98A2B8"),
 };
 
+/* Shared quizzes live in docs/s. The app writes them straight into the
+   repository from the browser, so they are not this script's to make --
+   and a build must not sweep away what it did not put there. */
+const SHARED = path.join(OUT, "s");
+const sharedFiles = fs.existsSync(SHARED)
+  ? fs.readdirSync(SHARED).map((f) => [f, fs.readFileSync(path.join(SHARED, f))])
+  : [];
+
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
+
+if (sharedFiles.length) {
+  fs.mkdirSync(SHARED, { recursive: true });
+  for (const [f, data] of sharedFiles) fs.writeFileSync(path.join(SHARED, f), data);
+}
 
 /* --------------------------------------------------------------- the page */
 
@@ -288,6 +301,13 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
+
+  // A shared quiz is read fresh every time: it is rewritten whenever its
+  // owner changes the quiz, and a link must show what the quiz says now.
+  if (new URL(req.url).pathname.indexOf("/s/") >= 0 && req.url.endsWith(".json")) {
+    e.respondWith(fetch(req, { cache: "no-store" }).catch(() => caches.match(req)));
+    return;
+  }
 
   if (req.mode === "navigate") {
     // Revalidated, never served straight from the HTTP cache -- the host

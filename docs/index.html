@@ -897,6 +897,81 @@ button{font:inherit;color:inherit}
 .editor.reviewing .t-fix:hover{background:var(--bad);color:var(--on-accent)}
 .foot{margin-top:26px;font-size:12.5px;color:var(--faint);text-align:center}
 
+/* ---------------- sharing ---------------- */
+.title-row{display:flex;align-items:center;gap:10px}
+.title-row input{flex:1;min-width:0}
+/* Beside a title, the button matches the title it sits next to. */
+#deck-share,#geo-share{flex:none;align-self:center;font-size:20px;padding:4px 14px;line-height:1.3}
+/* On a card it is the bin's twin, in the corner beside it. */
+.card-share{position:absolute;top:8px;right:38px;z-index:2}
+.card-share button{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;padding:0;border:0;border-radius:7px;
+  background:transparent;color:var(--faint);cursor:pointer;
+}
+.card-share button:hover{background:var(--accent-soft);color:var(--accent-ink)}
+.quiz-card.is-shared .card-share button{color:var(--ok)}
+
+.share-scrim{position:fixed;inset:0;background:rgba(10,14,24,.38);z-index:40}
+.share-panel{
+  position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(560px,calc(100vw - 32px));max-height:min(80vh,620px);overflow:auto;
+  background:var(--surface);border:1px solid var(--rule);border-radius:14px;
+  box-shadow:var(--shadow);padding:18px 20px 20px;
+}
+.share-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.share-head .eyebrow{flex:1}
+.share-body p{font-size:13.5px;color:var(--muted);margin:10px 0 0;max-width:60ch}
+.share-body .share-link{
+  display:flex;gap:8px;margin-top:12px;
+}
+.share-body .share-link input{
+  flex:1;min-width:0;padding:10px 12px;border:1px solid var(--rule);border-radius:8px;
+  background:var(--surface-2);color:var(--ink);font:12.5px/1.4 var(--mono);
+}
+.share-body label{display:block;font-size:13px;font-weight:600;margin-top:14px}
+.share-body input.token{
+  width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--rule);border-radius:8px;
+  background:var(--surface-2);color:var(--ink);font:13px var(--mono);
+}
+.share-note{font-size:12.5px;color:var(--faint);margin-top:10px}
+.share-note.warn{color:var(--bad)}
+.share-steps{font-size:13px;color:var(--muted);margin:10px 0 0;padding-left:18px}
+.share-steps li{margin:4px 0}
+
+.shared-foot{margin:28px 0 8px;text-align:center}
+/* A shared quiz is a page of its own: nothing of the shelf, nothing to
+   edit, and no way back into the site but the one button below it. */
+body.is-shared .tabs,
+body.is-shared #saved-box,
+body.is-shared #back-arrow,
+body.is-shared #btn-save,
+body.is-shared #btn-add,
+body.is-shared #btn-back,
+body.is-shared #btn-newdeck,
+body.is-shared #geo-back,
+body.is-shared #deck-share,
+body.is-shared #geo-share,
+body.is-shared .card-share,
+body.is-shared #geo-q,
+body.is-shared .geo-search,
+body.is-shared .geo-results,
+body.is-shared .geo-picked-head,
+body.is-shared .geo-chip button,
+body.is-shared #sub-card,
+body.is-shared .starters,
+body.is-shared .or,
+body.is-shared #read-box,
+body.is-shared #scr-geo-setup .eyebrow,
+body.is-shared #scr-geo-setup .entry-help,
+body.is-shared .pairs .kill,
+body.is-shared #deck-flag,
+body.is-shared .sub-panel,
+body.is-shared .geo-preview .geo-tip{display:none !important}
+body.is-shared .pairs input,
+body.is-shared .deck-title,
+body.is-shared .entry-name{pointer-events:none;background:transparent;border-color:transparent}
+
 /* ---------------- tabs: vocabulary or geography ---------------- */
 .tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--rule)}
 .tabs button{
@@ -1167,7 +1242,7 @@ button{font:inherit;color:inherit}
     <span class="sp"></span>
     <button class="btn btn-ghost btn-sm" id="theme-btn" type="button" title="Switch theme">Theme</button>
   </div>
-  <p class="tagline">Put in a list of vocabulary and drill it. Type the translation from memory, or pick it from the tiles. One point per word you get right.</p>
+  <p class="tagline" id="tagline">Put in a list of vocabulary and drill it. Type the translation from memory, or pick it from the tiles. One point per word you get right.</p>
 
   <!-- ============ INTAKE ============ -->
   <section id="scr-intake">
@@ -1242,7 +1317,10 @@ button{font:inherit;color:inherit}
     <div class="card">
       <div class="deck-head spread">
         <div style="min-width:0;flex:1">
-          <input class="deck-title" id="deck-title" value="Deck" aria-label="Name of this word list" placeholder="Name this list" maxlength="60">
+          <div class="title-row">
+            <input class="deck-title" id="deck-title" value="Deck" aria-label="Name of this word list" placeholder="Name this list" maxlength="60">
+            <button class="btn btn-sm share-btn" id="deck-share" type="button" title="Make a link to this quiz" hidden>Export</button>
+          </div>
           <div class="deck-meta" id="deck-meta"></div>
         </div>
         <span class="sample-flag" id="deck-flag" hidden>Sample</span>
@@ -1424,7 +1502,10 @@ button{font:inherit;color:inherit}
   <section id="scr-geo-setup" hidden>
       <div class="card entry">
         <label class="eyebrow" for="geo-name">Name this quiz</label>
-        <input class="entry-name" id="geo-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled map quiz">
+        <div class="title-row">
+          <input class="entry-name" id="geo-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled map quiz">
+          <button class="btn btn-sm share-btn" id="geo-share" type="button" title="Make a link to this quiz" hidden>Export</button>
+        </div>
         <label class="eyebrow" for="geo-q" style="display:block;margin-top:16px">Find places</label>
         <p class="entry-help">Search for anything on a map &mdash; continents, oceans, seas, gulfs, deserts, mountain ranges and peaks, rivers, lakes, countries, cities. Type a kind, like <code class="lit-eg">deserts</code> or <code class="lit-eg">countries of Africa</code>, to add a whole set at once.</p>
         <div class="geo-search">
@@ -1553,6 +1634,21 @@ button{font:inherit;color:inherit}
     </div>
   </section>
 
+  <!-- Where a link is made, and where it is shown once it exists. -->
+  <div class="share-scrim" id="share-scrim" hidden></div>
+  <aside class="share-panel" id="share-panel" role="dialog" aria-modal="true" aria-labelledby="share-title" hidden>
+    <div class="share-head">
+      <span class="eyebrow" id="share-title">Share this quiz</span>
+      <button class="btn btn-ghost btn-sm" id="share-close" type="button" aria-label="Close">Close</button>
+    </div>
+    <div class="share-body" id="share-body"></div>
+  </aside>
+
+  <!-- A shared page is a dead end on purpose: this is the one way out. -->
+  <div class="shared-foot" id="shared-foot" hidden>
+    <button class="btn btn-sm" id="shared-leave" type="button">Go to the original website?</button>
+  </div>
+
   <p class="foot">Answers are checked against your sheet, not a dictionary &mdash; edit any pair before you play.</p>
 </div>
 
@@ -1661,6 +1757,7 @@ button{font:inherit;color:inherit}
                geoLimit: 0, geoPlace: 0, geoTries: 3, geoMode: "click" };
   var game = null;
   var ticker = null;
+  var SHARED = null;      // set when this page is showing someone else's quiz
 
   /* ---------------- storage (best-effort) ---------------- */
   function readStore(key, fallback) {
@@ -2253,10 +2350,16 @@ button{font:inherit;color:inherit}
       : "Shown the " + (deck.langB || "column B") + " meaning, you type the " + (deck.langA || "column A") + " word.";
   }
 
+  function showDeckShare() {
+    var btn = $("deck-share");
+    if (btn) btn.hidden = !!SHARED || !deck || !isSavedDeck(deck);
+  }
+
   function loadDeck(d) {
     deck = d;
     renderDeck();
     show("deck");
+    showDeckShare();
   }
 
   $("btn-add").addEventListener("click", function () {
@@ -3475,7 +3578,13 @@ button{font:inherit;color:inherit}
   var TRASH_DAYS = 7;
 
   function savedDecks() { return readStore("qp:decks", []); }
-  function writeDecks(list) { return writeStore("qp:decks", list); }
+  function writeDecks(list) {
+    var ok = writeStore("qp:decks", list);
+    // Anything written here may have changed a quiz someone else holds a
+    // link to, so the published copies are brought up to date.
+    if (typeof refreshShares === "function") refreshShares();
+    return ok;
+  }
 
   // There is no cap on how many quizzes you may keep, so the browser's own
   // limit is the only one -- and it must be said out loud, because the save
@@ -3597,6 +3706,8 @@ button{font:inherit;color:inherit}
   function trashDeck(id) {
     var d = deckById(id);
     if (!d) return;
+    // The link dies with the quiz: a thing off the shelf is not shared.
+    if (d.share) unpublishShare(d);
     toTrash(isSub(d) ? "sub" : "quiz", JSON.parse(JSON.stringify(d)));
     writeDecks(savedDecks().filter(function (x) { return x.id !== id; }));
   }
@@ -4443,6 +4554,8 @@ button{font:inherit;color:inherit}
       trashDeck(d.id);
       renderSaved();
     }));
+    card.appendChild(shareButton(d));
+    if (d.share) card.classList.add("is-shared");
     card.appendChild(title);
     card.appendChild(meta);
     card.appendChild(foot);
@@ -5966,6 +6079,7 @@ button{font:inherit;color:inherit}
     renderGeoResults();
     loadGeo().then(renderGeoPicked, geoLoadFailed);
     renderGeoPicked();
+    $("geo-share").hidden = !!SHARED || !(geoEditId && deckById(geoEditId));
     window.scrollTo(0, 0);
   }
 
@@ -6600,6 +6714,8 @@ button{font:inherit;color:inherit}
       trashDeck(d.id);
       renderSaved();
     }));
+    card.appendChild(shareButton(d));
+    if (d.share) card.classList.add("is-shared");
     card.appendChild(tag);
     card.appendChild(title);
     card.appendChild(meta);
@@ -6609,6 +6725,364 @@ button{font:inherit;color:inherit}
     wireDropTarget(card, "quiz", d.id);
     return card;
   }
+
+  /* ================= sharing =================
+     An exported quiz is a file in this site's own repository, published by
+     GitHub Pages: a link of the form ?s=<id> reads s/<id>.json back out of
+     it. Nothing else holds the quiz -- no account anywhere, no service to
+     go down -- and because the file is rewritten whenever the quiz changes,
+     a link sent today still shows what the quiz says tomorrow.
+
+     Writing into the repository needs permission, so the owner pastes a
+     GitHub token in once. It is kept in this browser alone and never in the
+     page, which is why everyone can read a shared quiz and no one else can
+     write one.
+  ============================================ */
+  var GH = { owner: "Swiftblado", repo: "quizmaker", branch: "main", dir: "docs/s" };
+  var TOKEN_KEY = "qp:gh";
+
+  function ghToken() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
+  function setGhToken(t) {
+    try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+  }
+
+  function siteRoot() { return location.origin + location.pathname.replace(/[^/]*$/, ""); }
+  function shareLink(id) { return siteRoot() + "?s=" + id; }
+
+  // What a shared quiz carries: enough to open it and play it, and nothing
+  // about the shelf it came from.
+  function sharePayload(d) {
+    if (isGeo(d)) {
+      return { v: 1, kind: "geo", title: d.title || "Untitled map quiz",
+               places: d.places || [], subs: d.subs || [], color: d.color || null };
+    }
+    return { v: 1, kind: "vocab", title: d.title || "Untitled quiz",
+             langA: d.langA || "", langB: d.langB || "", pairs: d.pairs || [],
+             subs: d.subs || [], color: d.color || null };
+  }
+
+  // Enough to tell one version of a quiz from the next, so that shuffling
+  // cards around the shelf does not write a commit.
+  function shareHash(text) {
+    var h = 5381;
+    for (var i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+    return String(h);
+  }
+
+  function b64(text) {
+    var bytes = new TextEncoder().encode(text), out = "";
+    for (var i = 0; i < bytes.length; i += 0x8000) {
+      out += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(out);
+  }
+
+  function ghFetch(path, init) {
+    init = init || {};
+    init.headers = Object.assign({
+      Authorization: "Bearer " + ghToken(),
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    }, init.headers || {});
+    return fetch("https://api.github.com/repos/" + GH.owner + "/" + GH.repo + "/contents/" + path, init);
+  }
+
+  /* Writing the file. GitHub wants the sha of whatever is there already, so
+     a stale one is fetched again and the write tried once more -- the quiz
+     may have been republished from another browser since. */
+  function ghPut(path, text, sha, message, retried) {
+    var body = { message: message, content: b64(text), branch: GH.branch };
+    if (sha) body.sha = sha;
+    return ghFetch(path, { method: "PUT", body: JSON.stringify(body) }).then(function (r) {
+      if (r.ok) return r.json();
+      if ((r.status === 409 || r.status === 422) && !retried) {
+        return ghFetch(path)
+          .then(function (g) { return g.ok ? g.json() : { sha: null }; })
+          .then(function (g) { return ghPut(path, text, g.sha, message, true); });
+      }
+      return r.json().catch(function () { return {}; }).then(function (e) {
+        var err = new Error(e.message || ("GitHub said " + r.status));
+        err.status = r.status;
+        throw err;
+      });
+    });
+  }
+
+  function sharedPath(id) { return GH.dir + "/" + id + ".json"; }
+
+  function shareIdFor(d) {
+    if (d.share && d.share.id) return d.share.id;
+    return "q" + Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-3);
+  }
+
+  /* Publishing: the quiz as it stands goes into the repository, and what was
+     published is remembered on the quiz, so the next change knows whether
+     anything actually changed. */
+  function publishShare(d, done) {
+    var live = deckById(d.id) || d;
+    var id = shareIdFor(live);
+    var text = JSON.stringify(sharePayload(live));
+    var hash = shareHash(text);
+    var sha = live.share && live.share.sha;
+    return ghPut(sharedPath(id), text, sha, "Share “" + (live.title || "a quiz") + "”")
+      .then(function (res) {
+        updateDeck(live.id, function (x) {
+          x.share = { id: id, sha: res.content && res.content.sha, hash: hash, at: Date.now() };
+        });
+        renderSaved();
+        if (done) done(null, id);
+        return id;
+      }, function (err) {
+        if (done) done(err);
+        throw err;
+      });
+  }
+
+  function unpublishShare(d) {
+    if (!d || !d.share || !ghToken()) return;
+    ghFetch(sharedPath(d.share.id), {
+      method: "DELETE",
+      body: JSON.stringify({
+        message: "Unshare “" + (d.title || "a quiz") + "”",
+        sha: d.share.sha, branch: GH.branch
+      })
+    }).catch(function () { /* at worst the file outlives the quiz */ });
+  }
+
+  /* Anything that writes the shelf may have changed a shared quiz, so the
+     published copies are compared with what is on the shelf and the ones
+     that have moved on are written again. Comparing first keeps a reorder
+     or a colour change from making a commit. */
+  var shareSoon = null;
+  function refreshShares() {
+    if (!ghToken() || SHARED) return;
+    clearTimeout(shareSoon);
+    shareSoon = setTimeout(function () {
+      savedDecks().forEach(function (d) {
+        if (!d.share || !d.share.id) return;
+        if (shareHash(JSON.stringify(sharePayload(d))) === d.share.hash) return;
+        publishShare(d).catch(function () { /* reported when the panel is opened */ });
+      });
+    }, 1200);
+  }
+
+  /* ---------------- the panel ---------------- */
+  function closeShare() {
+    $("share-panel").hidden = true;
+    $("share-scrim").hidden = true;
+  }
+
+  function openShare(d) {
+    if (!d) return;
+    var body = $("share-body");
+    body.textContent = "";
+    $("share-title").textContent = "Share “" + (d.title || "this quiz") + "”";
+    $("share-panel").hidden = false;
+    $("share-scrim").hidden = false;
+
+    if (!ghToken()) { askForToken(d, body); return; }
+
+    var note = document.createElement("p");
+    note.className = "share-note";
+    note.textContent = d.share ? "Bringing the link up to date…" : "Making the link…";
+    body.appendChild(note);
+
+    publishShare(d, function (err, id) {
+      if (err) {
+        note.className = "share-note warn";
+        note.textContent = (err.status === 401 || err.status === 403)
+          ? "GitHub would not accept that token. It needs Contents: read and write on " + GH.owner + "/" + GH.repo + "."
+          : "That did not work: " + err.message;
+        var again = document.createElement("button");
+        again.type = "button";
+        again.className = "btn btn-sm";
+        again.style.marginTop = "12px";
+        again.textContent = "Use a different token";
+        again.addEventListener("click", function () { setGhToken(""); openShare(d); });
+        body.appendChild(again);
+        return;
+      }
+      body.textContent = "";
+      showLink(body, d, id);
+    });
+  }
+
+  function showLink(body, d, id) {
+    var p = document.createElement("p");
+    p.textContent = "Anyone with this link can open and play this quiz. They cannot change it, and they are never behind: edit the quiz here and the link follows, about half a minute later.";
+    body.appendChild(p);
+
+    var row = document.createElement("div");
+    row.className = "share-link";
+    var field = document.createElement("input");
+    field.readOnly = true;
+    field.value = shareLink(id);
+    var copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "btn btn-sm btn-primary";
+    copy.textContent = "Copy";
+    copy.addEventListener("click", function () {
+      field.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      if (navigator.clipboard) navigator.clipboard.writeText(field.value).catch(function () {});
+      copy.textContent = "Copied";
+      setTimeout(function () { copy.textContent = "Copy"; }, 1600);
+      return ok;
+    });
+    row.appendChild(field);
+    row.appendChild(copy);
+    body.appendChild(row);
+
+    var note = document.createElement("p");
+    note.className = "share-note";
+    note.textContent = "A new link works once GitHub has published it, which takes about half a minute.";
+    body.appendChild(note);
+
+    var stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "btn btn-sm";
+    stop.style.marginTop = "14px";
+    stop.textContent = "Stop sharing";
+    stop.addEventListener("click", function () {
+      confirmOn(stop, "Kill the link?", function () {
+        var live = deckById(d.id) || d;
+        unpublishShare(live);
+        updateDeck(d.id, function (x) { delete x.share; });
+        renderSaved();
+        closeShare();
+      });
+    });
+    body.appendChild(stop);
+  }
+
+  function askForToken(d, body) {
+    var p = document.createElement("p");
+    p.textContent = "A shared quiz is a file in this site's own repository, so this browser needs permission to write there. Paste a GitHub token once: it stays in this browser and never goes into the site, which is why no one else can publish or change your quizzes.";
+    body.appendChild(p);
+
+    var steps = document.createElement("ol");
+    steps.className = "share-steps";
+    [
+      "Open github.com/settings/personal-access-tokens/new",
+      "Repository access: only select repositories — " + GH.owner + "/" + GH.repo,
+      "Permissions: Contents → Read and write",
+      "Generate the token, then paste it below"
+    ].forEach(function (text) {
+      var li = document.createElement("li");
+      li.textContent = text;
+      steps.appendChild(li);
+    });
+    body.appendChild(steps);
+
+    var label = document.createElement("label");
+    label.setAttribute("for", "share-token");
+    label.textContent = "GitHub token";
+    body.appendChild(label);
+    var field = document.createElement("input");
+    field.className = "token";
+    field.id = "share-token";
+    field.type = "password";
+    field.autocomplete = "off";
+    field.placeholder = "github_pat_…";
+    body.appendChild(field);
+
+    var go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn btn-sm btn-primary";
+    go.style.marginTop = "12px";
+    go.textContent = "Save it and make the link";
+    go.addEventListener("click", function () {
+      var t = field.value.trim();
+      if (!t) { field.focus(); return; }
+      setGhToken(t);
+      openShare(d);
+    });
+    field.addEventListener("keydown", function (e) { if (e.key === "Enter") go.click(); });
+    body.appendChild(go);
+    field.focus();
+  }
+
+  $("share-close").addEventListener("click", closeShare);
+  $("share-scrim").addEventListener("click", closeShare);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("share-panel").hidden) { e.preventDefault(); closeShare(); }
+  });
+
+  // The button a card carries, beside its bin.
+  function shareButton(d) {
+    var wrap = document.createElement("div");
+    wrap.className = "card-share";
+    var b = document.createElement("button");
+    b.type = "button";
+    b.title = d.share ? "Shared — show the link" : "Make a link to this quiz";
+    b.setAttribute("aria-label", b.title);
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 15V3M8 7l4-4 4 4"></path></svg>';
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openShare(deckById(d.id) || d);
+    });
+    wrap.appendChild(b);
+    return wrap;
+  }
+
+  $("deck-share").addEventListener("click", function () {
+    if (deck && isSavedDeck(deck)) openShare(deckById(deck.id));
+  });
+  $("geo-share").addEventListener("click", function () {
+    var d = geoEditId && deckById(geoEditId);
+    if (d) openShare(d);
+  });
+
+  /* ---------------- a shared quiz, seen by someone else ----------------
+     The page is a dead end on purpose: no shelf, nothing to edit, and the
+     only way out is a button that says where it goes.
+  --------------------------------------------------------------------- */
+  function sharedId() {
+    var m = /[?&]s=([A-Za-z0-9_-]+)/.exec(location.search);
+    return m ? m[1] : null;
+  }
+
+  function sharedFailed(text) {
+    var box = $("read-box");
+    box.hidden = false;
+    box.textContent = "";
+    var el = document.createElement("div");
+    el.className = "alert";
+    el.textContent = text;
+    box.appendChild(el);
+    $("shared-foot").hidden = false;
+  }
+
+  function openShared(id) {
+    document.body.classList.add("is-shared");
+    $("shared-foot").hidden = false;
+    show("intake");
+    return fetch("s/" + id + ".json", { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (data) {
+      SHARED = { id: id, data: data };
+      document.title = (data.title || "A quiz") + " · QuizMaker";
+      if (data.kind === "geo") {
+        geoPicked = (data.places || []).map(function (p) { return p; });
+        geoEditId = null;
+        $("geo-name").value = data.title || "";
+        show("geo-setup");
+        loadGeo().then(renderGeoPicked, geoLoadFailed);
+        return;
+      }
+      loadDeck({ title: data.title, langA: data.langA, langB: data.langB,
+                 pairs: data.pairs || [], subs: data.subs || [], sample: false });
+    }).catch(function () {
+      document.body.classList.remove("is-shared");
+      sharedFailed("That shared quiz could not be found. The link may have been stopped — or it may be less than a minute old, since GitHub takes about that long to publish one.");
+    });
+  }
+
+  $("shared-leave").addEventListener("click", function () { location.href = siteRoot(); });
 
   /* ---------------- boot ---------------- */
   function start(saved) {
@@ -6628,12 +7102,24 @@ button{font:inherit;color:inherit}
     }
     applyOpts();
     applyGeoLimit();
+
+    /* A link of the form ?s=<id> is someone else's quiz, and this page is
+       then only that: no shelf is drawn, nothing is loaded from this
+       browser, and the one way back into the site is the button under it. */
+    var shared = sharedId();
+    if (shared) {
+      $("tagline").textContent = "Someone shared this quiz with you. Play it here — it is theirs to change, not yours.";
+      openShared(shared);
+      return;
+    }
+
     renderStarters();
     renderGeoPicked();
     if (readStore("qp:tab", "vocab") === "geo") setTab("geo");
     renderSaved();
     setFixUI();
     renderHighlight();
+    refreshShares();
 
     if (saved && saved.deck) {
       loadDeck(saved.deck);
@@ -6656,7 +7142,7 @@ button{font:inherit;color:inherit}
 
 })();
 </script>
-<p class="build-stamp">build b3af8dbf</p>
+<p class="build-stamp">build 33fb7751</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
