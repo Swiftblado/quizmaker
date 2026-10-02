@@ -934,6 +934,7 @@ button{font:inherit;color:inherit}
   width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--rule);border-radius:8px;
   background:var(--surface-2);color:var(--ink);font:13px var(--mono);
 }
+.share-go{display:inline-flex;margin-top:12px;text-decoration:none}
 .share-note{font-size:12.5px;color:var(--faint);margin-top:10px}
 .share-note.warn{color:var(--bad)}
 .share-steps{font-size:13px;color:var(--muted);margin:10px 0 0;padding-left:18px}
@@ -6740,10 +6741,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   ============================================ */
   var GH = { owner: "Swiftblado", repo: "quizmaker", branch: "main", dir: "docs/s" };
   var TOKEN_KEY = "qp:gh";
+  var TOKEN_ENDS = "qp:gh-ends";
 
   function ghToken() { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } }
   function setGhToken(t) {
-    try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch (e) { /* private mode */ }
+    try {
+      if (t) localStorage.setItem(TOKEN_KEY, t);
+      else { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_ENDS); }
+    } catch (e) { /* private mode */ }
   }
 
   function siteRoot() { return location.origin + location.pathname.replace(/[^/]*$/, ""); }
@@ -6794,7 +6799,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var body = { message: message, content: b64(text), branch: GH.branch };
     if (sha) body.sha = sha;
     return ghFetch(path, { method: "PUT", body: JSON.stringify(body) }).then(function (r) {
-      if (r.ok) return r.json();
+      if (r.ok) {
+        // GitHub tells you when the token runs out. Worth keeping, so the
+        // day it stops working is not a surprise.
+        var ends = r.headers.get("github-authentication-token-expiration");
+        if (ends) { try { localStorage.setItem(TOKEN_ENDS, ends); } catch (e) { /* private mode */ } }
+        return r.json();
+      }
       if ((r.status === 409 || r.status === 422) && !retried) {
         return ghFetch(path)
           .then(function (g) { return g.ok ? g.json() : { sha: null }; })
@@ -6939,6 +6950,20 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     note.textContent = "A new link works once GitHub has published it, which takes about half a minute.";
     body.appendChild(note);
 
+    var ends = "";
+    try { ends = localStorage.getItem(TOKEN_ENDS) || ""; } catch (e) { ends = ""; }
+    if (ends) {
+      var when = new Date(ends.replace(" UTC", "Z"));
+      if (!isNaN(when)) {
+        var days = Math.round((when - Date.now()) / 86400000);
+        var life = document.createElement("p");
+        life.className = "share-note" + (days <= 7 ? " warn" : "");
+        life.textContent = "Your GitHub token lasts until " + when.toLocaleDateString() +
+          (days >= 0 ? " (" + days + " days)" : "") + ". Links already sent keep working; making or updating one needs a new token after that.";
+        body.appendChild(life);
+      }
+    }
+
     var stop = document.createElement("button");
     stop.type = "button";
     stop.className = "btn btn-sm";
@@ -6961,12 +6986,20 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     p.textContent = "A shared quiz is a file in this site's own repository, so this browser needs permission to write there. Paste a GitHub token once: it stays in this browser and never goes into the site, which is why no one else can publish or change your quizzes.";
     body.appendChild(p);
 
+    var open = document.createElement("a");
+    open.className = "btn btn-sm btn-primary share-go";
+    open.href = "https://github.com/settings/personal-access-tokens/new";
+    open.target = "_blank";
+    open.rel = "noopener";
+    open.textContent = "Open GitHub to make one ↗";
+    body.appendChild(open);
+
     var steps = document.createElement("ol");
     steps.className = "share-steps";
     [
-      "Open github.com/settings/personal-access-tokens/new",
       "Repository access: only select repositories — " + GH.owner + "/" + GH.repo,
       "Permissions: Contents → Read and write",
+      "Expiration: as long as it offers, or the asking comes round again",
       "Generate the token, then paste it below"
     ].forEach(function (text) {
       var li = document.createElement("li");
@@ -7142,7 +7175,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build 33fb7751</p>
+<p class="build-stamp">build 83e7de36</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
