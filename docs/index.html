@@ -6821,6 +6821,39 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
   function sharedPath(id) { return GH.dir + "/" + id + ".json"; }
 
+  /* Why a token was refused. The four ways a fine-grained token can be
+     wrong all look alike from the error alone -- made under the wrong
+     account, not given this repository, given it read-only, or simply
+     mistyped -- so each is asked about in turn and named. */
+  function checkToken() {
+    var head = {
+      Authorization: "Bearer " + ghToken(),
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    };
+    return fetch("https://api.github.com/user", { headers: head }).then(function (r) {
+      if (r.status === 401) throw new Error("GitHub did not recognise that token. Copy it again — it is only shown once, and a token that has been regenerated or revoked will not work.");
+      if (!r.ok) throw new Error("GitHub would not answer for that token (" + r.status + ").");
+      return r.json();
+    }).then(function (me) {
+      return fetch("https://api.github.com/repos/" + GH.owner + "/" + GH.repo, { headers: head })
+        .then(function (r) {
+          if (r.status === 404) {
+            throw new Error("That token cannot see " + GH.owner + "/" + GH.repo + ". It belongs to @" + me.login +
+              " — make it under the account that owns the site, and under Repository access choose “Only select repositories” and tick " + GH.repo + ".");
+          }
+          if (!r.ok) throw new Error("GitHub said " + r.status + " when asked about the repository.");
+          return r.json();
+        })
+        .then(function (repo) {
+          if (!repo.permissions || !repo.permissions.push) {
+            throw new Error("That token can read " + GH.owner + "/" + GH.repo + " but not write to it. Edit the token and set Permissions → Contents to “Read and write” (Read-only is not enough).");
+          }
+          return me;
+        });
+    });
+  }
+
   function shareIdFor(d) {
     if (d.share && d.share.id) return d.share.id;
     return "q" + Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-3);
@@ -7029,7 +7062,21 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       var t = field.value.trim();
       if (!t) { field.focus(); return; }
       setGhToken(t);
-      openShare(d);
+      go.disabled = true;
+      go.textContent = "Checking it with GitHub…";
+      var said = body.querySelector(".token-trouble");
+      if (said) said.remove();
+      checkToken().then(function () {
+        openShare(d);
+      }, function (err) {
+        setGhToken("");
+        go.disabled = false;
+        go.textContent = "Save it and make the link";
+        var p = document.createElement("p");
+        p.className = "share-note warn token-trouble";
+        p.textContent = err.message;
+        body.appendChild(p);
+      });
     });
     field.addEventListener("keydown", function (e) { if (e.key === "Enter") go.click(); });
     body.appendChild(go);
@@ -7175,7 +7222,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build 83e7de36</p>
+<p class="build-stamp">build 89af9d6f</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
