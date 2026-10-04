@@ -442,7 +442,14 @@ button{font:inherit;color:inherit}
 .diff{font-family:var(--mono);font-size:15px}
 .diff s{text-decoration:none;color:var(--bad);background:var(--bad-soft);border-radius:2px}
 .diff u{text-decoration:none;color:var(--ok);background:var(--ok-soft);border-radius:2px}
-.stage-foot{margin-top:10px;display:flex;justify-content:center;gap:10px;align-items:center;min-height:30px}
+.stage-foot{margin-top:10px;display:flex;justify-content:center;gap:10px;align-items:center;min-height:30px;flex-wrap:wrap}
+.star-btn[aria-pressed="true"]{color:var(--almost);border-color:var(--almost)}
+.note-edit{display:inline-flex;gap:6px;align-items:center}
+.note-edit input{
+  padding:6px 10px;border:1px solid var(--rule);border-radius:7px;
+  background:var(--surface);color:var(--ink);font:inherit;font-size:13px;min-width:200px;
+}
+.verdict-full{color:var(--muted);font-size:14px;margin-top:6px}
 .kbd{font-family:var(--mono);font-size:11px;padding:2px 5px;border:1px solid var(--rule);border-radius:4px;color:var(--muted);background:var(--surface-2)}
 
 .result{padding:28px 24px;text-align:center;overflow-y:auto}
@@ -1139,7 +1146,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .geo-typing input:focus{outline:none;border-color:var(--accent)}
 .geo-stage{position:relative;padding:8px}
 .geo-done{margin-top:14px}
-.geo-keep{margin-top:14px}
+.geo-keep,.miss-keep{margin-top:14px}
+.star-mark{color:var(--almost);font-size:13px;align-self:center}
+.pair.starred .term{box-shadow:inset 2px 0 0 var(--almost)}
 
 /* ---------------- building a map quiz ---------------- */
 .geo-search input{
@@ -1172,6 +1181,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .geo-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .geo-chip small{color:var(--faint);font-size:11px}
 .geo-chip button{border:0;background:none;cursor:pointer;color:var(--faint);padding:0 6px;font-size:15px;line-height:1;border-radius:999px}
+/* A decoy is on the map and never asked for; the chip says which it is. */
+.geo-chip .chip-ask{
+  font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);
+}
+.geo-chip.decoy{opacity:.75}
+.geo-chip.decoy .chip-ask{background:var(--surface-2);color:var(--muted)}
+.geo-chip .chip-ask:hover{background:var(--accent);color:var(--on-accent)}
 .geo-chip button:hover{color:var(--bad);background:var(--bad-soft)}
 .geo-preview{margin-top:12px}
 .geo-preview .geo-map{border:1px solid var(--rule-soft)}
@@ -1459,6 +1476,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       <div class="missed" id="missed-box" hidden>
         <div class="eyebrow">Worth another look</div>
         <ul id="missed-list"></ul>
+        <div class="sub-new miss-keep" id="miss-keep">
+          <input id="miss-keep-name" maxlength="40" autocomplete="off" placeholder="Name a list of these">
+          <button class="btn btn-sm" id="miss-keep-save" type="button">Keep them</button>
+        </div>
       </div>
     </div>
 
@@ -2291,6 +2312,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
       var bCell = document.createElement("div");
       bCell.className = "b-cell";
+      if (p.star) {
+        var mark = document.createElement("span");
+        mark.className = "star-mark";
+        mark.textContent = "★";
+        mark.title = "Starred while playing";
+        li.classList.add("starred");
+        bCell.appendChild(mark);
+      }
       var ib = document.createElement("input");
       ib.value = p.b;
       ib.id = "pair-b-" + idx;
@@ -2758,6 +2787,80 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     addBtn.addEventListener("click", function () { openSubPanel(game.current); });
     foot.appendChild(addBtn);
 
+    /* The answer line shows the sheet's own wording, which for a word with
+       brackets or a slash is less than everything that would have been
+       taken. This says the lot. */
+    var full = fullAnswer(p);
+    if (full.length > 1) {
+      var fullBtn = document.createElement("button");
+      fullBtn.type = "button";
+      fullBtn.className = "btn btn-sm";
+      fullBtn.textContent = "Show the full answer";
+      fullBtn.addEventListener("click", function () {
+        fullBtn.remove();
+        var line = document.createElement("div");
+        line.className = "verdict-body verdict-full";
+        line.textContent = "Taken as right: " + full.join(" · ");
+        verdict.appendChild(line);
+      });
+      foot.appendChild(fullBtn);
+    }
+
+    /* A word worth coming back to, and a word with something to remember
+       about it. Both are marked here, where the word is in front of you,
+       and read afterwards on the quiz's own page. */
+    var star = document.createElement("button");
+    star.type = "button";
+    star.className = "btn btn-sm star-btn";
+    var drawStar = function () {
+      star.textContent = p.star ? "★ Starred" : "☆ Star";
+      star.setAttribute("aria-pressed", String(!!p.star));
+      star.title = p.star ? "Take the star off this word" : "Star this word";
+    };
+    drawStar();
+    star.addEventListener("click", function () {
+      var on = !p.star;
+      markPair(p, function (q) { q.star = on; });
+      drawStar();
+    });
+    foot.appendChild(star);
+
+    var noteBtn = document.createElement("button");
+    noteBtn.type = "button";
+    noteBtn.className = "btn btn-sm";
+    var drawNote = function () { noteBtn.textContent = p.note ? "Note · " + p.note : "Add a note"; };
+    drawNote();
+    noteBtn.addEventListener("click", function () {
+      if (foot.querySelector(".note-edit")) return;
+      var row = document.createElement("span");
+      row.className = "note-edit";
+      var field = document.createElement("input");
+      field.value = p.note || "";
+      field.maxLength = 60;
+      field.placeholder = "a note about this word";
+      var ok = document.createElement("button");
+      ok.type = "button";
+      ok.className = "btn btn-sm btn-primary";
+      ok.textContent = "Keep";
+      var put = function () {
+        var text = field.value.trim();
+        markPair(p, function (q) { q.note = text; });
+        drawNote();
+        row.remove();
+      };
+      ok.addEventListener("click", put);
+      field.addEventListener("keydown", function (e) {
+        e.stopPropagation();                 // writing a note never advances
+        if (e.key === "Enter") { e.preventDefault(); put(); }
+        if (e.key === "Escape") { e.preventDefault(); row.remove(); }
+      });
+      row.appendChild(field);
+      row.appendChild(ok);
+      foot.appendChild(row);
+      field.focus();
+    });
+    foot.appendChild(noteBtn);
+
     var kb = document.createElement("span");
     kb.className = "kbd";
     kb.textContent = "Enter";
@@ -2886,8 +2989,34 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       $("btn-drill").onclick = function () {
         startGame(finalMissed.map(function (m) { return m.pair; }), game.subName);
       };
+
+      /* The whole round's misses, kept as a list in one go. The same rule
+         as adding a single word: a quiz that is not on the shelf keeps its
+         lists in memory until it is saved. */
+      var keep = $("miss-keep"), name = $("miss-keep-name"), save = $("miss-keep-save");
+      keep.hidden = false;
+      name.value = "";
+      save.disabled = false;
+      save.textContent = "Keep them";
+      save.onclick = function () {
+        var listName = name.value.trim() || "Worth another look";
+        var sub = findSub(deck, listName);
+        if (!sub) { sub = { name: listName, keys: [] }; subsOf(deck).push(sub); }
+        finalMissed.forEach(function (m) {
+          var k = pairKey(m.pair);
+          if (sub.keys.indexOf(k) < 0) sub.keys.push(k);
+        });
+        var kept = isSavedDeck(deck);
+        if (kept) persistDeck(deck);
+        renderSubCard();
+        save.disabled = true;
+        save.textContent = kept
+          ? "Kept in “" + listName + "”"
+          : "Kept · save the quiz to keep it for good";
+      };
     } else {
       box.hidden = true;
+      $("miss-keep").hidden = true;
       $("btn-drill").hidden = true;
     }
 
@@ -3353,6 +3482,35 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     draw();
     input.focus();
+  }
+
+  /* ---------------- a word's own marks ----------------
+     A star and a note are the player's marginalia: made in the round, where
+     the word is in front of you, and read later on the quiz's own page.
+     They belong to the pair, so they follow it into every sub-list.
+  ----------------------------------------------------- */
+  function markPair(p, change) {
+    change(p);
+    deck.sample = false;
+    // The round holds a copy of the quiz, so a saved quiz is written to by
+    // hand -- and by content, since an index into a copy means nothing.
+    if (!isSavedDeck(deck)) return false;
+    var key = pairKey(p);
+    updateDeck(deck.id, function (x) {
+      (x.pairs || []).forEach(function (q) {
+        if (pairKey(q) !== key) return;
+        change(q);
+      });
+    });
+    return true;
+  }
+
+  // Everything the quiz would accept for this word, said once and in full.
+  function fullAnswer(p) {
+    var out = [];
+    rawAnswers(p).forEach(function (t) { if (out.indexOf(t) < 0) out.push(t); });
+    acceptedFor(p).forEach(function (t) { if (out.indexOf(t) < 0) out.push(t); });
+    return out;
   }
 
   /* ---------------- where sub-lists are reached ---------------- */
@@ -4025,9 +4183,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function openFolderCard(parentId) {
     var card = document.createElement("div");
     card.className = "folder-card open-folder";
-    // What you are going back to always holds at least the folder you are
-    // standing in, so it is drawn with a sheet in it.
-    card.classList.add("has-items");
+    // Drawn empty, whatever is behind it: it is the way out, not a folder
+    // with things in it, and a sheet on it only says otherwise.
     card.setAttribute("role", "button");
     card.tabIndex = 0;
 
@@ -6006,7 +6163,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function renderGeoPicked() {
     var host = $("geo-chips");
     host.textContent = "";
-    $("geo-count").textContent = geoPicked.length ? places(geoPicked.length) : "";
+    var decoyCount = geoPicked.filter(function (p) { return p.decoy; }).length;
+    $("geo-count").textContent = geoPicked.length
+      ? places(geoPicked.length - decoyCount) + (decoyCount ? " · " + decoyCount + " decoy" + (decoyCount === 1 ? "" : "s") : "")
+      : "";
     $("geo-clear").hidden = !geoPicked.length;
     if (!geoPicked.length) {
       var none = document.createElement("p");
@@ -6016,12 +6176,27 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     }
     geoPicked.forEach(function (p) {
       var chip = document.createElement("span");
-      chip.className = "geo-chip";
+      chip.className = "geo-chip" + (p.decoy ? " decoy" : "");
       var n = document.createElement("span");
       n.textContent = p.n + " ";
       var k = document.createElement("small");
       k.textContent = p.k;
       n.appendChild(k);
+
+      /* A place can be on the map without ever being asked for: something
+         to click by mistake, which is most of what makes a map quiz hard.
+         It still says its name when clicked, and still costs a guess. */
+      var ask = document.createElement("button");
+      ask.type = "button";
+      ask.className = "chip-ask";
+      ask.textContent = p.decoy ? "decoy" : "asked";
+      ask.title = p.decoy
+        ? "On the map but never asked for. Click to ask for it."
+        : "Asked for in the round. Click to leave it on the map unasked.";
+      ask.addEventListener("click", function () {
+        p.decoy = !p.decoy;
+        renderGeoPicked();
+      });
       var x = document.createElement("button");
       x.type = "button";
       x.textContent = "×";
@@ -6029,6 +6204,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       x.title = "Remove";
       x.addEventListener("click", function () { removePlace(p.id); });
       chip.appendChild(n);
+      chip.appendChild(ask);
       chip.appendChild(x);
       host.appendChild(chip);
     });
@@ -6262,6 +6438,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     loadGeo().then(function () {
       var all = (d.places || []).filter(function (p) { return placeShape(p); });
       var inPlay = only ? all.filter(function (p) { return only.indexOf(p.id) >= 0; }) : all;
+      // Decoys are drawn and can be clicked; they are never the question.
+      var asked = inPlay.filter(function (p) { return !p.decoy; });
+      if (!asked.length) {
+        setTab("geo");
+        geoStatus("Every place in this quiz is a decoy, so there is nothing to ask for.", true);
+        return;
+      }
       if (!inPlay.length) {
         setTab("geo");
         geoStatus("None of this quiz's places could be found on the map.", true);
@@ -6275,7 +6458,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       geoMap = makeMap($("geo-map"), inPlay, onGeoPick);
       geoMap.fit();
 
-      geoGame = { deck: d, order: shuffle(inPlay.map(function (p) { return p.id; })),
+      geoGame = { deck: d, order: shuffle(asked.map(function (p) { return p.id; })),
                   names: names, i: 0, tries: 0, results: {}, right: 0, wrong: 0, first: 0,
                   t0: Date.now(), placeAt: Date.now(), over: false, drill: !!only,
                   skips: 0, shown: false, subName: subName || null };
@@ -6676,7 +6859,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var kinds = {};
     (d.places || []).forEach(function (p) { kinds[p.k] = (kinds[p.k] || 0) + 1; });
     var top = Object.keys(kinds).sort(function (a, b) { return kinds[b] - kinds[a]; });
-    var bits = [places((d.places || []).length)];
+    var decoys = (d.places || []).filter(function (p) { return p.decoy; }).length;
+    var bits = [places((d.places || []).length - decoys)];
+    if (decoys) bits.push(decoys + " decoy" + (decoys === 1 ? "" : "s"));
     if (top.length) {
       bits.push(top.slice(0, 2).map(kindPlural).join(", ") + (top.length > 2 ? "…" : ""));
     }
@@ -7219,7 +7404,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build b7b52934</p>
+<p class="build-stamp">build bd00c380</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
