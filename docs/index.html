@@ -262,8 +262,10 @@ button{font:inherit;color:inherit}
 .saved-name::placeholder{color:var(--faint);font-style:italic}
 .deck-meta{font-size:13px;color:var(--muted);margin-top:2px}
 .pairs{list-style:none;margin:0;padding:0;max-height:min(52vh,420px);overflow-y:auto}
+/* The tick that chooses a word takes a column of its own, so the row is
+   laid out the same whether anything is chosen or not. */
 .pair{
-  display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:start;
+  display:grid;grid-template-columns:auto 1fr 1fr auto auto;gap:10px;align-items:start;
   padding:11px 18px;border-bottom:1px solid var(--rule-soft);
 }
 /* Per-word escape hatch from the sheet shorthand. Quiet until it is on,
@@ -1148,6 +1150,24 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .geo-done{margin-top:14px}
 .geo-keep,.miss-keep{margin-top:14px}
 .star-mark{color:var(--almost);font-size:13px;align-self:center}
+.pick-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;padding:8px 10px;
+  background:var(--accent-soft);border-radius:9px;position:relative}
+.pick-bar .sp{flex:1}
+.pick-count{font-size:13px;font-weight:600;color:var(--accent-ink)}
+.pick-menu{
+  position:absolute;top:calc(100% + 6px);right:10px;z-index:5;display:flex;flex-direction:column;gap:6px;
+  padding:10px;border-radius:10px;background:var(--surface);border:1px solid var(--rule);box-shadow:var(--shadow);
+  max-height:260px;overflow:auto;min-width:220px;
+}
+.pick-new{display:flex;gap:6px}
+.pick-new input{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--rule);border-radius:7px;
+  background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px}
+.pairs .pick{flex:none;width:16px;height:16px;accent-color:var(--accent);cursor:pointer;align-self:center}
+.deck-note{font-size:12.5px;color:var(--ok);margin:0 0 10px}
+.deck-sub-head{display:flex;align-items:center;gap:9px;margin-bottom:8px;flex-wrap:wrap}
+.deck-sub-head b{font-family:var(--serif);font-size:18px;font-weight:600}
+.deck-sub-head .sub-tag{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--accent-ink);background:var(--accent-soft);padding:1px 7px;border-radius:999px}
 .pair.starred .term{box-shadow:inset 2px 0 0 var(--almost)}
 
 /* ---------------- building a map quiz ---------------- */
@@ -1333,6 +1353,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     <div class="card">
       <div class="deck-head spread">
         <div style="min-width:0;flex:1">
+          <div class="deck-sub-head" id="deck-sub-head" hidden>
+            <button class="btn btn-sm" id="deck-sub-back" type="button">&larr; Whole quiz</button>
+            <span class="sub-tag">sub-list</span>
+            <b id="deck-sub-name"></b>
+          </div>
           <div class="title-row">
             <input class="deck-title" id="deck-title" value="Deck" aria-label="Name of this word list" placeholder="Name this list" maxlength="60">
             <button class="btn btn-sm share-btn" id="deck-share" type="button" title="Make a link to this quiz" hidden>Export</button>
@@ -1341,6 +1366,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         </div>
         <span class="sample-flag" id="deck-flag" hidden>Sample</span>
       </div>
+      <div class="pick-bar" id="pick-bar" hidden>
+        <span class="pick-count" id="pick-count"></span>
+        <span class="sp"></span>
+        <button class="btn btn-sm" id="pick-add" type="button">Add to list</button>
+        <button class="btn btn-sm" id="pick-del" type="button">Delete</button>
+        <button class="btn btn-ghost btn-sm" id="pick-none" type="button">Clear</button>
+      </div>
+      <p class="deck-note" id="deck-note" hidden></p>
       <ul class="pairs" id="pair-list"></ul>
       <div class="deck-foot">
         <button class="btn btn-sm" id="btn-add" type="button">Add a word</button>
@@ -2297,11 +2330,31 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     $("deck-meta").textContent = deck.pairs.length + " words · " + langs;
     $("deck-flag").hidden = !deck.sample;
 
+    var shown = viewPairs();
+    var sub = subView && findSub(deck, subView.name);
+    $("deck-sub-head").hidden = !subView;
+    if (subView) {
+      $("deck-sub-name").textContent = subView.name;
+      $("deck-meta").textContent = words(shown.length) + " · from " + (deck.title || "a quiz");
+    }
+    $("btn-add").hidden = !!subView;
+
     var list = $("pair-list");
     list.textContent = "";
-    deck.pairs.forEach(function (p, idx) {
+    shown.forEach(function (p, idx) {
       var li = document.createElement("li");
       li.className = "pair";
+
+      var tick = document.createElement("input");
+      tick.type = "checkbox";
+      tick.className = "pick";
+      tick.checked = !!picked[pairKey(p)];
+      tick.setAttribute("aria-label", "Choose " + (p.a || "this word"));
+      tick.addEventListener("change", function () {
+        if (tick.checked) picked[pairKey(p)] = true; else delete picked[pairKey(p)];
+        drawPickBar();
+      });
+      li.appendChild(tick);
 
       var ia = document.createElement("input");
       ia.className = "term";
@@ -2358,8 +2411,19 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       kill.setAttribute("aria-label", "Remove " + p.a);
       kill.textContent = "✕";
       kill.addEventListener("click", function () {
-        deck.pairs.splice(idx, 1);
+        if (subView) {
+          var s = findSub(deck, subView.name);
+          if (s) s.keys = (s.keys || []).filter(function (k) { return k !== pairKey(p); });
+        } else {
+          var k = pairKey(p);
+          deck.pairs = deck.pairs.filter(function (q) { return q !== p; });
+          subsOf(deck).forEach(function (s2) {
+            s2.keys = (s2.keys || []).filter(function (x) { return x !== k; });
+          });
+        }
         deck.sample = false;
+        if (isSavedDeck(deck)) persistDeck(deck);
+        delete picked[pairKey(p)];
         renderDeck();
       });
 
@@ -2370,12 +2434,175 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       list.appendChild(li);
     });
 
-    $("btn-play").disabled = deck.pairs.length < 2;
-    $("btn-play").textContent = deck.pairs.length < 2 ? "Add at least 2 words" : "Start quiz";
+    drawPickBar();
+    $("btn-play").disabled = shown.length < 1;
+    $("btn-play").textContent = shown.length < 1
+      ? (subView ? "This list is empty" : "Add at least 2 words")
+      : subView ? "Start this list" : "Start quiz";
     if (opts.mode === "choice") syncChoiceLimits();
     $("dir-desc").textContent = opts.dir === "ab"
       ? "Shown the " + (deck.langA || "column A") + " word, you type the " + (deck.langB || "column B") + " meaning."
       : "Shown the " + (deck.langB || "column B") + " meaning, you type the " + (deck.langA || "column A") + " word.";
+  }
+
+  /* ---------------- picking words out of a list ----------------
+     A tick beside each word, and a bar that appears once anything is
+     ticked: the words you choose can go into a sub-list together, or go
+     altogether. Choosing is by content key, the way sub-lists are, so a
+     word edited or deleted between one render and the next simply falls
+     out of the choice rather than taking its neighbour's place.
+  -------------------------------------------------------------- */
+  var picked = {};
+
+  function pickedPairs() {
+    return viewPairs().filter(function (p) { return picked[pairKey(p)]; });
+  }
+
+  function clearPicks() { picked = {}; }
+
+  function drawPickBar() {
+    var bar = $("pick-bar"), n = pickedPairs().length;
+    bar.hidden = !n;
+    $("pick-count").textContent = n + (n === 1 ? " word chosen" : " words chosen");
+    $("pick-del").textContent = subView ? "Take out of this list" : "Delete";
+  }
+
+  /* Where chosen words go. The quiz's own lists, and a field to name a new
+     one -- the same choice the round offers under an answer, in the shape
+     this screen has room for. */
+  function offerLists(anchor, onPick) {
+    var old = document.querySelector(".pick-menu");
+    if (old) old.remove();
+    if (anchor.dataset.open === "1") { delete anchor.dataset.open; return; }
+    anchor.dataset.open = "1";
+
+    var menu = document.createElement("div");
+    menu.className = "pick-menu";
+
+    subsOf(deck).forEach(function (s) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn btn-sm";
+      b.textContent = s.name + " · " + words((s.keys || []).length);
+      b.addEventListener("click", function () { menu.remove(); delete anchor.dataset.open; onPick(s.name); });
+      menu.appendChild(b);
+    });
+
+    var row = document.createElement("div");
+    row.className = "pick-new";
+    var field = document.createElement("input");
+    field.placeholder = "Name a new list";
+    field.maxLength = 40;
+    var go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn btn-sm btn-primary";
+    go.textContent = "Add";
+    var take = function () {
+      var name = field.value.trim();
+      if (!name) { field.focus(); return; }
+      menu.remove();
+      delete anchor.dataset.open;
+      onPick(name);
+    };
+    go.addEventListener("click", take);
+    field.addEventListener("keydown", function (e) {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); take(); }
+      if (e.key === "Escape") { e.preventDefault(); menu.remove(); delete anchor.dataset.open; }
+    });
+    row.appendChild(field);
+    row.appendChild(go);
+    menu.appendChild(row);
+
+    anchor.parentNode.appendChild(menu);
+    field.focus();
+  }
+
+  function addPairsToSub(pairs, name) {
+    var s = findSub(deck, name);
+    if (!s) { s = { name: name, keys: [] }; subsOf(deck).push(s); }
+    pairs.forEach(function (p) {
+      var k = pairKey(p);
+      if (s.keys.indexOf(k) < 0) s.keys.push(k);
+    });
+    deck.sample = false;
+    var kept = isSavedDeck(deck);
+    if (kept) persistDeck(deck);
+    return kept;
+  }
+
+  $("pick-add").addEventListener("click", function () {
+    var chosen = pickedPairs();
+    if (!chosen.length) return;
+    offerLists(this, function (name) {
+      var kept = addPairsToSub(chosen, name);
+      clearPicks();
+      renderDeck();
+      flashDeckNote(kept
+        ? chosen.length + (chosen.length === 1 ? " word" : " words") + " added to “" + name + "”"
+        : "Added to “" + name + "” · save the quiz to keep it");
+    });
+  });
+
+  $("pick-del").addEventListener("click", function () {
+    var chosen = pickedPairs();
+    if (!chosen.length) return;
+    var self = $("pick-del");
+    confirmOn(self, subView ? "Take them out?" : "Delete them?", function () {
+      var keys = {};
+      chosen.forEach(function (p) { keys[pairKey(p)] = true; });
+      if (subView) {
+        // Out of this list, not out of the quiz: the word itself stays.
+        var s = findSub(deck, subView.name);
+        if (s) s.keys = (s.keys || []).filter(function (k) { return !keys[k]; });
+      } else {
+        deck.pairs = deck.pairs.filter(function (p) { return !keys[pairKey(p)]; });
+        // A word that is gone is gone from every list it was in.
+        subsOf(deck).forEach(function (s) {
+          s.keys = (s.keys || []).filter(function (k) { return !keys[k]; });
+        });
+      }
+      deck.sample = false;
+      if (isSavedDeck(deck)) persistDeck(deck);
+      clearPicks();
+      renderDeck();
+    });
+  });
+
+  $("pick-none").addEventListener("click", function () {
+    clearPicks();
+    renderDeck();
+  });
+
+  function flashDeckNote(text) {
+    var note = $("deck-note");
+    note.textContent = text;
+    note.hidden = false;
+    clearTimeout(note.timer);
+    note.timer = setTimeout(function () { note.hidden = true; }, 2600);
+  }
+
+  /* ---------------- a sub-list has a page of its own ----------------
+     The same page as the quiz, showing one list of it: its words, the
+     settings a round is played under, and Start quiz. A word taken out
+     here leaves the list, not the quiz.
+  ------------------------------------------------------------------- */
+  var subView = null;      // {name} while a sub-list is the thing on screen
+
+  // Which words the deck screen is showing: all of them, or one list's.
+  function viewPairs() {
+    if (!subView) return deck.pairs;
+    var s = findSub(deck, subView.name);
+    return s ? subPairs(deck, s) : [];
+  }
+
+  function openSubList(d, name) {
+    loadDeck(JSON.parse(JSON.stringify(d)));
+    subView = { name: name };
+    clearPicks();
+    renderDeck();
+    show("deck");
+    window.scrollTo(0, 0);
   }
 
   function showDeckShare() {
@@ -2385,6 +2612,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
   function loadDeck(d) {
     deck = d;
+    subView = null;
+    clearPicks();
     renderDeck();
     show("deck");
     showDeckShare();
@@ -3218,7 +3447,20 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     renderLog();
   });
 
+  $("deck-sub-back").addEventListener("click", function () {
+    subView = null;
+    clearPicks();
+    renderDeck();
+  });
+
   $("btn-play").addEventListener("click", function () {
+    // One list of the quiz, when that is what is open.
+    if (subView) {
+      var mine = viewPairs();
+      if (!mine.length) { renderDeck(); return; }
+      startGame(mine, subView.name);
+      return;
+    }
     deck.pairs = deck.pairs.filter(function (p) {
       return String(p.a).trim() && String(p.b).trim();
     });
@@ -3645,6 +3887,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       var n = geo ? geoSubPlaces(d, s).length : (s.keys || []).length;
       var row = item(s.name, n ? (geo ? places(n) : words(n)) + " · drag out to shelve it" : "empty", n > 0, function () {
         closeSidePanel();
+        if (!geo) { openSubList(d, s.name); return; }
         if (geo) {
           var live = deckById(d.id) || d;
           var ids = geoSubPlaces(live, (live.subs || [])[j] || s).map(function (p) { return p.id; });
@@ -4752,7 +4995,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var play = document.createElement("button");
     play.type = "button";
     play.className = "btn btn-sm";
-    play.textContent = "Play";
+    play.textContent = found && !isGeo(found.deck) ? "Open" : "Play";
     play.disabled = !found ||
       !(geoRef ? geoSubPlaces(found.deck, found.sub).length : subPairs(found.deck, found.sub).length);
     play.addEventListener("click", function () {
@@ -4762,10 +5005,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         startGeo(live.deck, geoSubPlaces(live.deck, live.sub).map(function (p) { return p.id; }), live.sub.name);
         return;
       }
-      loadDeck(JSON.parse(JSON.stringify(live.deck)));
-      var s = findSub(deck, ref.subName);
-      if (!s) return;
-      startGame(subPairs(deck, s), s.name);
+      openSubList(live.deck, live.sub.name);
     });
 
     var sp = document.createElement("span");
@@ -7404,7 +7644,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build bd00c380</p>
+<p class="build-stamp">build 1dbea4da</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
