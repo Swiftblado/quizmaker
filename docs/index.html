@@ -144,11 +144,10 @@ button{font:inherit;color:inherit}
   *{animation-duration:.01ms !important;transition-duration:.01ms !important}
 }
 
-.mast{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.mast{display:flex;align-items:center;gap:9px;margin-bottom:26px}
 .mast h1{font-family:var(--serif);font-size:29px;font-weight:600;letter-spacing:-.015em}
 .mast .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .mast .sp{flex:1}
-.tagline{color:var(--muted);font-size:14.5px;margin-bottom:26px;max-width:46ch}
 
 .card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;box-shadow:var(--shadow)}
 .eyebrow{font-size:11px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--faint)}
@@ -1243,7 +1242,6 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     <span class="sp"></span>
     <button class="btn btn-ghost btn-sm" id="theme-btn" type="button" title="Switch theme">Theme</button>
   </div>
-  <p class="tagline" id="tagline">Put in a list of vocabulary and drill it. Type the translation from memory, or pick it from the tiles. One point per word you get right.</p>
 
   <!-- ============ INTAKE ============ -->
   <section id="scr-intake">
@@ -7188,7 +7186,6 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
        browser, and the one way back into the site is the button under it. */
     var shared = sharedId();
     if (shared) {
-      $("tagline").textContent = "Someone shared this quiz with you. Play it here — it is theirs to change, not yours.";
       openShared(shared);
       return;
     }
@@ -7222,7 +7219,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build 89af9d6f</p>
+<p class="build-stamp">build b7b52934</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
