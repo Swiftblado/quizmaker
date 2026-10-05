@@ -28,6 +28,12 @@
   --tok-answer:#0E7C5A;
   --tok-opt:#7B3FBF;
   --tok-paren:#B87503;
+  /* One either-or group to a shade, all of them in the amber family so
+     each still reads as "either-or" first and as which one second. */
+  --either-1:#B87503;
+  --either-2:#D9480F;
+  --either-3:#8A6A1F;
+  --either-4:#D4A106;
   --wash-strength:14%;
   --shadow:0 1px 2px rgba(20,26,43,.06),0 8px 24px -12px rgba(20,26,43,.18);
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -58,6 +64,10 @@
     --tok-answer:#3DBB8E;
     --tok-opt:#C79BF0;
     --tok-paren:#E8A72C;
+    --either-1:#E8A72C;
+    --either-2:#FF7A45;
+    --either-3:#C9A45A;
+    --either-4:#F5D04A;
     --wash-strength:9%;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
   }
@@ -85,6 +95,10 @@
   --tok-answer:#3DBB8E;
   --tok-opt:#C79BF0;
   --tok-paren:#E8A72C;
+  --either-1:#E8A72C;
+  --either-2:#FF7A45;
+  --either-3:#C9A45A;
+  --either-4:#F5D04A;
   --wash-strength:9%;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
 }
@@ -240,6 +254,10 @@ button{font:inherit;color:inherit}
   border-bottom:1px solid var(--rule);
 }
 .col-arrow{color:var(--faint);font-size:13px}
+/* The same strip on the page a quiz is made on, without the rule under it,
+   lined up with the name above rather than with a list of words. */
+.entry-cols{padding:6px 0 0;border-bottom:none;max-width:460px}
+.entry-cols .col-name:first-child{margin-left:-8px}
 .col-name{
   flex:1;min-width:0;padding:4px 8px;font:inherit;font-size:11.5px;font-weight:700;
   letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
@@ -1237,11 +1255,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .paint-hl .t-plain{color:var(--faint)}
 .paint-hl span{border-radius:3px}
 .paint-opt{background:color-mix(in srgb,var(--tok-opt) 22%,transparent);box-shadow:0 1px 0 var(--tok-opt)}
-/* Walled on both sides, so two either-ors standing next to each other read
-   as two choices rather than one long one. */
-.paint-either{
-  background:color-mix(in srgb,var(--tok-paren) 24%,transparent);
-  box-shadow:inset 1px 0 0 var(--tok-paren),inset -1px 0 0 var(--tok-paren),0 1px 0 var(--tok-paren);
+/* Each either-or in its own shade of amber, so two standing next to each
+   other read as two choices rather than one long one. A fifth group goes
+   back to the first shade; nobody needs five in one answer. */
+.paint-either{--eo:var(--either-1)}
+.paint-either.eo-2{--eo:var(--either-2)}
+.paint-either.eo-3{--eo:var(--either-3)}
+.paint-either.eo-4{--eo:var(--either-4)}
+.paint-hl .paint-either{
+  background:color-mix(in srgb,var(--eo) 26%,transparent);
+  box-shadow:0 1px 0 var(--eo);
 }
 .group-chip{
   display:inline-block;margin-top:4px;margin-left:5px;font-size:11px;font-weight:600;
@@ -1262,7 +1285,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   font-size:12px;font-weight:600;background:var(--surface);color:var(--ink);
 }
 .paint-pick.paint-opt{border-color:var(--tok-opt);color:var(--tok-opt)}
-.paint-pick.paint-either{border-color:var(--tok-paren);color:var(--tok-paren)}
+.paint-pick.paint-either{border-color:var(--eo);color:var(--eo)}
 .paint-pick.paint-need{border-color:var(--tok-answer);color:var(--tok-answer)}
 .paint-pick:hover{background:var(--surface-2)}
 .deck-note{font-size:12.5px;color:var(--ok);margin:0 0 10px}
@@ -1365,6 +1388,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     <div class="card entry">
       <label class="eyebrow" for="quiz-name">Name this quiz</label>
       <input class="entry-name" id="quiz-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled quiz">
+      <div class="pair-head entry-cols">
+        <input class="col-name" id="new-lang-a" maxlength="28" autocomplete="off" spellcheck="false" placeholder="Column A" aria-label="Name of the first column">
+        <span class="col-arrow" aria-hidden="true">&rarr;</span>
+        <input class="col-name" id="new-lang-b" maxlength="28" autocomplete="off" spellcheck="false" placeholder="Column B" aria-label="Name of the second column">
+      </div>
       <label class="eyebrow" for="paste" style="display:block;margin-top:16px">Your word list</label>
       <p class="entry-help">One pair per line, split by an equals sign with a single space on each side &mdash; <code class="lit-eg">hacer = to do</code>. Nothing else separates a word from its meaning.</p>
       <div class="editor" id="editor">
@@ -2517,8 +2545,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         if (!piece.kind) { html += inner; return; }
         // Each either-or is numbered as it is drawn, so several of them in
         // one answer stay several rather than running together.
-        var tag = piece.kind === "either" ? ' data-group="' + (++group) + '"' : "";
-        html += '<span class="paint-' + piece.kind + '"' + tag + ">" + inner + "</span>";
+        var shade = "";
+        if (piece.kind === "either") shade = " eo-" + (group++ % 4 + 1);
+        html += '<span class="paint-' + piece.kind + shade + '">' + inner + "</span>";
       });
       hl.innerHTML = html;
     };
@@ -2553,9 +2582,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       b.type = "button";
       b.className = "paint-pick paint-" + kind;
       var face = function () {
-        b.textContent = kind === "either"
-          ? PAINT_KINDS.either.label + " " + (eitherCount() + 1)
-          : PAINT_KINDS[kind].label;
+        if (kind !== "either") { b.textContent = PAINT_KINDS[kind].label; return; }
+        var next = eitherCount();
+        b.textContent = PAINT_KINDS.either.label + " " + (next + 1);
+        b.className = "paint-pick paint-either eo-" + (next % 4 + 1);
       };
       faces.push(face);
       face();
@@ -5818,7 +5848,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     // way in on it, instead of being taken somewhere.
     var built = {
       title: $("quiz-name").value.trim() || "Typed list",
-      langA: "Column A", langB: "Column B", pairs: res.pairs, sample: false
+      langA: $("new-lang-a").value.trim() || "Column A",
+      langB: $("new-lang-b").value.trim() || "Column B",
+      pairs: res.pairs, sample: false
     };
     if (currentFolder) built.folder = currentFolder;
     persistDeck(built);
@@ -5827,6 +5859,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     // leaving the words in it invites a second press and a duplicate.
     PASTE.value = "";
     $("quiz-name").value = "";
+    $("new-lang-a").value = "";
+    $("new-lang-b").value = "";
     renderHighlight();
     announceBuilt(built);
   });
