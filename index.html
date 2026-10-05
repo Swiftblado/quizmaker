@@ -269,7 +269,7 @@ button{font:inherit;color:inherit}
 /* The tick that chooses a word takes a column of its own, so the row is
    laid out the same whether anything is chosen or not. */
 .pair{
-  display:grid;grid-template-columns:auto 1fr 1fr auto auto;gap:10px;align-items:start;
+  display:grid;grid-template-columns:auto 1fr 1fr auto;gap:10px;align-items:start;
   padding:11px 18px;border-bottom:1px solid var(--rule-soft);
 }
 /* Per-word escape hatch from the sheet shorthand. Quiet until it is on,
@@ -1025,6 +1025,10 @@ body.is-shared .sub-panel,
 body.is-shared .geo-preview .geo-tip{display:none !important}
 /* Nothing here is typed in, so the boxes behind the colours go. */
 body.is-shared .paint-hl{background:transparent}
+/* A star or a note someone left is shown; the means of changing them are not. */
+body.is-shared .tool.palette,
+body.is-shared .tool:not(.on),
+body.is-shared .lit:not([aria-pressed="true"]){display:none}
 body.is-shared .pairs input,
 body.is-shared .col-name,
 body.is-shared .deck-title,
@@ -1248,46 +1252,117 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 /* Selected letters come back, since choosing part of an answer to colour
    means reading what you have selected. */
 .paint-wrap input::selection{background:var(--accent-soft);color:var(--ink)}
-.paint-hl .t-term{color:var(--tok-term)}
-.paint-hl .t-ans{color:var(--tok-answer)}
-.paint-hl .t-opt{color:var(--tok-opt)}
-.paint-hl .t-paren{color:var(--tok-paren);font-weight:600}
-.paint-hl .t-plain{color:var(--faint)}
-.paint-hl span{border-radius:3px}
-.paint-opt{background:color-mix(in srgb,var(--tok-opt) 22%,transparent);box-shadow:0 1px 0 var(--tok-opt)}
-/* Each either-or in its own shade of amber, so two standing next to each
-   other read as two choices rather than one long one. A fifth group goes
-   back to the first shade; nobody needs five in one answer. */
-.paint-either{--eo:var(--either-1)}
-.paint-either.eo-2{--eo:var(--either-2)}
-.paint-either.eo-3{--eo:var(--either-3)}
-.paint-either.eo-4{--eo:var(--either-4)}
-.paint-hl .paint-either{
-  background:color-mix(in srgb,var(--eo) 26%,transparent);
-  box-shadow:0 1px 0 var(--eo);
-}
+/* ---- the parts of a word, in colour ----
+   The same everywhere a word is written -- the paste box, the open page,
+   the colour key: required and optional are told apart by the colour of
+   the letters, and an either-or by a highlight behind them, one shade of
+   amber to each group so two side by side stay two. */
+.parts .t-req{color:var(--tok-answer)}
+.parts .t-opt{color:var(--tok-opt)}
+.parts span{border-radius:3px}
+.parts .eo-1{background:color-mix(in srgb,var(--either-1) 26%,transparent);box-shadow:0 1px 0 var(--either-1)}
+.parts .eo-2{background:color-mix(in srgb,var(--either-2) 26%,transparent);box-shadow:0 1px 0 var(--either-2)}
+.parts .eo-3{background:color-mix(in srgb,var(--either-3) 26%,transparent);box-shadow:0 1px 0 var(--either-3)}
+.parts .eo-4{background:color-mix(in srgb,var(--either-4) 26%,transparent);box-shadow:0 1px 0 var(--either-4)}
+.parts .eo-bad{background:var(--bad-soft);box-shadow:0 1px 0 var(--bad)}
 .group-chip{
-  display:inline-block;margin-top:4px;margin-left:5px;font-size:11px;font-weight:600;
-  color:var(--tok-paren);background:color-mix(in srgb,var(--tok-paren) 14%,transparent);
-  border:1px solid color-mix(in srgb,var(--tok-paren) 45%,transparent);
+  display:inline-block;margin-top:4px;font-size:11px;font-weight:600;
+  color:var(--either-1);background:color-mix(in srgb,var(--either-1) 14%,transparent);
+  border:1px solid color-mix(in srgb,var(--either-1) 45%,transparent);
   padding:1px 6px;border-radius:4px;
 }
-.paint-need{background:color-mix(in srgb,var(--tok-answer) 20%,transparent);box-shadow:0 1px 0 var(--tok-answer)}
 
-.paint-bar{
-  grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;
-  margin-top:8px;padding:8px 10px;border-radius:9px;background:var(--surface-2);
+/* ---- a word row's own buttons ----
+   Star, note, colours, exact, remove: all at the end of the row, so the
+   two word boxes are never pushed about by what a word carries. */
+.word-cell{min-width:0}
+.row-tools{display:flex;align-items:center;gap:1px;padding-top:4px}
+.tool{
+  width:30px;height:30px;display:grid;place-items:center;padding:0;
+  border:1px solid transparent;border-radius:7px;background:transparent;
+  color:var(--faint);cursor:pointer;font-size:17px;line-height:1;
+  transition:background .12s,color .12s,border-color .12s;
 }
-.paint-hint{font-size:12px;color:var(--muted);margin-right:2px}
-.paint-hint.warn{color:var(--bad)}
-.paint-pick{
-  padding:4px 10px;border-radius:999px;border:1px solid var(--rule);cursor:pointer;
+.tool:hover{color:var(--ink);background:var(--surface-2)}
+.tool.star.on{color:var(--almost)}
+.tool.note.on{color:var(--accent-ink)}
+.tool.note.on svg{fill:var(--accent-soft)}
+.tool.palette[aria-expanded="true"]{color:var(--accent-ink);background:var(--accent-soft);border-color:var(--accent)}
+.row-tools .lit{margin:0 3px}
+
+/* ---- the colour bar ---- */
+.colour-bar,.note-pop{grid-column:1/-1}
+/* An open bar or note is worked in, not scrolled past: the list stops
+   being a little window while one is open. */
+.pairs:has(.colour-bar,.note-pop){max-height:none}
+.colour-bar{
+  margin-top:4px;padding:10px 12px;border-radius:10px;background:var(--surface-2);
+  display:flex;flex-direction:column;gap:9px;
+}
+.cb-head{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.cb-cols{display:inline-flex;border:1px solid var(--rule);border-radius:999px;overflow:hidden;margin-right:6px}
+.cb-cols button{
+  padding:4px 11px;border:0;background:var(--surface);cursor:pointer;
+  font-size:12px;font-weight:600;color:var(--muted);
+}
+.cb-cols button+button{border-left:1px solid var(--rule)}
+.cb-cols button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-ink)}
+.cb-act{
+  padding:4px 11px;border-radius:999px;border:1px solid var(--rule);cursor:pointer;
   font-size:12px;font-weight:600;background:var(--surface);color:var(--ink);
 }
-.paint-pick.paint-opt{border-color:var(--tok-opt);color:var(--tok-opt)}
-.paint-pick.paint-either{border-color:var(--eo);color:var(--eo)}
-.paint-pick.paint-need{border-color:var(--tok-answer);color:var(--tok-answer)}
-.paint-pick:hover{background:var(--surface-2)}
+.cb-act.opt{border-color:var(--tok-opt);color:var(--tok-opt)}
+.cb-act.either{border-color:var(--either-1);color:var(--ink);background:color-mix(in srgb,var(--either-1) 22%,var(--surface))}
+.cb-act.req{border-color:var(--tok-answer);color:var(--tok-answer)}
+.cb-act:hover{filter:brightness(.96)}
+.cb-help{
+  margin-left:auto;width:27px;height:27px;border-radius:50%;padding:0;cursor:pointer;
+  border:1px solid var(--rule);background:var(--surface);font-weight:700;font-size:13px;color:var(--muted);
+}
+.cb-help:hover,.cb-help[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent)}
+.cb-hint{margin:0;font-size:12px;color:var(--muted);min-height:1em}
+.cb-hint.warn{color:var(--bad)}
+.cb-ask{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink)}
+.cb-ask input,.cb-chip input,.cb-new{
+  font:inherit;font-size:13px;padding:3px 7px;color:var(--ink);
+  border:1px solid var(--rule);border-radius:6px;background:var(--surface);
+}
+.cb-ask input:focus,.cb-chip input:focus,.cb-new:focus{outline:none;border-color:var(--accent)}
+.cb-groups{display:flex;flex-direction:column;gap:6px}
+.cb-group{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.cb-glabel{font-size:11px;font-weight:700;letter-spacing:.03em;padding:2px 7px;color:var(--ink)}
+.cb-chip{display:inline-flex;align-items:center;border:1px solid var(--rule);border-radius:6px;background:var(--surface);overflow:hidden}
+.cb-chip input{border:0;border-radius:0;width:auto;min-width:3ch}
+.cb-chip button{border:0;border-left:1px solid var(--rule-soft);background:transparent;color:var(--faint);padding:4px 7px;cursor:pointer;font-size:11px}
+.cb-chip button:hover:not(:disabled){color:var(--bad);background:var(--bad-soft)}
+.cb-chip button:disabled{opacity:.35;cursor:not-allowed}
+.cb-more{font-size:12px;padding:3px 8px;border:1px dashed var(--rule);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.cb-more:hover{border-color:var(--accent);color:var(--accent-ink)}
+.cb-bad{font-size:11.5px;color:var(--bad);font-weight:600}
+.cb-empty{font-size:12px;color:var(--faint);margin:0}
+.cb-key{
+  background:var(--surface);border:1px solid var(--rule-soft);border-radius:8px;
+  padding:10px 12px;font-size:12.5px;color:var(--ink);
+}
+.cb-key h4{margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cb-key dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;align-items:baseline}
+.cb-key dt{font-size:13.5px;white-space:pre}
+.cb-key dd{margin:0;color:var(--muted)}
+.cb-key dd b,.cb-key p b{color:var(--ink)}
+.cb-key p{margin:10px 0 0;color:var(--muted);line-height:1.5}
+
+/* ---- a word's note, written under its row ---- */
+.note-pop{
+  justify-self:end;width:min(340px,100%);margin-top:4px;padding:10px;
+  border:1px solid var(--rule);border-radius:10px;background:var(--surface);box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:8px;
+}
+.note-pop textarea{
+  font:inherit;font-size:13.5px;min-height:64px;resize:vertical;padding:7px 9px;color:var(--ink);
+  border:1px solid var(--rule);border-radius:7px;background:var(--surface-2);
+}
+.note-pop textarea:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.note-pop-row{display:flex;justify-content:flex-end;gap:6px}
 .deck-note{font-size:12.5px;color:var(--ok);margin:0 0 10px}
 .deck-sub-head{display:flex;align-items:center;gap:9px;margin-bottom:8px;flex-wrap:wrap}
 .deck-sub-head b{font-family:var(--serif);font-size:18px;font-weight:600}
@@ -1343,8 +1418,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   color:var(--accent-ink);background:var(--accent-soft);padding:1px 7px;border-radius:999px;margin-bottom:3px;
 }
 @media (max-width:430px){
-  .pair{grid-template-columns:1fr auto auto}
-  .pair .b-cell{grid-column:1/2}
+  .pair{grid-template-columns:auto 1fr}
+  .pair .word-cell{grid-column:2}
+  .pair .row-tools{grid-column:2;justify-content:flex-end;padding-top:0}
   .stats{gap:18px}
   .stage{padding:24px 16px 20px}
 }
@@ -1396,10 +1472,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       <label class="eyebrow" for="paste" style="display:block;margin-top:16px">Your word list</label>
       <p class="entry-help">One pair per line, split by an equals sign with a single space on each side &mdash; <code class="lit-eg">hacer = to do</code>. Nothing else separates a word from its meaning.</p>
       <div class="editor" id="editor">
-        <div class="hl" id="paste-hl" aria-hidden="true"></div>
+        <div class="hl parts" id="paste-hl" aria-hidden="true"></div>
         <textarea id="paste" spellcheck="false" placeholder="hacer = to do&#10;decir = to say&#10;ser = to be"></textarea>
       </div>
-      <p class="entry-note" id="entry-note">Colours mark the word, its meaning, and any optional part in brackets.</p>
+      <p class="entry-note" id="entry-note">Green must be typed, purple (in brackets) may be left out, and highlighted words are either-ors.</p>
       <div class="row" style="margin-top:12px">
         <button class="btn btn-primary" id="btn-paste" type="button">Build deck</button>
         <button class="btn" id="btn-fix" type="button">Auto-format</button>
@@ -1547,7 +1623,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     <div class="row" style="margin-top:18px">
       <button class="btn btn-primary" id="btn-play" type="button" style="flex:1;min-width:180px">Start quiz</button>
-      <button class="btn" id="btn-save" type="button">Save deck</button>
+      <button class="btn" id="btn-save" type="button" hidden>Keep this deck</button>
     </div>
   </section>
 
@@ -1949,7 +2025,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     // shorthand, and the slashes and brackets ARE the answer ("km/h").
     t = keepNotation
       ? t.replace(/[.:!?¡¿"']/g, " ")
-      : t.replace(/[.,;:!?¡¿"'()\[\]\/]/g, " ");
+      : t.replace(/[.,;:!?¡¿"'()\[\]\/{}]/g, " ");
     return t.replace(/\s+/g, " ").trim();
   }
 
@@ -2056,6 +2132,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   $("back-arrow").addEventListener("click", goBack);
 
   function show(name) {
+    if (saveTimer) saveNow();   // an edit still on its way to storage
     if (name !== "quiz") stopClock();
     if (name !== "geo") stopGeoClock();
     // Nothing to go back to from the lists themselves.
@@ -2290,8 +2367,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var out = [], depth = 0, buf = "";
     for (var i = 0; i < text.length; i++) {
       var c = text.charAt(i);
-      if (c === "(" || c === "[") depth++;
-      else if (c === ")" || c === "]") depth = Math.max(0, depth - 1);
+      if (c === "(" || c === "[" || c === "{") depth++;
+      else if (c === ")" || c === "]" || c === "}") depth = Math.max(0, depth - 1);
       if (depth === 0 && isSeparator(text, i)) { out.push(buf); buf = ""; continue; }
       buf += c;
     }
@@ -2377,11 +2454,35 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     });
   }
 
+  // A choice that has to be made: "to {say/tell} the truth" is "to say the
+  // truth" or "to tell the truth", and never "to the truth".
+  function expandBraces(text) {
+    var i = text.indexOf("{");
+    if (i < 0) return [text];
+    var depth = 0, j = i;
+    for (; j < text.length; j++) {
+      var c = text.charAt(j);
+      if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) break;
+    }
+    if (j >= text.length) return expandBraces(text.slice(0, i) + text.slice(i + 1));   // unclosed
+    var before = text.slice(0, i), inner = text.slice(i + 1, j), after = text.slice(j + 1);
+    var out = [];
+    splitTop(inner).forEach(function (choice) {
+      var ch = tidy(choice);
+      if (!ch || out.length >= MAX_VARIANTS) return;
+      out = out.concat(expandBraces(before + ch + after));
+    });
+    return out.length ? out : expandBraces(before + after);
+  }
+
   function expandAnswer(text) {
     var out = [];
     var phrases = [];
     expandGenderForms(String(text)).forEach(function (phrase) {
-      expandOptional(phrase).forEach(function (f) { phrases.push(f); });
+      expandBraces(phrase).forEach(function (b) {
+        expandOptional(b).forEach(function (f) { phrases.push(f); });
+      });
     });
     phrases.forEach(function (form) {
       splitTop(form).forEach(function (part) {
@@ -2392,104 +2493,193 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     return out.length ? out : [tidy(text)];
   }
 
-  /* ---------------- colouring the parts of an answer ----------------
-     The sheet shorthand says what is optional and what is either-or by
-     punctuation: "(to) do", "to say / to tell". Colour says the same thing
-     by hand, over any stretch of the answer, and it wins where the two
-     disagree -- a painted stretch is read by its colour, and only what is
-     left unpainted is read as notation.
+  /* ---------------- the parts of an answer ----------------
+     Every word says what is wanted of it in its own text, and the colours
+     only ever show what the text already says:
 
-       optional    the stretch may be left out
-       either      the slashes in the stretch separate alternatives
-       necessary   the stretch is wanted exactly as written
+       required    plain words                        to say
+       optional    in round or square brackets        (to) say
+       either-or   choices split by / , or ;          to say / to tell
+                   in braces, in mid-answer           to {say/tell} the truth
+                   in brackets, and optional too      (to) be (able/capable)
 
-     Clicking "exact" a second time says the whole answer is necessary,
-     which is what the button used to do on its own.
-  ------------------------------------------------------------------- */
-  var PAINT_KINDS = {
-    opt: { label: "Optional", hint: "may be left out" },
-    either: { label: "Either-or", hint: "a slash separates the choices" },
-    need: { label: "Necessary", hint: "wanted exactly as written" }
-  };
+     An either-or always offers two choices or more; one with fewer is drawn
+     in red until it gets a second. A slash between a word and a gender
+     ending ("alto/a") is a gender form, not a choice.
 
-  function paintOf(p, side) {
-    if (!p.paint) return [];
-    return (p.paint[side] || []).filter(function (r) { return r && r.e > r.s; });
-  }
+     The colour bar writes this notation for you. Colours used to be painted
+     on top of the text and kept apart from it, which meant editing a word
+     had to throw its colours away; with the text as the one place an answer
+     is said, the two can never disagree.
+  ---------------------------------------------------------- */
+  var BRACKETS = { "(": ")", "[": "]", "{": "}" };
 
-  function setPaint(p, side, ranges) {
-    if (!p.paint) p.paint = {};
-    p.paint[side] = ranges;
-    if (!ranges.length) delete p.paint[side];
-    if (p.paint && !p.paint.a && !p.paint.b) delete p.paint;
-  }
-
-  // Ranges kept apart and in order: painting over a stretch replaces what
-  // was under it rather than layering on top of it.
-  function addPaint(p, side, from, to, kind) {
-    var kept = [];
-    paintOf(p, side).forEach(function (r) {
-      if (r.e <= from || r.s >= to) { kept.push(r); return; }
-      if (r.s < from) kept.push({ s: r.s, e: from, kind: r.kind });
-      if (r.e > to) kept.push({ s: to, e: r.e, kind: r.kind });
-    });
-    if (kind) kept.push({ s: from, e: to, kind: kind });
-    kept.sort(function (a, b) { return a.s - b.s; });
-    setPaint(p, side, kept);
-  }
-
-  // The answer cut into pieces: the painted ones with their colour, the
-  // rest left for the notation to read.
-  function paintPieces(text, ranges) {
-    var out = [], at = 0;
-    ranges.slice().sort(function (a, b) { return a.s - b.s; }).forEach(function (r) {
-      var s = Math.max(0, Math.min(r.s, text.length));
-      var e = Math.max(s, Math.min(r.e, text.length));
-      if (s > at) out.push({ text: text.slice(at, s), kind: null });
-      if (e > s) out.push({ text: text.slice(s, e), kind: r.kind });
-      at = Math.max(at, e);
-    });
-    if (at < text.length) out.push({ text: text.slice(at), kind: null });
+  // The slashes that belong to a gender form, by position.
+  function genderSlashes(text) {
+    var re = /([A-Za-zÀ-ÿ]{2,})\/([A-Za-zÀ-ÿ]{1,3})(?![A-Za-zÀ-ÿ])/g;
+    var out = {}, m;
+    while ((m = re.exec(text))) {
+      if (genderForms(m[1], m[2])) out[m.index + m[1].length] = true;
+    }
     return out;
   }
 
-  // What each piece may be read as, and then every way of putting the
-  // pieces back together.
-  function paintedAccepted(text, ranges) {
-    var pieces = paintPieces(text, ranges);
-    var ways = pieces.map(function (piece) {
-      if (piece.kind === "opt") return ["", piece.text];
-      if (piece.kind === "need") return [piece.text];
-      if (piece.kind === "either") {
-        return piece.text.split("/").map(function (x) { return x; })
-          .filter(function (x) { return x.trim(); });
+  /* The shape of one side of a pair: its bracket pairs, and its either-or
+     groups, each with where every choice in it starts and ends. Groups are
+     in reading order, an outer one before the ones inside it, which is the
+     order they are numbered and shaded in. */
+  function readParts(text) {
+    text = String(text == null ? "" : text);
+    var gender = genderSlashes(text);
+    var stack = [], pairs = [], i;
+    for (i = 0; i < text.length; i++) {
+      var c = text.charAt(i);
+      if (BRACKETS[c]) { stack.push({ o: i, ch: c }); continue; }
+      if (c === ")" || c === "]" || c === "}") {
+        // Closes the nearest bracket of its own kind. Anything opened in
+        // between and never closed is left as plain text.
+        for (var k = stack.length - 1; k >= 0; k--) {
+          if (BRACKETS[stack[k].ch] === c) {
+            pairs.push({ o: stack[k].o, c: i, ch: stack[k].ch });
+            stack.length = k;
+            break;
+          }
+        }
       }
-      var grown = expandAnswer(piece.text);
-      return grown.length ? grown : [piece.text];
-    });
+    }
+    pairs.sort(function (x, y) { return x.o - y.o; });
 
-    var out = [""];
-    ways.forEach(function (choices) {
-      var next = [];
-      out.forEach(function (sofar) {
-        choices.forEach(function (c) {
-          if (next.length < MAX_VARIANTS) next.push(sofar + c);
-        });
+    var boxes = [{ o: -1, c: text.length, ch: "top", seps: [] }];
+    pairs.forEach(function (p) { boxes.push({ o: p.o, c: p.c, ch: p.ch, seps: [] }); });
+    for (i = 0; i < text.length; i++) {
+      if (!isSeparator(text, i) || (text.charAt(i) === "/" && gender[i])) continue;
+      var home = boxes[0];
+      for (var b = 1; b < boxes.length; b++) {
+        if (boxes[b].o < i && i < boxes[b].c && boxes[b].o > home.o) home = boxes[b];
+      }
+      home.seps.push(i);
+    }
+
+    var groups = [];
+    boxes.forEach(function (bx) {
+      var brace = bx.ch === "{";
+      if (!brace && !bx.seps.length) return;
+      var starts = [bx.o + 1].concat(bx.seps.map(function (x) { return x + 1; }));
+      var ends = bx.seps.concat([bx.c]);
+      var opts = starts.map(function (s, n) {
+        var e = ends[n];
+        while (s < e && /\s/.test(text.charAt(s))) s++;
+        while (e > s && /\s/.test(text.charAt(e - 1))) e--;
+        return { s: s, e: e };
       });
-      out = next.length ? next : out;
+      var filled = opts.filter(function (x) { return x.e > x.s; }).length;
+      groups.push({
+        kind: bx.ch === "top" ? "top" : brace ? "brace" : "opt",
+        o: bx.o, c: bx.c, seps: bx.seps, opts: opts, filled: filled, ok: filled >= 2
+      });
     });
-    var tidied = [];
-    out.forEach(function (t) {
-      var v = tidy(t);
-      if (v && tidied.indexOf(v) < 0) tidied.push(v);
-    });
-    return tidied;
+    groups.sort(function (x, y) { return x.o - y.o; });
+    return { text: text, pairs: pairs, groups: groups };
   }
 
-  // Which side of the pair is being answered, for the colours to sit on.
-  function answerSide() { return opts.dir === "ab" ? "b" : "a"; }
+  // What a group's highlight covers: a whole-answer either-or all of it,
+  // braces and all for a braced one, and only the inside of an optional
+  // one, whose brackets stay in the optional colour.
+  function groupSpan(g, len) {
+    if (g.kind === "top") return { s: 0, e: len };
+    if (g.kind === "brace") return { s: g.o, e: g.c + 1 };
+    return { s: g.o + 1, e: g.c };
+  }
 
-  // What the sheet actually says — for showing, not for matching.
+  // Everything a group owns, its brackets included.
+  function groupReach(g, len) {
+    return g.kind === "top" ? { s: 0, e: len } : { s: g.o, e: g.c + 1 };
+  }
+
+  function shadeOf(g, k) { return g.ok ? "eo-" + (k % 4 + 1) : "eo-bad"; }
+
+  /* One side of a pair as coloured HTML: optional parts as purple text,
+     the rest as required text, and each either-or highlighted in a shade
+     of its own. Inside a .parts element. */
+  function partsHTML(text) {
+    var parts = readParts(text), t = parts.text, n = t.length;
+    var opt = [], shade = [], i;
+    parts.pairs.forEach(function (p) {
+      if (p.ch === "{") return;
+      for (var j = p.o; j <= p.c; j++) opt[j] = true;
+    });
+    parts.groups.forEach(function (g, k) {
+      var span = groupSpan(g, n), cls = shadeOf(g, k);
+      for (var j = span.s; j < span.e; j++) shade[j] = cls;   // inner groups come later and win
+    });
+    var out = "", buf = "", cur = null;
+    for (i = 0; i < n; i++) {
+      var cls = (opt[i] ? "t-opt" : "t-req") + (shade[i] ? " " + shade[i] : "");
+      if (cls !== cur) {
+        if (buf) out += '<span class="' + cur + '">' + esc(buf) + "</span>";
+        buf = "";
+        cur = cls;
+      }
+      buf += t.charAt(i);
+    }
+    if (buf) out += '<span class="' + cur + '">' + esc(buf) + "</span>";
+    return out;
+  }
+
+  /* ---- colours painted by older versions ----
+     A painted optional goes into brackets, a painted either-or into braces
+     (when it has two choices to offer), a painted necessary stays as its
+     plain words. */
+  function paintToText(text, ranges) {
+    var t = String(text || "");
+    (ranges || []).filter(function (r) { return r && r.e > r.s; })
+      .sort(function (x, y) { return y.s - x.s; })
+      .forEach(function (r) {
+        var s = Math.max(0, Math.min(r.s, t.length));
+        var e = Math.max(s, Math.min(r.e, t.length));
+        var seg = t.slice(s, e);
+        if (!seg.trim()) return;
+        if (r.kind === "opt") seg = "(" + seg + ")";
+        else if (r.kind === "either" &&
+                 splitTop(seg).filter(function (x) { return x.trim(); }).length >= 2) seg = "{" + seg + "}";
+        t = t.slice(0, s) + seg + t.slice(e);
+      });
+    return t;
+  }
+
+  // Sub-lists hold words by their text, so a word whose text changes is
+  // carried across to its new key in every list that held it.
+  function rekeySubs(d, moved) {
+    allSubs(d).forEach(function (node) {
+      node.sub.keys = (node.sub.keys || [])
+        .map(function (k) { return moved[k] || k; })
+        .filter(function (k, i, arr) { return arr.indexOf(k) === i; });
+    });
+  }
+
+  // -> true when anything changed.
+  function unpaintDeck(d) {
+    var moved = {}, changed = false;
+    (d && d.pairs || []).forEach(function (p) {
+      if (!p.paint) return;
+      var was = pairKey(p);
+      if (p.paint.a) p.a = paintToText(p.a, p.paint.a);
+      if (p.paint.b) p.b = paintToText(p.b, p.paint.b);
+      delete p.paint;
+      var now = pairKey(p);
+      if (now !== was) moved[was] = now;
+      changed = true;
+    });
+    if (changed) rekeySubs(d, moved);
+    return changed;
+  }
+
+  function unpaintSaved() {
+    var list = savedDecks(), any = false;
+    list.forEach(function (d) { if (unpaintDeck(d)) any = true; });
+    if (any) writeDecks(list);
+  }
+
   function rawAnswers(pair) {
     var side = opts.dir === "ab" ? "b" : "a";
     var list = [pair[side]];
@@ -2503,129 +2693,451 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function acceptedFor(pair) {
     var raw = rawAnswers(pair);
     if (pair.literal) return raw;                 // every part necessary
-
-    /* Colour first. A painted answer is read piece by piece -- the painted
-       stretches by their colour, what is left by the notation -- and the
-       other spellings the sheet offers are read as they always were. */
-    var side = answerSide();
-    var marks = paintOf(pair, side);
     var out = [];
-    var keep = function (v) { if (v && out.indexOf(v) < 0) out.push(v); };
-    if (marks.length) {
-      paintedAccepted(String(pair[side] || ""), marks).forEach(keep);
-      raw.slice(1).forEach(function (t) { expandAnswer(t).forEach(keep); });
-    } else {
-      raw.forEach(function (t) { expandAnswer(t).forEach(keep); });
-    }
+    raw.forEach(function (t) {
+      expandAnswer(t).forEach(function (v) { if (v && out.indexOf(v) < 0) out.push(v); });
+    });
     return out.length ? out : raw;
   }
 
   /* A word, drawn in its colours behind the box it is typed in -- the same
-     trick the word-list editor uses, since no input can colour part of its
-     own text. Two kinds of colour are laid on at once: the colours painted
-     by hand, and under them the colours the notation earns -- a bracket, a
-     slash, which column this is. The notation colours are always on, so a
-     bracket in the wrong place can be seen rather than discovered later. */
-  function paintOverlay(p, side, input, faceClass) {
+     trick the paste box uses, since no input can colour part of its own
+     text. The box above is see-through, letters and all. */
+  function paintOverlay(input, faceClass) {
     var wrap = document.createElement("div");
     wrap.className = "paint-wrap";
     var hl = document.createElement("div");
-    hl.className = "paint-hl" + (faceClass ? " " + faceClass : "");
+    hl.className = "paint-hl parts" + (faceClass ? " " + faceClass : "");
     hl.setAttribute("aria-hidden", "true");
     wrap.appendChild(hl);
     wrap.appendChild(input);
 
-    var base = side === "a" ? "t-term" : "t-ans";
-    var draw = function () {
-      var marks = paintOf(p, side);
-      wrap.classList.toggle("painted", marks.length > 0);
-      var html = "", group = 0;
-      paintPieces(String(input.value || ""), marks).forEach(function (piece) {
-        var inner = tokenizeSide(piece.text, base);
-        if (!piece.kind) { html += inner; return; }
-        // Each either-or is numbered as it is drawn, so several of them in
-        // one answer stay several rather than running together.
-        var shade = "";
-        if (piece.kind === "either") shade = " eo-" + (group++ % 4 + 1);
-        html += '<span class="paint-' + piece.kind + shade + '">' + inner + "</span>";
-      });
-      hl.innerHTML = html;
-    };
+    var sync = function () { hl.scrollLeft = input.scrollLeft; };
+    var draw = function () { hl.innerHTML = partsHTML(input.value); sync(); };
     draw();
-    input.addEventListener("scroll", function () { hl.scrollLeft = input.scrollLeft; });
+    ["scroll", "keyup", "click", "select", "focus", "blur"].forEach(function (ev) {
+      input.addEventListener(ev, sync);
+    });
     return { wrap: wrap, draw: draw };
   }
 
-  /* The bar the "exact" button opens: pick a stretch of the answer, then
-     say what it is. Pressing the button again says the whole answer is
-     necessary, which is what it used to do on its own. */
-  function paintBar(p, side, input, overlay, after, countGroups) {
-    countGroups = countGroups || function () {};
-    var bar = document.createElement("div");
-    bar.className = "paint-bar";
+  /* ---------------- edits are kept as they are made ----------------
+     They used to wait for a Save button far down the page, and a word
+     changed and walked away from was a word that had never changed. */
+  var saveTimer = null;
 
-    var hint = document.createElement("span");
-    hint.className = "paint-hint";
-    hint.textContent = "Select part of the answer, then say what it is:";
-    bar.appendChild(hint);
+  function saveSoon() {
+    if (!deck || SHARED || !isSavedDeck(deck)) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 350);
+  }
 
-    // An answer may hold as many either-ors as it has choices to offer, and
-    // the button says which one is being made next.
-    var faces = [];
-    function eitherCount() {
-      return paintOf(p, side).filter(function (r) { return r.kind === "either"; }).length;
+  function saveNow() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    if (deck && !SHARED && isSavedDeck(deck)) persistDeck(deck);
+  }
+
+  window.addEventListener("pagehide", function () { if (saveTimer) saveNow(); });
+
+  // A word's text changed: keep it in every list that holds it, and in
+  // the choice under way if it was chosen.
+  function retext(p, side, value) {
+    var was = pairKey(p);
+    p[side] = value;
+    var now = pairKey(p);
+    if (now !== was) {
+      var moved = {};
+      moved[was] = now;
+      rekeySubs(deck, moved);
+      if (picked[was]) { delete picked[was]; picked[now] = true; }
     }
-    function relabel() { faces.forEach(function (fn) { fn(); }); }
+    deck.sample = false;
+    $("deck-flag").hidden = true;
+    saveSoon();
+  }
 
-    Object.keys(PAINT_KINDS).forEach(function (kind) {
+  function columnName(side) {
+    return side === "a" ? (deck.langA || "Column A") : (deck.langB || "Column B");
+  }
+
+  // A selection may not cut a bracket in half.
+  function balanced(str) {
+    var stack = [];
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charAt(i);
+      if (BRACKETS[c]) stack.push(BRACKETS[c]);
+      else if (c === ")" || c === "]" || c === "}") { if (stack.pop() !== c) return false; }
+    }
+    return !stack.length;
+  }
+
+  function wrappedIn(str, open) {
+    return str.length > 1 && str.charAt(0) === open &&
+      str.charAt(str.length - 1) === BRACKETS[open] && balanced(str.slice(1, -1));
+  }
+
+  /* ---------------- the colour bar ----------------
+     Opened from a word's palette button. Select part of either column's
+     text and say what it is; the bar writes the brackets and braces. Every
+     either-or in the word is listed underneath, with its choices to rename,
+     remove or add to -- never down to fewer than two.
+
+       row     the row's own handles: boxes[side] = {input}, and set(side,
+               text), which writes a new text through to the pair
+  ------------------------------------------------- */
+  function colourBar(row, startSide) {
+    var side = startSide;
+    var el = document.createElement("div");
+    el.className = "colour-bar";
+
+    var head = document.createElement("div");
+    head.className = "cb-head";
+    el.appendChild(head);
+
+    // Which column the buttons act on. Focusing a box picks it too.
+    var cols = document.createElement("div");
+    cols.className = "cb-cols";
+    cols.setAttribute("role", "group");
+    cols.setAttribute("aria-label", "Column to colour");
+    var colBtn = {};
+    ["a", "b"].forEach(function (sd) {
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "paint-pick paint-" + kind;
-      var face = function () {
-        if (kind !== "either") { b.textContent = PAINT_KINDS[kind].label; return; }
-        var next = eitherCount();
-        b.textContent = PAINT_KINDS.either.label + " " + (next + 1);
-        b.className = "paint-pick paint-either eo-" + (next % 4 + 1);
-      };
-      faces.push(face);
-      face();
-      b.title = PAINT_KINDS[kind].hint;
+      b.textContent = columnName(sd);
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      b.addEventListener("click", function () { target(sd); row.boxes[sd].input.focus(); });
+      colBtn[sd] = b;
+      cols.appendChild(b);
+    });
+    head.appendChild(cols);
+
+    function action(cls, label, title, run) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "cb-act " + cls;
+      b.textContent = label;
+      b.title = title;
       b.addEventListener("mousedown", function (e) { e.preventDefault(); });   // keep the selection
-      b.addEventListener("click", function () {
-        var from = input.selectionStart, to = input.selectionEnd;
-        if (from == null || to == null || to <= from) {
-          hint.textContent = "Select part of the answer first.";
-          hint.classList.add("warn");
-          input.focus();
-          return;
-        }
-        hint.textContent = "Select part of the answer, then say what it is:";
-        hint.classList.remove("warn");
-        addPaint(p, side, from, to, kind);
-        deck.sample = false;
-        if (isSavedDeck(deck)) persistDeck(deck);
-        overlay.draw();
-        relabel();
-        countGroups();
-      });
-      bar.appendChild(b);
+      b.addEventListener("click", run);
+      head.appendChild(b);
+      return b;
+    }
+    action("opt", "Optional", "May be left out — written in ( )", makeOptional);
+    action("either", "Either-or", "Type one of the choices — written with / or in { }", makeEither);
+    action("req", "Required", "Must be typed — takes the brackets away", makeRequired);
+
+    var helpBtn = document.createElement("button");
+    helpBtn.type = "button";
+    helpBtn.className = "cb-help";
+    helpBtn.textContent = "?";
+    helpBtn.title = "How the colours work";
+    helpBtn.setAttribute("aria-label", "How the colours work");
+    helpBtn.setAttribute("aria-expanded", "false");
+    head.appendChild(helpBtn);
+
+    var hint = document.createElement("p");
+    hint.className = "cb-hint";
+    el.appendChild(hint);
+
+    var ask = document.createElement("div");
+    ask.className = "cb-ask";
+    ask.hidden = true;
+    el.appendChild(ask);
+
+    var key = colourKey();
+    key.hidden = true;
+    el.appendChild(key);
+    helpBtn.addEventListener("click", function () {
+      key.hidden = !key.hidden;
+      helpBtn.setAttribute("aria-expanded", String(!key.hidden));
     });
 
-    var clear = document.createElement("button");
-    clear.type = "button";
-    clear.className = "btn btn-sm";
-    clear.textContent = "Clear colours";
-    clear.addEventListener("click", function () {
-      setPaint(p, side, []);
-      deck.sample = false;
-      if (isSavedDeck(deck)) persistDeck(deck);
-      overlay.draw();
-      relabel();
-      countGroups();
-      after();
-    });
-    bar.appendChild(clear);
-    return bar;
+    var list = document.createElement("div");
+    list.className = "cb-groups parts";
+    el.appendChild(list);
+
+    var HINT = "Select part of a word, then say what it is.";
+    function say(text, warn) {
+      hint.textContent = text;
+      hint.classList.toggle("warn", !!warn);
+    }
+
+    function target(sd) {
+      side = sd;
+      ["a", "b"].forEach(function (k) { colBtn[k].setAttribute("aria-pressed", String(k === sd)); });
+    }
+
+    function selection() {
+      var input = row.boxes[side].input, t = input.value;
+      var s = input.selectionStart, e = input.selectionEnd;
+      if (s == null || e == null || e <= s) return null;
+      while (s < e && /\s/.test(t.charAt(s))) s++;
+      while (e > s && /\s/.test(t.charAt(e - 1))) e--;
+      if (e <= s) return null;
+      return { side: side, t: t, s: s, e: e, text: t.slice(s, e) };
+    }
+
+    function needSelection() {
+      var sel = selection();
+      if (!sel) { say("Select part of the " + columnName(side) + " word first.", true); return null; }
+      if (!balanced(sel.text)) { say("Select whole parts: a selection can't cut a bracket in half.", true); return null; }
+      return sel;
+    }
+
+    function put(sel, text, note) {
+      row.set(sel.side, sel.t.slice(0, sel.s) + text + sel.t.slice(sel.e));
+      say(note);
+    }
+
+    function makeOptional() {
+      var sel = needSelection();
+      if (!sel) return;
+      if (wrappedIn(sel.text, "(") || wrappedIn(sel.text, "[")) { say("That part is already optional."); return; }
+      put(sel, "(" + sel.text + ")", "Made optional.");
+    }
+
+    function choicesIn(text) {
+      var top = readParts(text).groups.filter(function (g) { return g.kind === "top"; })[0];
+      return top ? top.filled : 1;
+    }
+
+    function makeEither() {
+      var sel = needSelection();
+      if (!sel) return;
+      ask.hidden = true;
+      if (wrappedIn(sel.text, "{")) { say("That part is already an either-or."); return; }
+      var whole = sel.t.trim() === sel.text;
+      if (whole && choicesIn(sel.t) >= 2) { say("That is already an either-or: the whole answer is a choice."); return; }
+      if (choicesIn(sel.text) >= 2) { put(sel, "{" + sel.text + "}", "Made an either-or."); return; }
+      askSecond(sel);
+    }
+
+    // An either-or needs a second choice before it can be one.
+    function askSecond(sel) {
+      ask.textContent = "";
+      var lead = document.createElement("span");
+      lead.textContent = "An either-or needs two choices: " + sel.text + " /";
+      var field = document.createElement("input");
+      field.placeholder = "second choice";
+      field.maxLength = 60;
+      var go = document.createElement("button");
+      go.type = "button";
+      go.className = "btn btn-sm btn-primary";
+      go.textContent = "Make either-or";
+      var no = document.createElement("button");
+      no.type = "button";
+      no.className = "btn btn-sm";
+      no.textContent = "Cancel";
+      var done = function () { ask.hidden = true; ask.textContent = ""; };
+      var take = function () {
+        var v = field.value.trim();
+        if (!v) { field.focus(); say("Type the second choice, or cancel.", true); return; }
+        if (row.boxes[sel.side].input.value !== sel.t) { done(); say("The word changed meanwhile; select the part again.", true); return; }
+        done();
+        put(sel, "{" + sel.text + "/" + v + "}", "Made an either-or.");
+      };
+      go.addEventListener("click", take);
+      no.addEventListener("click", function () { done(); say(HINT); });
+      field.addEventListener("keydown", function (e) {
+        e.stopPropagation();
+        if (e.key === "Enter") { e.preventDefault(); take(); }
+        if (e.key === "Escape") { e.preventDefault(); done(); say(HINT); }
+      });
+      ask.appendChild(lead);
+      ask.appendChild(field);
+      ask.appendChild(go);
+      ask.appendChild(no);
+      ask.hidden = false;
+      say("");
+      field.focus();
+    }
+
+    function makeRequired() {
+      var sel = needSelection();
+      if (!sel) return;
+      var parts = readParts(sel.t), n = sel.t.length;
+      var inChoice = parts.groups.some(function (g) {
+        var r = groupReach(g, n);
+        return sel.s < r.e && sel.e > r.s;
+      });
+      if (inChoice) { say("That is part of an either-or. Change its choices in the list below.", true); return; }
+      var drop = [];
+      parts.pairs.forEach(function (pr) {
+        if (pr.ch === "{") return;
+        if (pr.o <= sel.e - 1 && pr.c >= sel.s) drop.push(pr.o, pr.c);
+      });
+      if (!drop.length) { say("That part is already required."); return; }
+      var t = sel.t;
+      drop.sort(function (x, y) { return y - x; }).forEach(function (i) { t = t.slice(0, i) + t.slice(i + 1); });
+      row.set(sel.side, t);
+      say("Made required.");
+    }
+
+    /* ---- the either-ors, listed ---- */
+    function editGroup(sd, gi, change) {
+      var t = row.boxes[sd].input.value, g = readParts(t).groups[gi];
+      if (!g) return;
+      var next = change(t, g);
+      if (next != null && next !== t) row.set(sd, next);
+      else refresh();
+    }
+
+    function rename(sd, gi, oi, value) {
+      editGroup(sd, gi, function (t, g) {
+        var o = g.opts[oi], v = value.trim();
+        if (!o || !v) return null;                  // emptied: put it back
+        return t.slice(0, o.s) + v + t.slice(o.e);
+      });
+    }
+
+    function remove(sd, gi, oi) {
+      editGroup(sd, gi, function (t, g) {
+        if (g.filled <= 2) return null;             // never fewer than two
+        var o = g.opts[oi];
+        if (oi > 0) return t.slice(0, g.opts[oi - 1].e) + t.slice(o.e);
+        return t.slice(0, o.s) + t.slice(g.opts[1].s);
+      });
+    }
+
+    function addTo(sd, gi, value) {
+      var v = value.trim();
+      if (!v) return;
+      editGroup(sd, gi, function (t, g) {
+        var last = g.opts[g.opts.length - 1];
+        var spaced = g.seps.length ? /\s/.test(t.charAt(g.seps[0] - 1)) : g.kind === "top";
+        if (last.e === last.s) {                    // "say /": fill the empty one
+          var pad = spaced && !/\s/.test(t.charAt(last.s - 1)) ? " " : "";
+          return t.slice(0, last.s) + pad + v + t.slice(last.s);
+        }
+        return t.slice(0, last.e) + (spaced ? " / " : "/") + v + t.slice(last.e);
+      });
+    }
+
+    function refresh() {
+      list.textContent = "";
+      var any = false, several = [];
+      ["a", "b"].forEach(function (sd) {
+        var groups = readParts(row.boxes[sd].input.value).groups;
+        if (groups.length > 1) several.push(columnName(sd));
+        groups.forEach(function (g, gi) {
+          any = true;
+          var line = document.createElement("div");
+          line.className = "cb-group" + (g.ok ? "" : " bad");
+
+          var label = document.createElement("span");
+          label.className = "cb-glabel " + shadeOf(g, gi);
+          label.textContent = "Either-or " + (gi + 1) + " · " + columnName(sd);
+          line.appendChild(label);
+
+          g.opts.forEach(function (o, oi) {
+            if (o.e === o.s) return;
+            var t = row.boxes[sd].input.value;
+            var chip = document.createElement("span");
+            chip.className = "cb-chip";
+            var field = document.createElement("input");
+            field.value = t.slice(o.s, o.e);
+            field.size = Math.max(3, field.value.length + 1);
+            field.setAttribute("aria-label", "Choice " + (oi + 1));
+            field.addEventListener("input", function () { field.size = Math.max(3, field.value.length + 1); });
+            field.addEventListener("change", function () { rename(sd, gi, oi, field.value); });
+            field.addEventListener("keydown", function (e) {
+              e.stopPropagation();
+              if (e.key === "Enter") { e.preventDefault(); field.blur(); }
+            });
+            var x = document.createElement("button");
+            x.type = "button";
+            x.textContent = "✕";
+            x.disabled = g.filled <= 2;
+            x.title = x.disabled ? "An either-or keeps at least two choices" : "Remove this choice";
+            x.setAttribute("aria-label", x.title);
+            x.addEventListener("click", function () { remove(sd, gi, oi); });
+            chip.appendChild(field);
+            chip.appendChild(x);
+            line.appendChild(chip);
+          });
+
+          var more = document.createElement("button");
+          more.type = "button";
+          more.className = "cb-more";
+          more.textContent = "+ choice";
+          more.addEventListener("click", function () {
+            var field = document.createElement("input");
+            field.className = "cb-new";
+            field.placeholder = "new choice";
+            field.maxLength = 60;
+            // Taking the field away blurs it, so it is only ever read once.
+            var settled = false;
+            var commit = function (keep) {
+              if (settled) return;
+              settled = true;
+              var v = field.value;
+              if (keep && v.trim()) addTo(sd, gi, v); else refresh();
+            };
+            field.addEventListener("keydown", function (e) {
+              e.stopPropagation();
+              if (e.key === "Enter") { e.preventDefault(); commit(true); }
+              if (e.key === "Escape") { e.preventDefault(); commit(false); }
+            });
+            field.addEventListener("blur", function () { commit(true); });
+            line.replaceChild(field, more);
+            field.focus();
+          });
+          line.appendChild(more);
+
+          if (!g.ok) {
+            var bad = document.createElement("span");
+            bad.className = "cb-bad";
+            bad.textContent = "Needs at least two choices";
+            line.appendChild(bad);
+          }
+          list.appendChild(line);
+        });
+      });
+      if (!any) {
+        var none = document.createElement("p");
+        none.className = "cb-empty";
+        none.textContent = "No either-ors yet. Split choices with / , or ; or select some words and press Either-or.";
+        list.appendChild(none);
+      }
+      // Only either-ors on the same side are wanted together: the other
+      // column is the question, not part of the answer.
+      if (several.length) {
+        var each = document.createElement("p");
+        each.className = "cb-empty";
+        each.textContent = "One choice is wanted from each either-or in " + several.join(" and in ") + ".";
+        list.appendChild(each);
+      }
+    }
+
+    target(side);
+    say(HINT);
+    refresh();
+    return { el: el, refresh: refresh, target: target };
+  }
+
+  /* The key behind the "?": what each colour means, shown in the colours
+     themselves, and how to use the bar. */
+  function colourKey() {
+    var box = document.createElement("div");
+    box.className = "cb-key";
+    var rows = [
+      ["to say", "<b>Required</b> — green. Must be typed."],
+      ["(to) say", "<b>Optional</b> — purple, in ( ) or [ ]. May be left out."],
+      ["to say / to tell", "<b>Either-or</b> — highlighted. Type one of the choices. A comma or semicolon works like a slash."],
+      ["to {say/tell} the truth", "An either-or in the middle of an answer goes in { }."],
+      ["{the/a} {dog/cat}", "Several either-ors each get their own shade. One choice is wanted from each."],
+      ["(to) be (able/capable)", "An either-or in brackets is optional as well."],
+      ["{say}", "Red: an either-or needs at least two choices."],
+      ["alto/a", "A slash before a gender ending is a gender form, not a choice."]
+    ];
+    var html = "<h4>How the colours work</h4><dl class=\"parts\">";
+    rows.forEach(function (r) { html += "<dt>" + partsHTML(r[0]) + "</dt><dd>" + r[1] + "</dd>"; });
+    html += "</dl><p>Select part of a word, then press <b>Optional</b>, <b>Either-or</b> or <b>Required</b>; " +
+      "the brackets and braces are written for you. Rename or remove choices in the list under the buttons. " +
+      "<b>exact</b> wants the whole answer exactly as written, punctuation and all.</p>";
+    box.innerHTML = html;
+    return box;
   }
 
   function renderDeck() {
@@ -2648,7 +3160,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     list.textContent = "";
     shown.forEach(function (p, idx) {
       var li = document.createElement("li");
-      li.className = "pair";
+      li.className = "pair" + (p.star ? " starred" : "");
 
       var tick = document.createElement("input");
       tick.type = "checkbox";
@@ -2668,104 +3180,210 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       li.addEventListener("mousedown", function (e) {
         if (!choosing() || e.button !== 0) return;
         if (e.target === tick) return;
-        if (e.target.closest("button, .paint-bar, .pick-menu")) return;
+        if (e.target.closest("button, .colour-bar, .note-pop, .pick-menu")) return;
         e.preventDefault();
         tick.checked = !tick.checked;
         if (tick.checked) picked[pairKey(p)] = true; else delete picked[pairKey(p)];
         drawPickBar();
       });
 
-      var ia = document.createElement("input");
-      ia.className = "term";
-      ia.value = p.a;
-      ia.id = "pair-a-" + idx;
-      ia.setAttribute("aria-label", "Word " + (idx + 1));
-      var paintA = paintOverlay(p, "a", ia, "hl-term");
-      ia.addEventListener("input", function () {
-        p.a = ia.value;
-        deck.sample = false;
-        if (paintOf(p, "a").length) setPaint(p, "a", []);
-        paintA.draw();
-      });
+      /* The two boxes. Each wears its colours, and says under it when it
+         holds more than one either-or. Nothing else is drawn in or around
+         them, so a star or a note can never push one out of line. */
+      var row = { boxes: {}, set: null };
+      var bar = null, lastSide = "b";
 
-      var side = answerSide();
-      var bCell = document.createElement("div");
-      bCell.className = "b-cell";
-      if (p.star) {
-        var mark = document.createElement("span");
-        mark.className = "star-mark";
-        mark.textContent = "★";
-        mark.title = "Starred while playing";
-        li.classList.add("starred");
-        bCell.appendChild(mark);
-      }
-      var ib = document.createElement("input");
-      ib.value = p.b;
-      ib.id = "pair-b-" + idx;
-      ib.setAttribute("aria-label", "Meaning " + (idx + 1));
-      ib.addEventListener("input", function () {
-        p.b = ib.value;
-        deck.sample = false;
-        // Colours are pinned to where the letters were, so rewriting the
-        // answer lets them go rather than leaving them on the wrong part.
-        if (paintOf(p, "b").length) { setPaint(p, "b", []); paint.draw(); }
-      });
-      var paint = paintOverlay(p, "b", ib);
-      bCell.appendChild(paint.wrap);
-      if (p.note) {
-        var chip = document.createElement("span");
-        chip.className = "note-chip";
-        chip.textContent = p.note;
-        bCell.appendChild(chip);
+      function countChip(side) {
+        var bx = row.boxes[side];
+        var n = readParts(bx.input.value).groups.length;
+        bx.tag.hidden = n < 2;
+        bx.tag.textContent = n + " either-ors · one from each";
       }
 
-      // Said in words as well as in walls, because the walls are small:
-      // an answer with two either-ors wants one from each, not one of two.
-      var groupTag = document.createElement("span");
-      groupTag.className = "group-chip";
-      bCell.appendChild(groupTag);
-      var countGroups = function () {
-        var n = paintOf(p, "b").filter(function (r) { return r.kind === "either"; }).length;
-        groupTag.hidden = n < 2;
-        groupTag.textContent = n + " either-ors · one from each";
+      function wordBox(side) {
+        var input = document.createElement("input");
+        if (side === "a") input.className = "term";
+        input.value = p[side] || "";
+        input.id = "pair-" + side + "-" + idx;
+        input.setAttribute("aria-label", (side === "a" ? "Word " : "Meaning ") + (idx + 1));
+        var overlay = paintOverlay(input, side === "a" ? "hl-term" : "");
+        var cell = document.createElement("div");
+        cell.className = "word-cell";
+        cell.appendChild(overlay.wrap);
+        var tag = document.createElement("span");
+        tag.className = "group-chip";
+        cell.appendChild(tag);
+        row.boxes[side] = { input: input, overlay: overlay, tag: tag };
+        countChip(side);
+
+        input.addEventListener("focus", function () {
+          lastSide = side;
+          if (bar) bar.target(side);
+        });
+        input.addEventListener("input", function () {
+          retext(p, side, input.value);
+          overlay.draw();
+          countChip(side);
+          if (bar) bar.refresh();
+        });
+        return cell;
+      }
+
+      // A new text for one side, from the colour bar.
+      row.set = function (side, text) {
+        var bx = row.boxes[side];
+        bx.input.value = text;
+        retext(p, side, text);
+        bx.overlay.draw();
+        countChip(side);
+        if (bar) bar.refresh();
       };
-      countGroups();
 
-      /* One button, three states. Closed, it opens the colours; open, it
-         says the whole answer is necessary; and from there it goes back to
-         the colours, which are still where they were left. */
+      li.appendChild(wordBox("a"));
+      li.appendChild(wordBox("b"));
+
+      /* ---- the row's own buttons ---- */
+      var tools = document.createElement("div");
+      tools.className = "row-tools";
+
+      function tool(cls, label) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "tool " + cls;
+        b.setAttribute("aria-label", label);
+        b.title = label;
+        tools.appendChild(b);
+        return b;
+      }
+
+      // Starred here or in a round: the same star either way.
+      var star = tool("star", "");
+      function drawStar() {
+        star.textContent = p.star ? "★" : "☆";
+        star.classList.toggle("on", !!p.star);
+        star.setAttribute("aria-pressed", String(!!p.star));
+        star.title = p.star ? "Starred — click to unstar" : "Star this word";
+        star.setAttribute("aria-label", star.title);
+        li.classList.toggle("starred", !!p.star);
+      }
+      drawStar();
+      star.addEventListener("click", function () {
+        if (SHARED) return;
+        p.star = !p.star;
+        if (!p.star) delete p.star;
+        deck.sample = false;
+        drawStar();
+        saveSoon();
+      });
+
+      // The note is read by hovering its button, and written in a box that
+      // opens under the row.
+      var note = tool("note", "");
+      note.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="M6 3h9l4 4v14H6z"></path><path d="M9 11h7M9 15h7M9 7h4"></path></svg>';
+      function drawNote() {
+        var has = !!(p.note && p.note.trim());
+        note.classList.toggle("on", has);
+        note.title = has ? "Note: " + p.note : "Add a note";
+        note.setAttribute("aria-label", has ? "Note: " + p.note + " — click to edit" : "Add a note");
+      }
+      drawNote();
+      note.addEventListener("click", function () {
+        if (SHARED) return;
+        var open = li.querySelector(".note-pop");
+        if (open) { open.finish(true); return; }
+        openNote();
+      });
+
+      function openNote() {
+        var pop = document.createElement("div");
+        pop.className = "note-pop";
+        var area = document.createElement("textarea");
+        area.value = p.note || "";
+        area.maxLength = 300;
+        area.placeholder = "A note for this word";
+        area.setAttribute("aria-label", "Note for " + (p.a || "this word"));
+        var line = document.createElement("div");
+        line.className = "note-pop-row";
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "btn btn-sm";
+        del.textContent = "Delete";
+        var done = document.createElement("button");
+        done.type = "button";
+        done.className = "btn btn-sm btn-primary";
+        done.textContent = "Done";
+        line.appendChild(del);
+        line.appendChild(done);
+        pop.appendChild(area);
+        pop.appendChild(line);
+
+        function away(e) { if (!pop.contains(e.target) && e.target !== note && !note.contains(e.target)) finish(true); }
+        function finish(keep) {
+          if (!pop.parentNode) return;
+          var next = keep ? area.value.trim() : "";
+          if (next !== (p.note || "")) {
+            p.note = next;
+            deck.sample = false;
+            saveSoon();
+          }
+          pop.remove();
+          document.removeEventListener("mousedown", away, true);
+          drawNote();
+        }
+        pop.finish = finish;
+        del.addEventListener("click", function () { finish(false); });
+        done.addEventListener("click", function () { finish(true); });
+        area.addEventListener("keydown", function (e) {
+          e.stopPropagation();
+          if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); finish(true); }
+        });
+        setTimeout(function () { document.addEventListener("mousedown", away, true); }, 0);
+        li.appendChild(pop);
+        area.focus();
+      }
+
+      var palette = tool("palette", "Colour the parts of this word");
+      palette.setAttribute("aria-expanded", "false");
+      palette.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.3A4.7 4.7 0 0 0 21 9.8C21 6 17 3 12 3z"></path>' +
+        '<circle cx="7.5" cy="11" r="1.2"></circle><circle cx="10" cy="7" r="1.2"></circle><circle cx="15" cy="7" r="1.2"></circle></svg>';
+      palette.addEventListener("click", function () {
+        if (SHARED) return;
+        if (bar) {
+          bar.el.remove();
+          bar = null;
+          palette.setAttribute("aria-expanded", "false");
+          return;
+        }
+        bar = colourBar(row, lastSide);
+        var pop = li.querySelector(".note-pop");
+        li.insertBefore(bar.el, pop || null);
+        palette.setAttribute("aria-expanded", "true");
+      });
+
+      // The whole answer, exactly as written, punctuation and all.
       var lit = document.createElement("button");
       lit.type = "button";
       lit.className = "lit";
       lit.textContent = "exact";
-      lit.setAttribute("aria-pressed", String(!!p.literal));
-      lit.title = p.literal
-        ? "Every part of this answer is wanted as written. Click for the colours."
-        : "Colour the parts of this answer, or click twice to want all of it as written.";
+      function drawLit() {
+        lit.setAttribute("aria-pressed", String(!!p.literal));
+        lit.title = p.literal
+          ? "The whole answer is wanted exactly as written. Click to read its brackets and choices again."
+          : "Want the whole answer exactly as written, punctuation and all";
+      }
+      drawLit();
       lit.addEventListener("click", function () {
-        if (p.literal) {                       // back to the colours
-          p.literal = false;
-          deck.sample = false;
-          if (isSavedDeck(deck)) persistDeck(deck);
-          renderDeck();
-          var row = $("pair-list").children[idx];
-          var again = row && row.querySelector(".lit");
-          if (again) again.click();
-          return;
-        }
-        if (li.querySelector(".paint-bar")) {      // open already: all of it necessary
-          p.literal = true;
-          deck.sample = false;
-          if (isSavedDeck(deck)) persistDeck(deck);
-          renderDeck();
-          return;
-        }
-        li.appendChild(paintBar(p, "b", ib, paint, function () {
-          var bar = li.querySelector(".paint-bar");
-          if (bar) bar.remove();
-        }, countGroups));
-        ib.focus();
+        if (SHARED) return;
+        p.literal = !p.literal;
+        deck.sample = false;
+        drawLit();
+        saveSoon();
       });
+      tools.appendChild(lit);
 
       var kill = document.createElement("button");
       kill.type = "button";
@@ -2788,11 +3406,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         delete picked[pairKey(p)];
         renderDeck();
       });
+      tools.appendChild(kill);
 
-      li.appendChild(paintA.wrap);
-      li.appendChild(bCell);
-      li.appendChild(lit);
-      li.appendChild(kill);
+      li.appendChild(tools);
       list.appendChild(li);
     });
 
@@ -2986,9 +3602,12 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     if (btn) btn.hidden = hide;
     var bin = $("deck-trash");
     if (bin) bin.hidden = hide;
+    var keep = $("btn-save");
+    if (keep) keep.hidden = !!SHARED || !deck || isSavedDeck(deck);
   }
 
   function loadDeck(d) {
+    unpaintDeck(d);
     deck = d;
     subView = null;
     clearPicks();
@@ -5594,11 +6213,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     return card;
   }
 
+  // Your own quizzes keep every edit as it is made. A ready-made deck is
+  // a copy to try out, and this is how one becomes yours.
   $("btn-save").addEventListener("click", function () {
     persistDeck(deck);
-    var b = $("btn-save");
-    b.textContent = "Saved";
-    setTimeout(function () { b.textContent = "Save deck"; }, 1600);
+    deck.sample = false;
+    $("deck-flag").hidden = true;
+    showDeckShare();
+    flashDeckNote("Kept · it is on your shelf now, and saves as you edit it");
   });
 
   /* ---------------- typed-in pairs ----------------
@@ -5628,42 +6250,6 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  /* Colour one side of a pair. Brackets mark a part that is optional to
-     type, so they earn their own colour and their contents another. A
-     slash is grammar the sheet reads, not a word, so it stays plain. */
-  function tokenizeSide(text, baseClass) {
-    var out = "", depth = 0, buf = "", bufClass = baseClass;
-    function flush() {
-      if (buf) { out += '<span class="' + bufClass + '">' + esc(buf) + "</span>"; buf = ""; }
-    }
-    for (var i = 0; i < text.length; i++) {
-      var c = text.charAt(i);
-      if (c === "(" || c === "[") {
-        flush(); depth++;
-        out += '<span class="t-paren">' + esc(c) + "</span>";
-        bufClass = "t-opt";
-        continue;
-      }
-      if ((c === ")" || c === "]") && depth > 0) {
-        flush(); depth--;
-        out += '<span class="t-paren">' + esc(c) + "</span>";
-        bufClass = depth > 0 ? "t-opt" : baseClass;
-        continue;
-      }
-      if (c === "/") {
-        flush();
-        out += '<span class="t-plain">/</span>';
-        bufClass = depth > 0 ? "t-opt" : baseClass;
-        continue;
-      }
-      var want = depth > 0 ? "t-opt" : baseClass;
-      if (want !== bufClass) { flush(); bufClass = want; }
-      buf += c;
-    }
-    flush();
-    return out;
-  }
-
   function renderLine(raw) {
     var pair = splitStrict(raw);
     if (!pair) return '<span class="t-bad">' + esc(raw) + "</span>";
@@ -5671,9 +6257,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     // same number of characters as the textarea or the two stop lining up.
     var lead = raw.match(/^\s*/)[0], trail = raw.match(/\s*$/)[0];
     return esc(lead) +
-      tokenizeSide(pair.a, "t-term") +
+      partsHTML(pair.a) +
       '<span class="t-plain">' + esc(SEP) + "</span>" +
-      tokenizeSide(pair.b, "t-ans") +
+      partsHTML(pair.b) +
       esc(trail);
   }
 
@@ -5738,7 +6324,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       note.textContent = "Red lines are proposed, not saved. Click one to put it back, or keep them all.";
     } else {
       note.className = "entry-note";
-      note.textContent = "Colours mark the word, its meaning, and any optional part in brackets.";
+      note.textContent = "Green must be typed, purple (in brackets) may be left out, and highlighted words are either-ors.";
     }
   }
 
@@ -8204,6 +8790,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       return;
     }
 
+    unpaintSaved();
     renderStarters();
     renderGeoPicked();
     if (readStore("qp:tab", "vocab") === "geo") setTab("geo");
