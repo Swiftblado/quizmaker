@@ -1173,6 +1173,39 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;
 }
 .pairs .pick{flex:none;width:16px;height:16px;accent-color:var(--accent);cursor:pointer;align-self:center}
+
+/* The answer in its colours, drawn behind the box it is typed in: the
+   overlay holds the same text in the same place, and the input above it
+   is see-through so the colours show through its letters. */
+.paint-wrap{position:relative}
+.paint-hl{
+  position:absolute;inset:0;pointer-events:none;overflow:hidden;white-space:pre;
+  padding:7px 9px;font:inherit;font-size:14.5px;color:transparent;
+  border:1px solid transparent;border-radius:6px;background:var(--surface-2);
+}
+/* The colours show through the letters only once something is painted;
+   until then the box looks like every other box on the page. */
+.paint-wrap.painted input{background:transparent}
+.paint-wrap input{position:relative}
+.paint-hl span{border-radius:3px}
+.paint-opt{background:color-mix(in srgb,var(--tok-opt) 22%,transparent);box-shadow:0 1px 0 var(--tok-opt)}
+.paint-either{background:color-mix(in srgb,var(--tok-paren) 24%,transparent);box-shadow:0 1px 0 var(--tok-paren)}
+.paint-need{background:color-mix(in srgb,var(--tok-answer) 20%,transparent);box-shadow:0 1px 0 var(--tok-answer)}
+
+.paint-bar{
+  grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  margin-top:8px;padding:8px 10px;border-radius:9px;background:var(--surface-2);
+}
+.paint-hint{font-size:12px;color:var(--muted);margin-right:2px}
+.paint-hint.warn{color:var(--bad)}
+.paint-pick{
+  padding:4px 10px;border-radius:999px;border:1px solid var(--rule);cursor:pointer;
+  font-size:12px;font-weight:600;background:var(--surface);color:var(--ink);
+}
+.paint-pick.paint-opt{border-color:var(--tok-opt);color:var(--tok-opt)}
+.paint-pick.paint-either{border-color:var(--tok-paren);color:var(--tok-paren)}
+.paint-pick.paint-need{border-color:var(--tok-answer);color:var(--tok-answer)}
+.paint-pick:hover{background:var(--surface-2)}
 .deck-note{font-size:12.5px;color:var(--ok);margin:0 0 10px}
 .deck-sub-head{display:flex;align-items:center;gap:9px;margin-bottom:8px;flex-wrap:wrap}
 .deck-sub-head b{font-family:var(--serif);font-size:18px;font-weight:600}
@@ -1872,7 +1905,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function variants(s, keepAccents, keepNotation) {
     var base = fold(s, keepAccents, keepNotation);
     var out = [base];
-    var trimmed = base.replace(LEADING, "");
+    // "to do" is normally answered by "do" -- an article in front is not
+    // what is being tested. A word set to exact means what it says,
+    // though, so there the article is wanted too.
+    var trimmed = keepNotation ? base : base.replace(LEADING, "");
     if (trimmed && trimmed !== base) out.push(trimmed);
     // Commas used to be split here, but fold() had already turned them into
     // spaces, so the branch never ran. They are separators now, handled up
@@ -1912,7 +1948,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // -> {verdict: "ok"|"almost"|"bad", target: <the answer we matched or expect>}
   function judge(typed, accepted, keepNotation) {
     var got = fold(typed, opts.accents, keepNotation);
-    var gotTrim = got.replace(LEADING, "");
+    var gotTrim = keepNotation ? got : got.replace(LEADING, "");
     var i, k, pool;
     for (i = 0; i < accepted.length; i++) {
       pool = variants(accepted[i], opts.accents, keepNotation);
@@ -2304,6 +2340,103 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     return out.length ? out : [tidy(text)];
   }
 
+  /* ---------------- colouring the parts of an answer ----------------
+     The sheet shorthand says what is optional and what is either-or by
+     punctuation: "(to) do", "to say / to tell". Colour says the same thing
+     by hand, over any stretch of the answer, and it wins where the two
+     disagree -- a painted stretch is read by its colour, and only what is
+     left unpainted is read as notation.
+
+       optional    the stretch may be left out
+       either      the slashes in the stretch separate alternatives
+       necessary   the stretch is wanted exactly as written
+
+     Clicking "exact" a second time says the whole answer is necessary,
+     which is what the button used to do on its own.
+  ------------------------------------------------------------------- */
+  var PAINT_KINDS = {
+    opt: { label: "Optional", hint: "may be left out" },
+    either: { label: "Either-or", hint: "a slash separates the choices" },
+    need: { label: "Necessary", hint: "wanted exactly as written" }
+  };
+
+  function paintOf(p, side) {
+    if (!p.paint) return [];
+    return (p.paint[side] || []).filter(function (r) { return r && r.e > r.s; });
+  }
+
+  function setPaint(p, side, ranges) {
+    if (!p.paint) p.paint = {};
+    p.paint[side] = ranges;
+    if (!ranges.length) delete p.paint[side];
+    if (p.paint && !p.paint.a && !p.paint.b) delete p.paint;
+  }
+
+  // Ranges kept apart and in order: painting over a stretch replaces what
+  // was under it rather than layering on top of it.
+  function addPaint(p, side, from, to, kind) {
+    var kept = [];
+    paintOf(p, side).forEach(function (r) {
+      if (r.e <= from || r.s >= to) { kept.push(r); return; }
+      if (r.s < from) kept.push({ s: r.s, e: from, kind: r.kind });
+      if (r.e > to) kept.push({ s: to, e: r.e, kind: r.kind });
+    });
+    if (kind) kept.push({ s: from, e: to, kind: kind });
+    kept.sort(function (a, b) { return a.s - b.s; });
+    setPaint(p, side, kept);
+  }
+
+  // The answer cut into pieces: the painted ones with their colour, the
+  // rest left for the notation to read.
+  function paintPieces(text, ranges) {
+    var out = [], at = 0;
+    ranges.slice().sort(function (a, b) { return a.s - b.s; }).forEach(function (r) {
+      var s = Math.max(0, Math.min(r.s, text.length));
+      var e = Math.max(s, Math.min(r.e, text.length));
+      if (s > at) out.push({ text: text.slice(at, s), kind: null });
+      if (e > s) out.push({ text: text.slice(s, e), kind: r.kind });
+      at = Math.max(at, e);
+    });
+    if (at < text.length) out.push({ text: text.slice(at), kind: null });
+    return out;
+  }
+
+  // What each piece may be read as, and then every way of putting the
+  // pieces back together.
+  function paintedAccepted(text, ranges) {
+    var pieces = paintPieces(text, ranges);
+    var ways = pieces.map(function (piece) {
+      if (piece.kind === "opt") return ["", piece.text];
+      if (piece.kind === "need") return [piece.text];
+      if (piece.kind === "either") {
+        return piece.text.split("/").map(function (x) { return x; })
+          .filter(function (x) { return x.trim(); });
+      }
+      var grown = expandAnswer(piece.text);
+      return grown.length ? grown : [piece.text];
+    });
+
+    var out = [""];
+    ways.forEach(function (choices) {
+      var next = [];
+      out.forEach(function (sofar) {
+        choices.forEach(function (c) {
+          if (next.length < MAX_VARIANTS) next.push(sofar + c);
+        });
+      });
+      out = next.length ? next : out;
+    });
+    var tidied = [];
+    out.forEach(function (t) {
+      var v = tidy(t);
+      if (v && tidied.indexOf(v) < 0) tidied.push(v);
+    });
+    return tidied;
+  }
+
+  // Which side of the pair is being answered, for the colours to sit on.
+  function answerSide() { return opts.dir === "ab" ? "b" : "a"; }
+
   // What the sheet actually says — for showing, not for matching.
   function rawAnswers(pair) {
     var side = opts.dir === "ab" ? "b" : "a";
@@ -2317,21 +2450,103 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // Everything that counts as right — the expansion, unless this pair opted out.
   function acceptedFor(pair) {
     var raw = rawAnswers(pair);
-    if (pair.literal) return raw;
+    if (pair.literal) return raw;                 // every part necessary
+
+    /* Colour first. A painted answer is read piece by piece -- the painted
+       stretches by their colour, what is left by the notation -- and the
+       other spellings the sheet offers are read as they always were. */
+    var side = answerSide();
+    var marks = paintOf(pair, side);
     var out = [];
-    raw.forEach(function (t) {
-      expandAnswer(t).forEach(function (v) { if (out.indexOf(v) < 0) out.push(v); });
-    });
+    var keep = function (v) { if (v && out.indexOf(v) < 0) out.push(v); };
+    if (marks.length) {
+      paintedAccepted(String(pair[side] || ""), marks).forEach(keep);
+      raw.slice(1).forEach(function (t) { expandAnswer(t).forEach(keep); });
+    } else {
+      raw.forEach(function (t) { expandAnswer(t).forEach(keep); });
+    }
     return out.length ? out : raw;
   }
 
-  // Does this pair's answer use any of the shorthand? Only then is the
-  // per-word override worth showing.
-  function hasNotation(pair) {
-    // A tight hyphen is part of the word, so it does not earn the toggle.
-    return rawAnswers(pair).some(function (t) {
-      return /[/,;()[\]–—]/.test(t) || /\s-\s/.test(t);
+  /* The answer, drawn in its colours behind the box it is typed in -- the
+     same trick the word-list editor uses, since no input can colour part
+     of its own text. */
+  function paintOverlay(p, side, input) {
+    var wrap = document.createElement("div");
+    wrap.className = "paint-wrap";
+    var hl = document.createElement("div");
+    hl.className = "paint-hl";
+    hl.setAttribute("aria-hidden", "true");
+    wrap.appendChild(hl);
+    wrap.appendChild(input);
+
+    var draw = function () {
+      hl.textContent = "";
+      var marks = paintOf(p, side);
+      if (!marks.length) { wrap.classList.remove("painted"); return; }
+      wrap.classList.add("painted");
+      paintPieces(String(input.value || ""), marks).forEach(function (piece) {
+        var span = document.createElement("span");
+        if (piece.kind) span.className = "paint-" + piece.kind;
+        span.textContent = piece.text;
+        hl.appendChild(span);
+      });
+    };
+    draw();
+    input.addEventListener("scroll", function () { hl.scrollLeft = input.scrollLeft; });
+    return { wrap: wrap, draw: draw };
+  }
+
+  /* The bar the "exact" button opens: pick a stretch of the answer, then
+     say what it is. Pressing the button again says the whole answer is
+     necessary, which is what it used to do on its own. */
+  function paintBar(p, side, input, overlay, after) {
+    var bar = document.createElement("div");
+    bar.className = "paint-bar";
+
+    var hint = document.createElement("span");
+    hint.className = "paint-hint";
+    hint.textContent = "Select part of the answer, then say what it is:";
+    bar.appendChild(hint);
+
+    Object.keys(PAINT_KINDS).forEach(function (kind) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "paint-pick paint-" + kind;
+      b.textContent = PAINT_KINDS[kind].label;
+      b.title = PAINT_KINDS[kind].hint;
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });   // keep the selection
+      b.addEventListener("click", function () {
+        var from = input.selectionStart, to = input.selectionEnd;
+        if (from == null || to == null || to <= from) {
+          hint.textContent = "Select part of the answer first.";
+          hint.classList.add("warn");
+          input.focus();
+          return;
+        }
+        hint.textContent = "Select part of the answer, then say what it is:";
+        hint.classList.remove("warn");
+        addPaint(p, side, from, to, kind);
+        deck.sample = false;
+        if (isSavedDeck(deck)) persistDeck(deck);
+        overlay.draw();
+      });
+      bar.appendChild(b);
     });
+
+    var clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "btn btn-sm";
+    clear.textContent = "Clear colours";
+    clear.addEventListener("click", function () {
+      setPaint(p, side, []);
+      deck.sample = false;
+      if (isSavedDeck(deck)) persistDeck(deck);
+      overlay.draw();
+      after();
+    });
+    bar.appendChild(clear);
+    return bar;
   }
 
   function renderDeck() {
@@ -2372,6 +2587,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       ia.setAttribute("aria-label", "Word " + (idx + 1));
       ia.addEventListener("input", function () { p.a = ia.value; deck.sample = false; });
 
+      var side = answerSide();
       var bCell = document.createElement("div");
       bCell.className = "b-cell";
       if (p.star) {
@@ -2386,8 +2602,15 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       ib.value = p.b;
       ib.id = "pair-b-" + idx;
       ib.setAttribute("aria-label", "Meaning " + (idx + 1));
-      ib.addEventListener("input", function () { p.b = ib.value; deck.sample = false; });
-      bCell.appendChild(ib);
+      ib.addEventListener("input", function () {
+        p.b = ib.value;
+        deck.sample = false;
+        // Colours are pinned to where the letters were, so rewriting the
+        // answer lets them go rather than leaving them on the wrong part.
+        if (paintOf(p, "b").length) { setPaint(p, "b", []); paint.draw(); }
+      });
+      var paint = paintOverlay(p, side === "b" ? "b" : "b", ib);
+      bCell.appendChild(paint.wrap);
       if (p.note) {
         var chip = document.createElement("span");
         chip.className = "note-chip";
@@ -2395,24 +2618,41 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         bCell.appendChild(chip);
       }
 
-      // Only offered where the answer actually uses the shorthand; on a
-      // plain answer the toggle would have nothing to switch off.
-      var lit = null;
-      if (hasNotation(p)) {
-        lit = document.createElement("button");
-        lit.type = "button";
-        lit.className = "lit";
-        lit.textContent = "exact";
-        lit.setAttribute("aria-pressed", String(!!p.literal));
-        lit.title = p.literal
-          ? "Typed exactly as written. Click to let / mean either answer and ( ) be optional."
-          : "A slash means either answer; brackets are optional. Click to require it exactly as written.";
-        lit.addEventListener("click", function () {
-          p.literal = !p.literal;
+      /* One button, three states. Closed, it opens the colours; open, it
+         says the whole answer is necessary; and from there it goes back to
+         the colours, which are still where they were left. */
+      var lit = document.createElement("button");
+      lit.type = "button";
+      lit.className = "lit";
+      lit.textContent = "exact";
+      lit.setAttribute("aria-pressed", String(!!p.literal));
+      lit.title = p.literal
+        ? "Every part of this answer is wanted as written. Click for the colours."
+        : "Colour the parts of this answer, or click twice to want all of it as written.";
+      lit.addEventListener("click", function () {
+        if (p.literal) {                       // back to the colours
+          p.literal = false;
           deck.sample = false;
+          if (isSavedDeck(deck)) persistDeck(deck);
           renderDeck();
-        });
-      }
+          var row = $("pair-list").children[idx];
+          var again = row && row.querySelector(".lit");
+          if (again) again.click();
+          return;
+        }
+        if (li.querySelector(".paint-bar")) {      // open already: all of it necessary
+          p.literal = true;
+          deck.sample = false;
+          if (isSavedDeck(deck)) persistDeck(deck);
+          renderDeck();
+          return;
+        }
+        li.appendChild(paintBar(p, "b", ib, paint, function () {
+          var bar = li.querySelector(".paint-bar");
+          if (bar) bar.remove();
+        }));
+        ib.focus();
+      });
 
       var kill = document.createElement("button");
       kill.type = "button";
@@ -2438,7 +2678,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
       li.appendChild(ia);
       li.appendChild(bCell);
-      li.appendChild(lit || document.createElement("span"));
+      li.appendChild(lit);
       li.appendChild(kill);
       list.appendChild(li);
     });
@@ -7813,7 +8053,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build 7d33ad34</p>
+<p class="build-stamp">build d218e225</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
