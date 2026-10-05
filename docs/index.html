@@ -262,6 +262,21 @@ button{font:inherit;color:inherit}
 .saved-name::placeholder{color:var(--faint);font-style:italic}
 .deck-meta{font-size:13px;color:var(--muted);margin-top:2px}
 .pairs{list-style:none;margin:0;padding:0;max-height:min(52vh,420px);overflow-y:auto}
+/* What the two columns are called. A heading that is also the place it is
+   said: the names were only ever shown, never asked for. */
+.pair-head{
+  display:flex;align-items:center;gap:10px;padding:9px 18px 10px;
+  border-bottom:1px solid var(--rule);
+}
+.col-arrow{color:var(--faint);font-size:13px}
+.col-name{
+  flex:1;min-width:0;padding:4px 8px;font:inherit;font-size:11.5px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+  background:transparent;border:1px solid transparent;border-radius:6px;
+}
+.col-name:hover{border-color:var(--rule);background:var(--surface-2)}
+.col-name:focus{outline:none;border-color:var(--accent);background:var(--surface);color:var(--ink)}
+.col-name::placeholder{color:var(--faint);font-style:italic;text-transform:none;letter-spacing:0;font-weight:600}
 /* The tick that chooses a word takes a column of its own, so the row is
    laid out the same whether anything is chosen or not. */
 .pair{
@@ -724,6 +739,41 @@ button{font:inherit;color:inherit}
   color:inherit;overflow:hidden;
 }
 .folder-card.open-folder .quiz-card-foot{min-height:18px}
+/* ---- the way out is not a folder ----
+   It sat beside the folders wearing their colour, their tab and their
+   front panel, and the only thing telling the two apart was the label. So
+   it is drawn as the opposite of a folder instead: no card at all, just a
+   dashed opening with an arrow leading out of it. Nothing of the folder is
+   left on it -- tab, sheet and front panel are all taken off -- and the
+   dashes pick up the accent as something is brought to it. */
+.folder-card.open-folder{
+  --f-ink:var(--muted);
+  padding:18px 15px 14px;
+  background:transparent;
+  border:2px dashed var(--rule);
+  border-radius:11px;
+  box-shadow:none;
+  align-items:center;justify-content:center;text-align:center;gap:4px;
+}
+.folder-card.open-folder::before,
+.folder-card.open-folder::after,
+.folder-card.open-folder .flap{display:none}
+.folder-card.open-folder:hover{
+  transform:none;filter:none;
+  border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft);
+}
+.folder-card.open-folder.drop-in{
+  border-style:solid;border-color:var(--accent);
+  color:var(--accent-ink);background:var(--accent-soft);
+}
+.out-arrow{
+  font-size:30px;line-height:1;opacity:.75;
+  position:relative;z-index:2;
+}
+.folder-card.open-folder .close-label{
+  height:auto;margin-top:2px;font-size:15.5px;
+}
+.folder-card.open-folder .deck-meta{color:inherit;opacity:.8}
 /* Same box as a closed folder, so the two line up on the grid. */
 /* A folder's row is empty -- it is there to make the card the same size as
    the way-out card. It must not swallow clicks meant for the folder. */
@@ -909,7 +959,12 @@ button{font:inherit;color:inherit}
 .title-row{display:flex;align-items:center;gap:10px}
 .title-row input{flex:1;min-width:0}
 /* Beside a title, the button matches the title it sits next to. */
-#deck-share,#geo-share{flex:none;align-self:center;font-size:20px;padding:4px 14px;line-height:1.3}
+/* The export and bin an open page carries, beside its heading: the same
+   two marks the card on the shelf carries, at the size of the heading
+   rather than the size of a card corner. */
+.icon-btn{flex:none;align-self:center;padding:7px 9px;line-height:0}
+.icon-btn svg{display:block}
+.icon-btn.danger:hover{border-color:var(--bad);color:var(--bad);background:var(--bad-soft)}
 /* On a card it is the bin's twin, in the corner beside it. */
 .card-share{position:absolute;top:8px;right:38px;z-index:2}
 .card-share button{
@@ -961,6 +1016,8 @@ body.is-shared #btn-newdeck,
 body.is-shared #geo-back,
 body.is-shared #deck-share,
 body.is-shared #geo-share,
+body.is-shared #deck-trash,
+body.is-shared #geo-trash,
 body.is-shared .card-share,
 body.is-shared #geo-q,
 body.is-shared .geo-search,
@@ -977,7 +1034,10 @@ body.is-shared .pairs .kill,
 body.is-shared #deck-flag,
 body.is-shared .sub-panel,
 body.is-shared .geo-preview .geo-tip{display:none !important}
+/* Nothing here is typed in, so the boxes behind the colours go. */
+body.is-shared .paint-hl{background:transparent}
 body.is-shared .pairs input,
+body.is-shared .col-name,
 body.is-shared .deck-title,
 body.is-shared .entry-name{pointer-events:none;background:transparent;border-color:transparent}
 
@@ -1173,6 +1233,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;
 }
 .pairs .pick{flex:none;width:16px;height:16px;accent-color:var(--accent);cursor:pointer;align-self:center}
+/* While a choice is under way the whole row is the tick: hunting for a
+   16px box twenty times over is the slow way to choose twenty words. */
+.pairs.choosing .pair,.pairs.choosing .pair input{cursor:pointer}
+.pairs.choosing .pair:hover{background:var(--surface-2)}
 
 /* The answer in its colours, drawn behind the box it is typed in: the
    overlay holds the same text in the same place, and the input above it
@@ -1180,16 +1244,40 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .paint-wrap{position:relative}
 .paint-hl{
   position:absolute;inset:0;pointer-events:none;overflow:hidden;white-space:pre;
-  padding:7px 9px;font:inherit;font-size:14.5px;color:transparent;
+  padding:7px 9px;font:inherit;font-size:14.5px;color:var(--muted);
   border:1px solid transparent;border-radius:6px;background:var(--surface-2);
 }
-/* The colours show through the letters only once something is painted;
-   until then the box looks like every other box on the page. */
-.paint-wrap.painted input{background:transparent}
-.paint-wrap input{position:relative}
+.paint-hl.hl-term{font-family:var(--serif);font-size:16px}
+/* A word wears its colours all the time, not only once a hand has been
+   laid on it: the kind of each part is worth seeing while the list is
+   being written, which is when a bracket goes in the wrong place. The box
+   above the colours is see-through, letters and all, so what is read is
+   the overlay -- the same trick the paste editor uses. */
+.paint-wrap input{position:relative;background:transparent;color:transparent;caret-color:var(--ink)}
+.paint-wrap input:focus{background:transparent}
+.paint-wrap:focus-within .paint-hl{background:var(--surface)}
+/* Selected letters come back, since choosing part of an answer to colour
+   means reading what you have selected. */
+.paint-wrap input::selection{background:var(--accent-soft);color:var(--ink)}
+.paint-hl .t-term{color:var(--tok-term)}
+.paint-hl .t-ans{color:var(--tok-answer)}
+.paint-hl .t-opt{color:var(--tok-opt)}
+.paint-hl .t-paren{color:var(--tok-paren);font-weight:600}
+.paint-hl .t-plain{color:var(--faint)}
 .paint-hl span{border-radius:3px}
 .paint-opt{background:color-mix(in srgb,var(--tok-opt) 22%,transparent);box-shadow:0 1px 0 var(--tok-opt)}
-.paint-either{background:color-mix(in srgb,var(--tok-paren) 24%,transparent);box-shadow:0 1px 0 var(--tok-paren)}
+/* Walled on both sides, so two either-ors standing next to each other read
+   as two choices rather than one long one. */
+.paint-either{
+  background:color-mix(in srgb,var(--tok-paren) 24%,transparent);
+  box-shadow:inset 1px 0 0 var(--tok-paren),inset -1px 0 0 var(--tok-paren),0 1px 0 var(--tok-paren);
+}
+.group-chip{
+  display:inline-block;margin-top:4px;margin-left:5px;font-size:11px;font-weight:600;
+  color:var(--tok-paren);background:color-mix(in srgb,var(--tok-paren) 14%,transparent);
+  border:1px solid color-mix(in srgb,var(--tok-paren) 45%,transparent);
+  padding:1px 6px;border-radius:4px;
+}
 .paint-need{background:color-mix(in srgb,var(--tok-answer) 20%,transparent);box-shadow:0 1px 0 var(--tok-answer)}
 
 .paint-bar{
@@ -1403,7 +1491,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
           </div>
           <div class="title-row">
             <input class="deck-title" id="deck-title" value="Deck" aria-label="Name of this word list" placeholder="Name this list" maxlength="60">
-            <button class="btn btn-sm share-btn" id="deck-share" type="button" title="Make a link to this quiz" hidden>Export</button>
+            <button class="btn btn-sm icon-btn share-btn" id="deck-share" type="button" title="Make a link to this quiz" aria-label="Make a link to this quiz" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 15V3M8 7l4-4 4 4"></path></svg></button>
+            <button class="btn btn-sm icon-btn danger" id="deck-trash" type="button" title="Move this quiz to the bin" aria-label="Move this quiz to the bin" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"></path></svg></button>
           </div>
           <div class="deck-meta" id="deck-meta"></div>
         </div>
@@ -1417,6 +1506,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         <button class="btn btn-ghost btn-sm" id="pick-none" type="button">Clear</button>
       </div>
       <p class="deck-note" id="deck-note" hidden></p>
+      <div class="pair-head" id="pair-head">
+        <input class="col-name" id="lang-a" maxlength="28" autocomplete="off" spellcheck="false" placeholder="Column A" aria-label="Name of the first column">
+        <span class="col-arrow" aria-hidden="true">&rarr;</span>
+        <input class="col-name" id="lang-b" maxlength="28" autocomplete="off" spellcheck="false" placeholder="Column B" aria-label="Name of the second column">
+      </div>
       <ul class="pairs" id="pair-list"></ul>
       <div class="deck-foot">
         <button class="btn btn-sm" id="btn-add" type="button">Add a word</button>
@@ -1600,7 +1694,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         <label class="eyebrow" for="geo-name">Name this quiz</label>
         <div class="title-row">
           <input class="entry-name" id="geo-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled map quiz">
-          <button class="btn btn-sm share-btn" id="geo-share" type="button" title="Make a link to this quiz" hidden>Export</button>
+          <button class="btn btn-sm icon-btn share-btn" id="geo-share" type="button" title="Make a link to this quiz" aria-label="Make a link to this quiz" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 15V3M8 7l4-4 4 4"></path></svg></button>
+          <button class="btn btn-sm icon-btn danger" id="geo-trash" type="button" title="Move this quiz to the bin" aria-label="Move this quiz to the bin" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"></path></svg></button>
         </div>
         <label class="eyebrow" for="geo-q" style="display:block;margin-top:16px">Find places</label>
         <p class="entry-help">Search for anything on a map &mdash; continents, oceans, seas, gulfs, deserts, mountain ranges and peaks, rivers, lakes, countries, cities. Type a kind, like <code class="lit-eg">deserts</code> or <code class="lit-eg">countries of Africa</code>, to add a whole set at once.</p>
@@ -2468,29 +2563,35 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     return out.length ? out : raw;
   }
 
-  /* The answer, drawn in its colours behind the box it is typed in -- the
-     same trick the word-list editor uses, since no input can colour part
-     of its own text. */
-  function paintOverlay(p, side, input) {
+  /* A word, drawn in its colours behind the box it is typed in -- the same
+     trick the word-list editor uses, since no input can colour part of its
+     own text. Two kinds of colour are laid on at once: the colours painted
+     by hand, and under them the colours the notation earns -- a bracket, a
+     slash, which column this is. The notation colours are always on, so a
+     bracket in the wrong place can be seen rather than discovered later. */
+  function paintOverlay(p, side, input, faceClass) {
     var wrap = document.createElement("div");
     wrap.className = "paint-wrap";
     var hl = document.createElement("div");
-    hl.className = "paint-hl";
+    hl.className = "paint-hl" + (faceClass ? " " + faceClass : "");
     hl.setAttribute("aria-hidden", "true");
     wrap.appendChild(hl);
     wrap.appendChild(input);
 
+    var base = side === "a" ? "t-term" : "t-ans";
     var draw = function () {
-      hl.textContent = "";
       var marks = paintOf(p, side);
-      if (!marks.length) { wrap.classList.remove("painted"); return; }
-      wrap.classList.add("painted");
+      wrap.classList.toggle("painted", marks.length > 0);
+      var html = "", group = 0;
       paintPieces(String(input.value || ""), marks).forEach(function (piece) {
-        var span = document.createElement("span");
-        if (piece.kind) span.className = "paint-" + piece.kind;
-        span.textContent = piece.text;
-        hl.appendChild(span);
+        var inner = tokenizeSide(piece.text, base);
+        if (!piece.kind) { html += inner; return; }
+        // Each either-or is numbered as it is drawn, so several of them in
+        // one answer stay several rather than running together.
+        var tag = piece.kind === "either" ? ' data-group="' + (++group) + '"' : "";
+        html += '<span class="paint-' + piece.kind + '"' + tag + ">" + inner + "</span>";
       });
+      hl.innerHTML = html;
     };
     draw();
     input.addEventListener("scroll", function () { hl.scrollLeft = input.scrollLeft; });
@@ -2500,7 +2601,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   /* The bar the "exact" button opens: pick a stretch of the answer, then
      say what it is. Pressing the button again says the whole answer is
      necessary, which is what it used to do on its own. */
-  function paintBar(p, side, input, overlay, after) {
+  function paintBar(p, side, input, overlay, after, countGroups) {
+    countGroups = countGroups || function () {};
     var bar = document.createElement("div");
     bar.className = "paint-bar";
 
@@ -2509,11 +2611,25 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     hint.textContent = "Select part of the answer, then say what it is:";
     bar.appendChild(hint);
 
+    // An answer may hold as many either-ors as it has choices to offer, and
+    // the button says which one is being made next.
+    var faces = [];
+    function eitherCount() {
+      return paintOf(p, side).filter(function (r) { return r.kind === "either"; }).length;
+    }
+    function relabel() { faces.forEach(function (fn) { fn(); }); }
+
     Object.keys(PAINT_KINDS).forEach(function (kind) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "paint-pick paint-" + kind;
-      b.textContent = PAINT_KINDS[kind].label;
+      var face = function () {
+        b.textContent = kind === "either"
+          ? PAINT_KINDS.either.label + " " + (eitherCount() + 1)
+          : PAINT_KINDS[kind].label;
+      };
+      faces.push(face);
+      face();
       b.title = PAINT_KINDS[kind].hint;
       b.addEventListener("mousedown", function (e) { e.preventDefault(); });   // keep the selection
       b.addEventListener("click", function () {
@@ -2530,6 +2646,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         deck.sample = false;
         if (isSavedDeck(deck)) persistDeck(deck);
         overlay.draw();
+        relabel();
+        countGroups();
       });
       bar.appendChild(b);
     });
@@ -2543,6 +2661,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       deck.sample = false;
       if (isSavedDeck(deck)) persistDeck(deck);
       overlay.draw();
+      relabel();
+      countGroups();
       after();
     });
     bar.appendChild(clear);
@@ -2551,6 +2671,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
   function renderDeck() {
     $("deck-title").value = deck.title || "";
+    $("lang-a").value = deck.langA || "";
+    $("lang-b").value = deck.langB || "";
     var langs = (deck.langA || "Column A") + " → " + (deck.langB || "Column B");
     $("deck-meta").textContent = deck.pairs.length + " words · " + langs;
     $("deck-flag").hidden = !deck.sample;
@@ -2580,12 +2702,32 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       });
       li.appendChild(tick);
 
+      // Once a choice is under way the row answers to it: anywhere in the
+      // frame ticks the word, text boxes and all. Before that the row is
+      // for writing in, so a click lands where it was aimed. Taken on the
+      // way down, since letting it through would put a caret in the box.
+      li.addEventListener("mousedown", function (e) {
+        if (!choosing() || e.button !== 0) return;
+        if (e.target === tick) return;
+        if (e.target.closest("button, .paint-bar, .pick-menu")) return;
+        e.preventDefault();
+        tick.checked = !tick.checked;
+        if (tick.checked) picked[pairKey(p)] = true; else delete picked[pairKey(p)];
+        drawPickBar();
+      });
+
       var ia = document.createElement("input");
       ia.className = "term";
       ia.value = p.a;
       ia.id = "pair-a-" + idx;
       ia.setAttribute("aria-label", "Word " + (idx + 1));
-      ia.addEventListener("input", function () { p.a = ia.value; deck.sample = false; });
+      var paintA = paintOverlay(p, "a", ia, "hl-term");
+      ia.addEventListener("input", function () {
+        p.a = ia.value;
+        deck.sample = false;
+        if (paintOf(p, "a").length) setPaint(p, "a", []);
+        paintA.draw();
+      });
 
       var side = answerSide();
       var bCell = document.createElement("div");
@@ -2609,7 +2751,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         // answer lets them go rather than leaving them on the wrong part.
         if (paintOf(p, "b").length) { setPaint(p, "b", []); paint.draw(); }
       });
-      var paint = paintOverlay(p, side === "b" ? "b" : "b", ib);
+      var paint = paintOverlay(p, "b", ib);
       bCell.appendChild(paint.wrap);
       if (p.note) {
         var chip = document.createElement("span");
@@ -2617,6 +2759,18 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         chip.textContent = p.note;
         bCell.appendChild(chip);
       }
+
+      // Said in words as well as in walls, because the walls are small:
+      // an answer with two either-ors wants one from each, not one of two.
+      var groupTag = document.createElement("span");
+      groupTag.className = "group-chip";
+      bCell.appendChild(groupTag);
+      var countGroups = function () {
+        var n = paintOf(p, "b").filter(function (r) { return r.kind === "either"; }).length;
+        groupTag.hidden = n < 2;
+        groupTag.textContent = n + " either-ors · one from each";
+      };
+      countGroups();
 
       /* One button, three states. Closed, it opens the colours; open, it
          says the whole answer is necessary; and from there it goes back to
@@ -2650,7 +2804,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         li.appendChild(paintBar(p, "b", ib, paint, function () {
           var bar = li.querySelector(".paint-bar");
           if (bar) bar.remove();
-        }));
+        }, countGroups));
         ib.focus();
       });
 
@@ -2676,7 +2830,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         renderDeck();
       });
 
-      li.appendChild(ia);
+      li.appendChild(paintA.wrap);
       li.appendChild(bCell);
       li.appendChild(lit);
       li.appendChild(kill);
@@ -2689,9 +2843,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       ? (subView ? "This list is empty" : "Add at least 2 words")
       : subView ? "Start this list" : "Start quiz";
     if (opts.mode === "choice") syncChoiceLimits();
-    $("dir-desc").textContent = opts.dir === "ab"
-      ? "Shown the " + (deck.langA || "column A") + " word, you type the " + (deck.langB || "column B") + " meaning."
-      : "Shown the " + (deck.langB || "column B") + " meaning, you type the " + (deck.langA || "column A") + " word.";
+    sayColumns();
   }
 
   /* ---------------- picking words out of a list ----------------
@@ -2707,11 +2859,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     return viewPairs().filter(function (p) { return picked[pairKey(p)]; });
   }
 
+  // While a choice is under way the rows belong to it rather than to the
+  // keyboard. Nothing chosen, and they go back to being text boxes.
+  function choosing() { return pickedPairs().length > 0; }
+
   function clearPicks() { picked = {}; }
 
   function drawPickBar() {
     var bar = $("pick-bar"), n = pickedPairs().length;
     bar.hidden = !n;
+    $("pair-list").classList.toggle("choosing", !!n);
     $("pick-count").textContent = n + (n === 1 ? " word chosen" : " words chosen");
     $("pick-del").textContent = subView ? "Take out of this list" : "Delete";
   }
@@ -2865,8 +3022,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   }
 
   function showDeckShare() {
+    var hide = !!SHARED || !deck || !isSavedDeck(deck);
     var btn = $("deck-share");
-    if (btn) btn.hidden = !!SHARED || !deck || !isSavedDeck(deck);
+    if (btn) btn.hidden = hide;
+    var bin = $("deck-trash");
+    if (bin) bin.hidden = hide;
   }
 
   function loadDeck(d) {
@@ -2886,6 +3046,34 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     if (last) last.focus();
   });
   $("btn-back").addEventListener("click", leaveToLists);
+
+  /* Naming a column. The names were always shown -- in the heading, and in
+     the line that says which way round a round goes -- and never asked
+     for, so the place they are shown is the place they are typed. */
+  ["a", "b"].forEach(function (which) {
+    var box = $("lang-" + which), key = which === "a" ? "langA" : "langB";
+    box.addEventListener("input", function () {
+      deck[key] = box.value.trim();
+      deck.sample = false;
+      $("deck-flag").hidden = true;
+      if (isSavedDeck(deck)) persistDeck(deck);
+      sayColumns();
+    });
+    box.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); box.blur(); }
+    });
+  });
+
+  // The two places the names are read back, kept in step as they are typed.
+  function sayColumns() {
+    if (!subView) {
+      $("deck-meta").textContent = deck.pairs.length + " words · " +
+        (deck.langA || "Column A") + " → " + (deck.langB || "Column B");
+    }
+    $("dir-desc").textContent = opts.dir === "ab"
+      ? "Shown the " + (deck.langA || "column A") + " word, you type the " + (deck.langB || "column B") + " meaning."
+      : "Shown the " + (deck.langB || "column B") + " meaning, you type the " + (deck.langA || "column A") + " word.";
+  }
 
   // Renaming the list is just typing in its heading.
   $("deck-title").addEventListener("input", function () {
@@ -4841,6 +5029,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     // Labelled, but not named: this is not a folder you have named, it is
     // the way out of the one you are in, so the label is fixed text with no
     // box behind it and nothing to click into.
+    // An arrow out, so the card reads as a way out before a word of it is
+    // read. The folders beside it have nothing of the sort.
+    var arrow = document.createElement("div");
+    arrow.className = "out-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "↰";
+
     var name = document.createElement("div");
     name.className = "close-label";
     name.textContent = "Close folder";
@@ -4856,6 +5051,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     spacer.className = "quiz-card-foot";
 
     card.appendChild(flap);
+    card.appendChild(arrow);
     card.appendChild(name);
     card.appendChild(meta);
     card.appendChild(spacer);
@@ -5018,7 +5214,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function confirmOn(btn, question, run) {
     if (btn.dataset.asking === "1") return;
     var host = btn.parentNode;
-    var label = btn.textContent;
+    var label = btn.innerHTML;
     btn.dataset.asking = "1";
     btn.hidden = true;
 
@@ -5043,7 +5239,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     function done() {
       if (ask.parentNode) ask.parentNode.removeChild(ask);
       btn.hidden = false;
-      btn.textContent = label;
+      btn.innerHTML = label;
       delete btn.dataset.asking;
       document.removeEventListener("click", away, true);
     }
@@ -6903,7 +7099,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     renderGeoResults();
     loadGeo().then(renderGeoPicked, geoLoadFailed);
     renderGeoPicked();
-    $("geo-share").hidden = !!SHARED || !(geoEditId && deckById(geoEditId));
+    $("geo-share").hidden = $("geo-trash").hidden =
+      !!SHARED || !(geoEditId && deckById(geoEditId));
     window.scrollTo(0, 0);
   }
 
@@ -7943,9 +8140,29 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   $("deck-share").addEventListener("click", function () {
     if (deck && isSavedDeck(deck)) openShare(deckById(deck.id));
   });
+  $("deck-trash").addEventListener("click", function () {
+    if (!deck || !isSavedDeck(deck)) return;
+    var id = deck.id;
+    confirmOn(this, "To the bin?", function () {
+      trashDeck(id);
+      renderSaved();
+      leaveToLists();
+    });
+  });
   $("geo-share").addEventListener("click", function () {
     var d = geoEditId && deckById(geoEditId);
     if (d) openShare(d);
+  });
+  $("geo-trash").addEventListener("click", function () {
+    var id = geoEditId;
+    if (!id || !deckById(id)) return;
+    confirmOn(this, "To the bin?", function () {
+      trashDeck(id);
+      geoEditId = null;
+      renderSaved();
+      setTab("geo");
+      show("intake");
+    });
   });
 
   /* ---------------- a shared quiz, seen by someone else ----------------
@@ -8053,7 +8270,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build d218e225</p>
+<p class="build-stamp">build 85841d78</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
