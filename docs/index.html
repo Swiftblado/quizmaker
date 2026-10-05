@@ -1162,6 +1162,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .pick-new{display:flex;gap:6px}
 .pick-new input{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--rule);border-radius:7px;
   background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px}
+/* A list inside a list is drawn where it belongs, under its parent. */
+.side-plus{
+  display:block;margin:2px 0 10px;padding:3px 8px;border:0;border-radius:6px;
+  background:transparent;color:var(--faint);font-size:11.5px;font-weight:600;cursor:pointer;
+}
+.side-plus:hover{background:var(--accent-soft);color:var(--accent-ink)}
+.side-new{
+  display:block;width:100%;margin:0 0 10px;padding:8px 10px;border:1px solid var(--accent);
+  border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;
+}
 .pairs .pick{flex:none;width:16px;height:16px;accent-color:var(--accent);cursor:pointer;align-self:center}
 .deck-note{font-size:12.5px;color:var(--ok);margin:0 0 10px}
 .deck-sub-head{display:flex;align-items:center;gap:9px;margin-bottom:8px;flex-wrap:wrap}
@@ -2331,10 +2341,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     $("deck-flag").hidden = !deck.sample;
 
     var shown = viewPairs();
-    var sub = subView && findSub(deck, subView.name);
     $("deck-sub-head").hidden = !subView;
     if (subView) {
-      $("deck-sub-name").textContent = subView.name;
+      $("deck-sub-name").textContent = pathLabel(subView.path);
       $("deck-meta").textContent = words(shown.length) + " · from " + (deck.title || "a quiz");
     }
     $("btn-add").hidden = !!subView;
@@ -2412,13 +2421,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       kill.textContent = "✕";
       kill.addEventListener("click", function () {
         if (subView) {
-          var s = findSub(deck, subView.name);
+          var s = subAt(deck, subView.path);
           if (s) s.keys = (s.keys || []).filter(function (k) { return k !== pairKey(p); });
         } else {
           var k = pairKey(p);
           deck.pairs = deck.pairs.filter(function (q) { return q !== p; });
-          subsOf(deck).forEach(function (s2) {
-            s2.keys = (s2.keys || []).filter(function (x) { return x !== k; });
+          allSubs(deck).forEach(function (node) {
+            node.sub.keys = (node.sub.keys || []).filter(function (x) { return x !== k; });
           });
         }
         deck.sample = false;
@@ -2479,12 +2488,18 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var menu = document.createElement("div");
     menu.className = "pick-menu";
 
-    subsOf(deck).forEach(function (s) {
+    allSubs(deck).forEach(function (node) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "btn btn-sm";
-      b.textContent = s.name + " · " + words((s.keys || []).length);
-      b.addEventListener("click", function () { menu.remove(); delete anchor.dataset.open; onPick(s.name); });
+      b.style.marginLeft = (node.depth * 14) + "px";
+      b.textContent = node.sub.name + " · " + words((node.sub.keys || []).length);
+      if (node.depth) b.title = "Inside " + pathLabel(node.path.slice(0, -1));
+      b.addEventListener("click", function () {
+        menu.remove();
+        delete anchor.dataset.open;
+        onPick(node.path);
+      });
       menu.appendChild(b);
     });
 
@@ -2518,9 +2533,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     field.focus();
   }
 
-  function addPairsToSub(pairs, name) {
-    var s = findSub(deck, name);
-    if (!s) { s = { name: name, keys: [] }; subsOf(deck).push(s); }
+  function addPairsToSub(pairs, path) {
+    // A list inside the one that is open, when that is where you are.
+    var where = Array.isArray(path) ? path
+      : subView ? subView.path.concat([path]) : [path];
+    var s = makeSubAt(deck, where);
     pairs.forEach(function (p) {
       var k = pairKey(p);
       if (s.keys.indexOf(k) < 0) s.keys.push(k);
@@ -2536,11 +2553,12 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     if (!chosen.length) return;
     offerLists(this, function (name) {
       var kept = addPairsToSub(chosen, name);
+      var said = pathLabel(Array.isArray(name) ? name : subView ? subView.path.concat([name]) : [name]);
       clearPicks();
       renderDeck();
       flashDeckNote(kept
-        ? chosen.length + (chosen.length === 1 ? " word" : " words") + " added to “" + name + "”"
-        : "Added to “" + name + "” · save the quiz to keep it");
+        ? chosen.length + (chosen.length === 1 ? " word" : " words") + " added to “" + said + "”"
+        : "Added to “" + said + "” · save the quiz to keep it");
     });
   });
 
@@ -2553,13 +2571,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       chosen.forEach(function (p) { keys[pairKey(p)] = true; });
       if (subView) {
         // Out of this list, not out of the quiz: the word itself stays.
-        var s = findSub(deck, subView.name);
+        var s = subAt(deck, subView.path);
         if (s) s.keys = (s.keys || []).filter(function (k) { return !keys[k]; });
       } else {
         deck.pairs = deck.pairs.filter(function (p) { return !keys[pairKey(p)]; });
-        // A word that is gone is gone from every list it was in.
-        subsOf(deck).forEach(function (s) {
-          s.keys = (s.keys || []).filter(function (k) { return !keys[k]; });
+        // A word that is gone is gone from every list it was in, at any depth.
+        allSubs(deck).forEach(function (node) {
+          node.sub.keys = (node.sub.keys || []).filter(function (k) { return !keys[k]; });
         });
       }
       deck.sample = false;
@@ -2592,13 +2610,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // Which words the deck screen is showing: all of them, or one list's.
   function viewPairs() {
     if (!subView) return deck.pairs;
-    var s = findSub(deck, subView.name);
-    return s ? subPairs(deck, s) : [];
+    var s = subAt(deck, subView.path);
+    // A list that sorts other lists has their words in it as well.
+    return s ? subPairsDeep(deck, s) : [];
   }
 
-  function openSubList(d, name) {
+  function openSubList(d, path) {
     loadDeck(JSON.parse(JSON.stringify(d)));
-    subView = { name: name };
+    subView = { path: asPath(path) };
     clearPicks();
     renderDeck();
     show("deck");
@@ -3458,7 +3477,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     if (subView) {
       var mine = viewPairs();
       if (!mine.length) { renderDeck(); return; }
-      startGame(mine, subView.name);
+      startGame(mine, pathLabel(subView.path));
       return;
     }
     deck.pairs = deck.pairs.filter(function (p) {
@@ -3543,6 +3562,113 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   }
 
   function subHas(sub, p) { return (sub.keys || []).indexOf(pairKey(p)) >= 0; }
+
+  /* ---------------- lists inside lists ----------------
+     A sub-list may hold sub-lists of its own, as deep as anyone cares to
+     go, so a list is addressed by the path of names that reaches it --
+     ["Verbs", "Irregular"] -- rather than by its name alone. An old
+     sub-list has no children and a one-name path, which is why nothing
+     written before this needs converting.
+  ------------------------------------------------------ */
+  function kidsOf(s) {
+    if (s && !s.subs) s.subs = [];
+    return (s && s.subs) || [];
+  }
+
+  function asPath(path) {
+    return Array.isArray(path) ? path.slice() : path ? [path] : [];
+  }
+
+  // The list at this path, or null if any step of it has gone.
+  function subAt(d, path) {
+    var where = subsOf(d), found = null;
+    asPath(path).forEach(function (name) {
+      if (where === null) return;
+      found = null;
+      for (var i = 0; i < where.length; i++) {
+        if (where[i].name === name) { found = where[i]; break; }
+      }
+      where = found ? kidsOf(found) : null;
+    });
+    return found;
+  }
+
+  // The array a list at this path lives in -- where it is made, and where
+  // it is taken from.
+  function subHome(d, path) {
+    var steps = asPath(path);
+    var where = subsOf(d);
+    for (var i = 0; i < steps.length - 1; i++) {
+      var next = null;
+      for (var j = 0; j < where.length; j++) {
+        if (where[j].name === steps[i]) { next = where[j]; break; }
+      }
+      if (!next) return null;
+      where = kidsOf(next);
+    }
+    return where;
+  }
+
+  function makeSubAt(d, path) {
+    var steps = asPath(path);
+    var where = subsOf(d), made = null;
+    steps.forEach(function (name) {
+      made = null;
+      for (var i = 0; i < where.length; i++) {
+        if (where[i].name === name) { made = where[i]; break; }
+      }
+      if (!made) { made = { name: name, keys: [], subs: [] }; where.push(made); }
+      where = kidsOf(made);
+    });
+    return made;
+  }
+
+  function dropSubAt(d, path) {
+    var home = subHome(d, path), steps = asPath(path);
+    if (!home) return;
+    var name = steps[steps.length - 1];
+    for (var i = 0; i < home.length; i++) {
+      if (home[i].name === name) { home.splice(i, 1); return; }   // its children go with it
+    }
+  }
+
+  // Every list in the quiz, in the order they are drawn, each with the
+  // path that reaches it and how deep it sits.
+  function allSubs(d, where, path, out) {
+    out = out || [];
+    where = where || subsOf(d);
+    (where || []).forEach(function (s) {
+      var here = (path || []).concat([s.name]);
+      out.push({ sub: s, path: here, depth: here.length - 1 });
+      allSubs(d, kidsOf(s), here, out);
+    });
+    return out;
+  }
+
+  function pathLabel(path) { return asPath(path).join(" › "); }
+
+  // What a list holds, counting the lists inside it: a parent with nothing
+  // of its own still has something to play.
+  function subKeysDeep(s) {
+    var keys = (s.keys || []).slice();
+    kidsOf(s).forEach(function (k) {
+      subKeysDeep(k).forEach(function (x) { if (keys.indexOf(x) < 0) keys.push(x); });
+    });
+    return keys;
+  }
+
+  function subPairsDeep(d, s) {
+    var want = {};
+    subKeysDeep(s).forEach(function (k) { want[k] = true; });
+    return (d.pairs || []).filter(function (p) { return want[pairKey(p)]; });
+  }
+
+  function geoSubPlacesDeep(d, s) {
+    var want = {};
+    subKeysDeep(s).forEach(function (k) { want[k] = true; });
+    return (d.places || []).filter(function (p) { return want[p.id]; });
+  }
+
 
   // Is this list already one of the user's quizzes? Sub-lists are written
   // back into it when so, and held in memory when not -- writing one must
@@ -3632,25 +3758,29 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     foot.appendChild(sp);
     box.appendChild(foot);
 
+    // Each one a path: a list of this quiz, or a name to make at the top.
     function targets() {
-      var names = Object.keys(picked);
-      fresh.forEach(function (n) { if (names.indexOf(n) < 0) names.push(n); });
-      return names;
+      var paths = Object.keys(picked).map(function (k) { return picked[k]; });
+      fresh.forEach(function (n) {
+        if (!paths.some(function (p) { return pathLabel(p) === n; })) paths.push([n]);
+      });
+      return paths;
     }
 
     function draw() {
       choices.textContent = "";
-      subsOf(deck).forEach(function (s) {
+      allSubs(deck).forEach(function (node) {
+        var s = node.sub, key = pathLabel(node.path);
         var already = subHas(s, pair);
         var b = document.createElement("button");
         b.type = "button";
         b.className = "sub-chip";
         b.disabled = already;
-        b.setAttribute("aria-pressed", String(already || !!picked[s.name]));
-        b.textContent = s.name + " · " + (s.keys || []).length;
-        b.title = already ? "This word is already in " + s.name : "Add to " + s.name;
+        b.setAttribute("aria-pressed", String(already || !!picked[key]));
+        b.textContent = (node.depth ? "↳ " : "") + s.name + " · " + (s.keys || []).length;
+        b.title = already ? "This word is already in " + key : "Add to " + key;
         b.addEventListener("click", function () {
-          if (picked[s.name]) delete picked[s.name]; else picked[s.name] = true;
+          if (picked[key]) delete picked[key]; else picked[key] = node.path;
           draw();
         });
         choices.appendChild(b);
@@ -3665,7 +3795,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         b.addEventListener("click", function () { fresh.splice(i, 1); draw(); });
         choices.appendChild(b);
       });
-      if (!subsOf(deck).length && !fresh.length) {
+      if (!allSubs(deck).length && !fresh.length) {
         var none = document.createElement("span");
         none.className = "sub-none";
         none.textContent = "No sub-lists in this quiz yet. Name one below.";
@@ -3680,7 +3810,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       var n = input.value.trim();
       input.value = "";
       if (!n) return;
-      if (findSub(deck, n)) picked[n] = true;
+      if (subAt(deck, [n])) picked[n] = [n];
       else if (fresh.indexOf(n) < 0) fresh.push(n);
       draw();
     }
@@ -3698,9 +3828,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       var names = targets();
       if (!names.length) { closeSubPanel(); return; }
       var k = pairKey(pair);
-      names.forEach(function (n) {
-        var s = findSub(deck, n);
-        if (!s) { s = { name: n, keys: [] }; subsOf(deck).push(s); }
+      names.forEach(function (path) {
+        var s = makeSubAt(deck, path);
         if (s.keys.indexOf(k) < 0) s.keys.push(k);
       });
       // Only an already-saved quiz is written to. A ready-made deck, or one
@@ -3762,7 +3891,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var host = $("sub-card-list");
     var note = $("sub-card-note");
     host.textContent = "";
-    var subs = subsOf(deck);
+    var subs = allSubs(deck);
     note.textContent = game && game.subName
       ? "You just played “" + game.subName + "”"
       : (subs.length ? "Play one on its own" : "");
@@ -3776,14 +3905,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       host.appendChild(whole);
     }
 
-    subs.forEach(function (s) {
-      var pairs = subPairs(deck, s);
+    subs.forEach(function (node) {
+      var s = node.sub, label = pathLabel(node.path);
+      var pairs = subPairsDeep(deck, s);
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "sub-chip" + (game && game.subName === s.name ? " is-current" : "");
-      b.textContent = s.name + " · " + pairs.length;
+      b.className = "sub-chip" + (game && game.subName === label ? " is-current" : "");
+      b.textContent = (node.depth ? "↳ " : "") + s.name + " · " + pairs.length;
+      b.title = node.depth ? "Inside " + pathLabel(node.path.slice(0, -1)) : s.name;
       b.disabled = pairs.length < 1;
-      b.addEventListener("click", function () { startGame(pairs, s.name); });
+      b.addEventListener("click", function () { startGame(pairs, label); });
       host.appendChild(b);
     });
 
@@ -3871,7 +4002,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         else loadDeck(JSON.parse(JSON.stringify(d)));
       });
 
-    var subs = d.subs || [];
+    var subs = allSubs(d);
     label(subs.length ? (subs.length === 1 ? "Sub-list" : "Sub-lists") : "Sub-lists");
 
     if (!subs.length) {
@@ -3883,37 +4014,73 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       body.appendChild(none);
     }
 
-    subs.forEach(function (s, j) {
-      var n = geo ? geoSubPlaces(d, s).length : (s.keys || []).length;
-      var row = item(s.name, n ? (geo ? places(n) : words(n)) + " · drag out to shelve it" : "empty", n > 0, function () {
+    /* The lists as a tree: each one indented under the list it belongs to,
+       and each able to hold lists of its own. A parent counts what its
+       children hold as well, so a list that only sorts other lists is
+       still something you can play. */
+    allSubs(d).forEach(function (node) {
+      var s = node.sub, path = node.path;
+      var mine = geo ? geoSubPlacesDeep(d, s).length : subPairsDeep(d, s).length;
+      var kids = kidsOf(s).length;
+      var detail = (mine ? (geo ? places(mine) : words(mine)) : "empty") +
+        (kids ? " · " + kids + (kids === 1 ? " list inside" : " lists inside") : "") +
+        (mine ? " · drag out to shelve it" : "");
+
+      var row = item(s.name, detail, mine > 0, function () {
         closeSidePanel();
-        if (!geo) { openSubList(d, s.name); return; }
-        if (geo) {
-          var live = deckById(d.id) || d;
-          var ids = geoSubPlaces(live, (live.subs || [])[j] || s).map(function (p) { return p.id; });
-          if (!ids.length) { geoStatus("“" + s.name + "” has no places left in it.", true); return; }
-          startGeo(live, ids, s.name);
-          return;
-        }
-        loadDeck(JSON.parse(JSON.stringify(d)));
-        var live2 = subsOf(deck)[j];
-        if (!live2) return;
-        var pairs = subPairs(deck, live2);
-        if (!pairs.length) { flash("“" + live2.name + "” has no words left in it."); return; }
-        startGame(pairs, live2.name);
+        if (!geo) { openSubList(d, path); return; }
+        var live = deckById(d.id) || d;
+        var ids = geoSubPlacesDeep(live, subAt(live, path) || s).map(function (p) { return p.id; });
+        if (!ids.length) { geoStatus("“" + s.name + "” has no places left in it.", true); return; }
+        startGeo(live, ids, pathLabel(path));
       });
+      row.classList.add("side-item-nested");
+      row.style.marginLeft = (node.depth * 16) + "px";
+      if (node.depth) row.title = "Inside " + pathLabel(path.slice(0, -1));
+
+      // Somewhere to put a list inside this one.
+      var plus = document.createElement("button");
+      plus.type = "button";
+      plus.className = "side-plus";
+      plus.textContent = "+ list inside";
+      plus.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var field = document.createElement("input");
+        field.className = "side-new";
+        field.placeholder = "Name a list inside “" + s.name + "”";
+        field.maxLength = 40;
+        var keep = function () {
+          var name = field.value.trim();
+          if (!name) { field.remove(); return; }
+          var live = deckById(d.id) || d;
+          makeSubAt(live, path.concat([name]));
+          if (isSavedDeck(live)) updateDeck(live.id, function (x) { makeSubAt(x, path.concat([name])); });
+          renderSaved();
+          openSidePanel(deckById(d.id) || live);
+        };
+        field.addEventListener("keydown", function (ev) {
+          ev.stopPropagation();
+          if (ev.key === "Enter") { ev.preventDefault(); keep(); }
+          if (ev.key === "Escape") { ev.preventDefault(); field.remove(); }
+        });
+        field.addEventListener("blur", keep);
+        plus.after(field);
+        field.focus();
+      });
+      plus.style.marginLeft = (node.depth * 16) + "px";
+      body.appendChild(plus);
 
       // A sub-list can be dragged out of here and onto the shelf, where it
       // becomes a card of its own. The scrim is stood down for the duration
       // or it would swallow the drop.
-      if (n) {
+      if (mine) {
         row.draggable = true;
         row.addEventListener("dragstart", function (e) {
-          dragging = { kind: "sub-list", deckId: d.id, subName: s.name };
+          dragging = { kind: "sub-list", deckId: d.id, subName: s.name, subPath: path };
           document.body.classList.add("dragging-sub");
           try {
             e.dataTransfer.effectAllowed = "copy";
-            e.dataTransfer.setData("text/plain", "sub:" + s.name);
+            e.dataTransfer.setData("text/plain", "sub:" + pathLabel(path));
           } catch (err) { /* older browsers */ }
         });
         row.addEventListener("dragend", function () {
@@ -4494,12 +4661,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // no words: it points at the sub-list and reads it fresh each time.
   function makeSubRef(drag, folderId) {
     var list = savedDecks();
+    var path = drag.subPath || [drag.subName];
     var already = list.some(function (x) {
-      return isSub(x) && x.ofDeck === drag.deckId && x.subName === drag.subName &&
+      return isSub(x) && x.ofDeck === drag.deckId &&
+             pathLabel(x.subPath || [x.subName]) === pathLabel(path) &&
              folderOf(x) === (folderId || null);
     });
-    if (already) { flash("“" + drag.subName + "” is already here.", "info"); return; }
-    var ref = { id: uid(), kind: "sub", ofDeck: drag.deckId, subName: drag.subName };
+    if (already) { flash("“" + pathLabel(path) + "” is already here.", "info"); return; }
+    var ref = { id: uid(), kind: "sub", ofDeck: drag.deckId, subName: drag.subName, subPath: path };
     if (folderId) ref.folder = folderId;
     list.push(ref);
     writeDecks(list);
@@ -4508,11 +4677,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function subRefTarget(ref) {
     var parent = deckById(ref.ofDeck);
     if (!parent || isSub(parent)) return null;
-    var subs = parent.subs || [];
-    for (var i = 0; i < subs.length; i++) {
-      if (subs[i].name === ref.subName) return { deck: parent, sub: subs[i] };
-    }
-    return null;
+    var path = ref.subPath || [ref.subName];
+    var sub = subAt(parent, path);
+    return sub ? { deck: parent, sub: sub, path: path } : null;
   }
 
   /* ---------------- drawing the shelf ---------------- */
@@ -4980,14 +5147,15 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     var title = document.createElement("div");
     title.className = "saved-name static";
-    title.textContent = ref.subName;
+    title.textContent = (found && found.path) ? found.path[found.path.length - 1] : ref.subName;
 
     var geoRef = found && isGeo(found.deck);
     var meta = document.createElement("div");
     meta.className = "deck-meta";
     if (found) {
-      var n = geoRef ? geoSubPlaces(found.deck, found.sub).length : subPairs(found.deck, found.sub).length;
-      meta.textContent = (geoRef ? places(n) : words(n)) + " · from " + (found.deck.title || "a quiz");
+      var n = geoRef ? geoSubPlacesDeep(found.deck, found.sub).length : subPairsDeep(found.deck, found.sub).length;
+      var where = (found.path || []).length > 1 ? pathLabel(found.path.slice(0, -1)) + " · " : "";
+      meta.textContent = (geoRef ? places(n) : words(n)) + " · " + where + "from " + (found.deck.title || "a quiz");
     } else {
       meta.textContent = "The quiz this came from is gone";
     }
@@ -4997,15 +5165,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     play.className = "btn btn-sm";
     play.textContent = found && !isGeo(found.deck) ? "Open" : "Play";
     play.disabled = !found ||
-      !(geoRef ? geoSubPlaces(found.deck, found.sub).length : subPairs(found.deck, found.sub).length);
+      !(geoRef ? geoSubPlacesDeep(found.deck, found.sub).length : subPairsDeep(found.deck, found.sub).length);
     play.addEventListener("click", function () {
       var live = subRefTarget(ref);
       if (!live) return;
       if (isGeo(live.deck)) {
-        startGeo(live.deck, geoSubPlaces(live.deck, live.sub).map(function (p) { return p.id; }), live.sub.name);
+        startGeo(live.deck, geoSubPlacesDeep(live.deck, live.sub).map(function (p) { return p.id; }),
+                 pathLabel(live.path));
         return;
       }
-      openSubList(live.deck, live.sub.name);
+      openSubList(live.deck, live.path);
     });
 
     var sp = document.createElement("span");
@@ -7644,7 +7813,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build 1dbea4da</p>
+<p class="build-stamp">build 7d33ad34</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
