@@ -1294,6 +1294,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .parts .eo-3{background:color-mix(in srgb,var(--either-3) 26%,transparent);box-shadow:0 1px 0 var(--either-3)}
 .parts .eo-4{background:color-mix(in srgb,var(--either-4) 26%,transparent);box-shadow:0 1px 0 var(--either-4)}
 .parts .eo-bad{background:var(--bad-soft);box-shadow:0 1px 0 var(--bad)}
+/* Link numbers and backslashes are for the grader: there, but quiet. */
+.parts .t-esc{color:var(--faint)}
+/* A part picked for an either-or that is still being made. */
+.parts .pend{outline:1.5px dashed var(--accent);outline-offset:1px}
 .group-chip{
   display:inline-block;margin-top:4px;font-size:11px;font-weight:600;
   color:var(--either-1);background:color-mix(in srgb,var(--either-1) 14%,transparent);
@@ -1369,6 +1373,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .cb-more:hover{border-color:var(--accent);color:var(--accent-ink)}
 .cb-bad{font-size:11.5px;color:var(--bad);font-weight:600}
 .cb-empty{font-size:12px;color:var(--faint);margin:0}
+.cb-off{
+  margin-left:auto;font-size:12px;padding:3px 9px;border:1px solid var(--rule);border-radius:6px;
+  background:var(--surface);color:var(--muted);cursor:pointer;
+}
+.cb-off:hover{color:var(--ink);border-color:var(--faint)}
+.cb-optlabel{background:color-mix(in srgb,var(--tok-opt) 15%,transparent);color:var(--tok-opt)}
+.cb-preview{font-size:13px;padding:2px 7px;background:var(--surface);border:1px solid var(--rule-soft);border-radius:6px}
 .cb-key{
   background:var(--surface);border:1px solid var(--rule-soft);border-radius:8px;
   padding:10px 12px;font-size:12.5px;color:var(--ink);
@@ -2258,7 +2269,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function buildOptions(pair) {
     // Tiles read as the sheet wrote them; the guard against a duplicate
     // answer works off every reading the shorthand allows.
-    var correct = rawAnswers(pair)[0];
+    var correct = readable(rawAnswers(pair)[0]);
     var taken = {};
     acceptedFor(pair).forEach(function (a) { taken[fold(a, opts.accents)] = true; });
     taken[fold(correct, opts.accents)] = true;
@@ -2273,7 +2284,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       if (forms.some(function (f) { return taken[fold(f, opts.accents)]; })) return;
       forms.forEach(function (f) { taken[fold(f, opts.accents)] = true; });
       taken[fold(text, opts.accents)] = true;
-      pool.push(text);
+      pool.push(readable(text));
     });
 
     shuffle(pool);
@@ -2426,6 +2437,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // when it stands alone between spaces, which is how a sheet writes it
   // when it means "or".
   function isSeparator(text, i) {
+    if (i > 0 && text.charAt(i - 1) === "\\") return false;   // escaped: plain text
     var c = text.charAt(i);
     if (c === "/" || c === "," || c === ";" || c === "–" || c === "—") return true;
     if (c === "-") return /\s/.test(text.charAt(i - 1)) && /\s/.test(text.charAt(i + 1));
@@ -2551,13 +2563,15 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var out = [];
     var phrases = [];
     expandGenderForms(String(text)).forEach(function (phrase) {
-      expandBraces(phrase).forEach(function (b) {
-        expandOptional(b).forEach(function (f) { phrases.push(f); });
+      expandLinked(phrase).forEach(function (l) {
+        expandBraces(l).forEach(function (b) {
+          expandOptional(b).forEach(function (f) { phrases.push(f); });
+        });
       });
     });
     phrases.forEach(function (form) {
       splitTop(form).forEach(function (part) {
-        var t = tidy(part);
+        var t = tidy(unescapeText(part));
         if (t && out.indexOf(t) < 0 && out.length < MAX_VARIANTS) out.push(t);
       });
     });
@@ -2585,26 +2599,68 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   ---------------------------------------------------------- */
   var BRACKETS = { "(": ")", "[": "]", "{": "}" };
 
-  // The slashes that belong to a gender form, by position.
-  function genderSlashes(text) {
-    var re = /([A-Za-zÀ-ÿ]{2,})\/([A-Za-zÀ-ÿ]{1,3})(?![A-Za-zÀ-ÿ])/g;
-    var out = {}, m;
-    while ((m = re.exec(text))) {
-      if (genderForms(m[1], m[2])) out[m.index + m[1].length] = true;
+  // A character after a backslash is only itself: "say\/tell" is typed
+  // with its slash and is not a choice. It is how an either-or is taken
+  // away without taking away its words.
+  function escaped(text, i) { return i > 0 && text.charAt(i - 1) === "\\"; }
+  function unescapeText(t) { return String(t == null ? "" : t).replace(/\\(.)/g, "$1"); }
+
+  // How a sheet's text reads to someone playing: the link numbers and the
+  // backslashes are for the grader, not for the eye.
+  function readable(t) {
+    return unescapeText(String(t == null ? "" : t).replace(/\{\s*\d+\s*:/g, "{"));
+  }
+
+  var GENDER_SLOT = /([A-Za-zÀ-ÿ]{2,})\/([A-Za-zÀ-ÿ]{1,3})(?![A-Za-zÀ-ÿ])/g;
+
+  /* Every gender form in a text: "honesto/a" swaps its "o" for an "a", so
+     the "o", the slash and the "a" are its two choices. One that only adds
+     an ending ("trabajador/a") is an optional ending and is rewritten as
+     one by addedEndings(); until then its last letter stands in. */
+  function genderSlots(text) {
+    var out = [], m;
+    GENDER_SLOT.lastIndex = 0;
+    while ((m = GENDER_SLOT.exec(text))) {
+      var base = m[1], sfx = m[2], forms = genderForms(base, sfx);
+      if (!forms) continue;
+      var swap = forms[1] !== base + sfx;
+      var cut = swap ? base.length - sfx.length : base.length - 1;
+      out.push({ cut: m.index + cut, slash: m.index + base.length, end: m.index + m[0].length });
     }
     return out;
   }
 
+  // "trabajador/a" -> "trabajador(a)": an ending that is only added is an
+  // optional part, and brackets say so.
+  function addedEndings(text) {
+    return String(text == null ? "" : text).replace(GENDER_SLOT, function (whole, base, sfx) {
+      var forms = genderForms(base, sfx);
+      return forms && forms[1] === base + sfx ? base + "(" + sfx + ")" : whole;
+    });
+  }
+
   /* The shape of one side of a pair: its bracket pairs, and its either-or
-     groups, each with where every choice in it starts and ends. Groups are
-     in reading order, an outer one before the ones inside it, which is the
-     order they are numbered and shaded in. */
+     groups -- each with where every choice in it starts and ends (opts),
+     what its highlight covers (spans) and everything it owns, brackets and
+     all (reach). Groups are in reading order, an outer one before the ones
+     inside it, which is the order they are numbered and shaded in.
+
+       top      choices split by / , ; across the whole answer
+       brace    {say/tell}
+       inner    choices inside one part of a linked either-or
+       opt      (able/capable): a choice that may be left out altogether
+       link     {1:big} dog {1:small}: parts apart from each other, one kept
+       gender   honesto/a                                                  */
   function readParts(text) {
     text = String(text == null ? "" : text);
-    var gender = genderSlashes(text);
-    var stack = [], pairs = [], i;
-    for (i = 0; i < text.length; i++) {
+    var n = text.length, i, j;
+    var slots = genderSlots(text), gslash = {};
+    slots.forEach(function (g) { gslash[g.slash] = true; });
+
+    var stack = [], pairs = [];
+    for (i = 0; i < n; i++) {
       var c = text.charAt(i);
+      if (escaped(text, i)) continue;
       if (BRACKETS[c]) { stack.push({ o: i, ch: c }); continue; }
       if (c === ")" || c === "]" || c === "}") {
         // Closes the nearest bracket of its own kind. Anything opened in
@@ -2619,73 +2675,101 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       }
     }
     pairs.sort(function (x, y) { return x.o - y.o; });
+    pairs.forEach(function (p) {
+      if (p.ch !== "{") return;
+      var m = /^\s*(\d+)\s*:/.exec(text.slice(p.o + 1, p.c));
+      if (m) { p.link = +m[1]; p.cs = p.o + 1 + m[0].length; }
+    });
 
-    var boxes = [{ o: -1, c: text.length, ch: "top", seps: [] }];
-    pairs.forEach(function (p) { boxes.push({ o: p.o, c: p.c, ch: p.ch, seps: [] }); });
-    for (i = 0; i < text.length; i++) {
-      if (!isSeparator(text, i) || (text.charAt(i) === "/" && gender[i])) continue;
+    function trim(s, e) {
+      while (s < e && /\s/.test(text.charAt(s))) s++;
+      while (e > s && /\s/.test(text.charAt(e - 1))) e--;
+      return { s: s, e: e };
+    }
+    function filledOf(opts) { return opts.filter(function (x) { return x.e > x.s; }).length; }
+
+    var boxes = [{ o: -1, c: n, ch: "top", seps: [] }];
+    pairs.forEach(function (p) { boxes.push({ o: p.o, c: p.c, ch: p.ch, link: p.link, cs: p.cs, seps: [] }); });
+    for (i = 0; i < n; i++) {
+      if (!isSeparator(text, i) || gslash[i]) continue;
       var home = boxes[0];
-      for (var b = 1; b < boxes.length; b++) {
-        if (boxes[b].o < i && i < boxes[b].c && boxes[b].o > home.o) home = boxes[b];
+      for (j = 1; j < boxes.length; j++) {
+        if (boxes[j].o < i && i < boxes[j].c && boxes[j].o > home.o) home = boxes[j];
       }
       home.seps.push(i);
     }
 
     var groups = [];
     boxes.forEach(function (bx) {
-      var brace = bx.ch === "{";
+      var linked = bx.link != null;
+      var brace = bx.ch === "{" && !linked;
       if (!brace && !bx.seps.length) return;
-      var starts = [bx.o + 1].concat(bx.seps.map(function (x) { return x + 1; }));
+      var first = linked ? bx.cs : bx.o + 1;
+      var starts = [first].concat(bx.seps.map(function (x) { return x + 1; }));
       var ends = bx.seps.concat([bx.c]);
-      var opts = starts.map(function (s, n) {
-        var e = ends[n];
-        while (s < e && /\s/.test(text.charAt(s))) s++;
-        while (e > s && /\s/.test(text.charAt(e - 1))) e--;
-        return { s: s, e: e };
-      });
-      var filled = opts.filter(function (x) { return x.e > x.s; }).length;
+      var opts = starts.map(function (s, q) { return trim(s, ends[q]); });
+      var kind = bx.ch === "top" ? "top" : linked ? "inner" : brace ? "brace" : "opt";
+      var filled = filledOf(opts);
       groups.push({
-        kind: bx.ch === "top" ? "top" : brace ? "brace" : "opt",
-        o: bx.o, c: bx.c, seps: bx.seps, opts: opts, filled: filled, ok: filled >= 2
+        kind: kind, o: bx.o, c: bx.c, seps: bx.seps, opts: opts, filled: filled, ok: filled >= 2,
+        spans: kind === "top" ? [[0, n]] : kind === "brace" ? [[bx.o, bx.c + 1]] : [[first, bx.c]],
+        reach: kind === "top" ? [[0, n]] : [[bx.o, bx.c + 1]]
       });
     });
-    groups.sort(function (x, y) { return x.o - y.o; });
+
+    var links = {};
+    pairs.forEach(function (p) { if (p.link != null) (links[p.link] = links[p.link] || []).push(p); });
+    Object.keys(links).forEach(function (id) {
+      var ps = links[id];
+      var opts = ps.map(function (p) { return trim(p.cs, p.c); });
+      var filled = filledOf(opts);
+      var spans = ps.map(function (p) { return [p.o, p.c + 1]; });
+      groups.push({
+        kind: "link", id: +id, parts: ps, o: ps[0].o, c: ps[ps.length - 1].c, seps: [],
+        opts: opts, filled: filled, ok: filled >= 2, spans: spans, reach: spans
+      });
+    });
+
+    slots.forEach(function (g) {
+      groups.push({
+        kind: "gender", o: g.cut, c: g.end - 1, seps: [g.slash],
+        opts: [{ s: g.cut, e: g.slash }, { s: g.slash + 1, e: g.end }], filled: 2, ok: true,
+        spans: [[g.cut, g.end]], reach: [[g.cut, g.end]]
+      });
+    });
+
+    groups.sort(function (x, y) { return (x.o - y.o) || (y.c - x.c); });
     return { text: text, pairs: pairs, groups: groups };
-  }
-
-  // What a group's highlight covers: a whole-answer either-or all of it,
-  // braces and all for a braced one, and only the inside of an optional
-  // one, whose brackets stay in the optional colour.
-  function groupSpan(g, len) {
-    if (g.kind === "top") return { s: 0, e: len };
-    if (g.kind === "brace") return { s: g.o, e: g.c + 1 };
-    return { s: g.o + 1, e: g.c };
-  }
-
-  // Everything a group owns, its brackets included.
-  function groupReach(g, len) {
-    return g.kind === "top" ? { s: 0, e: len } : { s: g.o, e: g.c + 1 };
   }
 
   function shadeOf(g, k) { return g.ok ? "eo-" + (k % 4 + 1) : "eo-bad"; }
 
   /* One side of a pair as coloured HTML: optional parts as purple text,
      the rest as required text, and each either-or highlighted in a shade
-     of its own. Inside a .parts element. */
-  function partsHTML(text) {
+     of its own. Link numbers and backslashes are drawn faint. Parts being
+     chosen for a new either-or (marks) are outlined. Inside a .parts
+     element. */
+  function partsHTML(text, marks) {
     var parts = readParts(text), t = parts.text, n = t.length;
-    var opt = [], shade = [], i;
+    var opt = [], shade = [], faint = [], pend = [], i, j;
     parts.pairs.forEach(function (p) {
-      if (p.ch === "{") return;
-      for (var j = p.o; j <= p.c; j++) opt[j] = true;
+      if (p.ch === "{") {
+        if (p.link != null) for (j = p.o + 1; j < p.cs; j++) faint[j] = true;
+        return;
+      }
+      for (j = p.o; j <= p.c; j++) opt[j] = true;
     });
+    for (i = 0; i < n - 1; i++) if (t.charAt(i) === "\\") { faint[i] = true; i++; }
     parts.groups.forEach(function (g, k) {
-      var span = groupSpan(g, n), cls = shadeOf(g, k);
-      for (var j = span.s; j < span.e; j++) shade[j] = cls;   // inner groups come later and win
+      var cls = shadeOf(g, k);
+      g.spans.forEach(function (sp) { for (j = sp[0]; j < sp[1]; j++) shade[j] = cls; });   // inner groups come later and win
     });
+    (marks || []).forEach(function (m) { for (j = m.s; j < m.e; j++) pend[j] = true; });
+
     var out = "", buf = "", cur = null;
     for (i = 0; i < n; i++) {
-      var cls = (opt[i] ? "t-opt" : "t-req") + (shade[i] ? " " + shade[i] : "");
+      var cls = (faint[i] ? "t-esc" : opt[i] ? "t-opt" : "t-req") +
+        (shade[i] ? " " + shade[i] : "") + (pend[i] ? " pend" : "");
       if (cls !== cur) {
         if (buf) out += '<span class="' + cur + '">' + esc(buf) + "</span>";
         buf = "";
@@ -2694,6 +2778,34 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       buf += t.charAt(i);
     }
     if (buf) out += '<span class="' + cur + '">' + esc(buf) + "</span>";
+    return out;
+  }
+
+  // The next free number for a linked either-or.
+  function nextLinkId(text) {
+    var top = 0, m, re = /\{\s*(\d+)\s*:/g;
+    while ((m = re.exec(String(text || "")))) top = Math.max(top, +m[1]);
+    return top + 1;
+  }
+
+  /* Linked either-ors, for grading: "{1:big} dog {1:small}" is "big dog"
+     or "dog small" -- each part kept where it stands, the others left out.
+     A part with choices of its own goes on to the brace pass as a choice. */
+  function expandLinked(text) {
+    var link = readParts(text).groups.filter(function (g) { return g.kind === "link"; })[0];
+    if (!link) return [text];
+    var keepers = link.parts.length >= 2 ? link.parts : [null];   // one part alone: just its words
+    var out = [];
+    keepers.forEach(function (keep) {
+      var t = text;
+      link.parts.slice().sort(function (x, y) { return y.o - x.o; }).forEach(function (pt) {
+        var inner = text.slice(pt.cs, pt.c);
+        var choices = splitTop(inner).filter(function (x) { return x.trim(); }).length;
+        var rep = (keep === null || pt === keep) ? (choices >= 2 ? "{" + inner + "}" : inner) : "";
+        t = t.slice(0, pt.o) + rep + t.slice(pt.c + 1);
+      });
+      expandLinked(t).forEach(function (v) { if (out.length < MAX_VARIANTS) out.push(v); });
+    });
     return out;
   }
 
@@ -2728,18 +2840,22 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     });
   }
 
-  // -> true when anything changed.
+  // Brings an older quiz up to date: painted colours into notation, and
+  // "trabajador/a" into "trabajador(a)". -> true when anything changed.
   function unpaintDeck(d) {
     var moved = {}, changed = false;
     (d && d.pairs || []).forEach(function (p) {
-      if (!p.paint) return;
       var was = pairKey(p);
-      if (p.paint.a) p.a = paintToText(p.a, p.paint.a);
-      if (p.paint.b) p.b = paintToText(p.b, p.paint.b);
-      delete p.paint;
+      if (p.paint) {
+        if (p.paint.a) p.a = paintToText(p.a, p.paint.a);
+        if (p.paint.b) p.b = paintToText(p.b, p.paint.b);
+        delete p.paint;
+        changed = true;
+      }
+      var a = addedEndings(p.a), b = addedEndings(p.b);
+      if (a !== p.a || b !== p.b) { p.a = a; p.b = b; changed = true; }
       var now = pairKey(p);
       if (now !== was) moved[was] = now;
-      changed = true;
     });
     if (changed) rekeySubs(d, moved);
     return changed;
@@ -2763,7 +2879,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // Everything that counts as right — the expansion, unless this pair opted out.
   function acceptedFor(pair) {
     var raw = rawAnswers(pair);
-    if (pair.literal) return raw;                 // every part necessary
+    if (pair.literal) return raw.map(unescapeText);   // every part necessary
     var out = [];
     raw.forEach(function (t) {
       expandAnswer(t).forEach(function (v) { if (v && out.indexOf(v) < 0) out.push(v); });
@@ -2784,7 +2900,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     wrap.appendChild(input);
 
     var sync = function () { hl.scrollLeft = input.scrollLeft; };
-    var draw = function () { hl.innerHTML = partsHTML(input.value); sync(); };
+    var draw = function (marks) { hl.innerHTML = partsHTML(input.value, marks); sync(); };
     draw();
     ["scroll", "keyup", "click", "select", "focus", "blur"].forEach(function (ev) {
       input.addEventListener(ev, sync);
@@ -2828,6 +2944,22 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     saveSoon();
   }
 
+  /* Opening or closing something under a row changes how tall the list
+     is, and whether it scrolls inside itself at all -- which used to throw
+     the page about, as far as its bottom. Whatever the change, the row is
+     put back where it was on screen: by the list's own scroll first, then
+     by the page's. */
+  function steady(row, change) {
+    var list = $("pair-list"), before = row.getBoundingClientRect().top;
+    change();
+    var drift = row.getBoundingClientRect().top - before;
+    if (drift && list.scrollHeight > list.clientHeight) {
+      list.scrollTop += drift;
+      drift = row.getBoundingClientRect().top - before;
+    }
+    if (drift) window.scrollBy(0, drift);
+  }
+
   function columnName(side) {
     return side === "a" ? (deck.langA || "Column A") : (deck.langB || "Column B");
   }
@@ -2850,12 +2982,23 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
   /* ---------------- the colour bar ----------------
      Opened from a word's palette button. Select part of either column's
-     text and say what it is; the bar writes the brackets and braces. Every
-     either-or in the word is listed underneath, with its choices to rename,
-     remove or add to -- never down to fewer than two.
+     text and say what it is; the bar writes the brackets and braces.
 
-       row     the row's own handles: boxes[side] = {input}, and set(side,
-               text), which writes a new text through to the pair
+     An either-or is made by highlighting its parts one after another --
+     the words already there, never new ones typed in -- pressing Either-or
+     for each, then Done. Parts side by side become {big/small}; parts with
+     words between them stay where they are, linked by a number:
+     {1:big} dog {1:small}.
+
+     Everything the word holds is listed underneath: each either-or, with
+     its choices to rename or remove (never below two) and a way to stop it
+     being an either-or at all, which keeps its words; and each optional
+     part, which can be made required.
+
+       row     the row's own handles: boxes[side] = {input, overlay},
+               set(side, text), which writes a new text through to the
+               pair, and mark(side, parts), which outlines parts being
+               chosen
   ------------------------------------------------- */
   function colourBar(row, startSide) {
     var side = startSide;
@@ -2877,7 +3020,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       b.type = "button";
       b.textContent = columnName(sd);
       b.addEventListener("mousedown", function (e) { e.preventDefault(); });
-      b.addEventListener("click", function () { target(sd); row.boxes[sd].input.focus(); });
+      b.addEventListener("click", function () { target(sd); row.boxes[sd].input.focus({ preventScroll: true }); });
       colBtn[sd] = b;
       cols.appendChild(b);
     });
@@ -2895,7 +3038,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       return b;
     }
     action("opt", "Optional", "May be left out — written in ( )", makeOptional);
-    action("either", "Either-or", "Type one of the choices — written with / or in { }", makeEither);
+    action("either", "Either-or", "Highlight each choice in turn and press this for each", makeEither);
     action("req", "Required", "Must be typed — takes the brackets away", makeRequired);
 
     var helpBtn = document.createElement("button");
@@ -2961,6 +3104,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       say(note);
     }
 
+    // Does the selection touch an either-or already there?
+    function inChoice(sel) {
+      return readParts(sel.t).groups.some(function (g) {
+        return g.reach.some(function (r) { return sel.s < r[1] && sel.e > r[0]; });
+      });
+    }
+
     function makeOptional() {
       var sel = needSelection();
       if (!sel) return;
@@ -2973,68 +3123,113 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       return top ? top.filled : 1;
     }
 
-    function makeEither() {
-      var sel = needSelection();
-      if (!sel) return;
+    /* ---- making an either-or, a part at a time ----
+       pending = {side, t, parts: [selections], link: id to add to, or null} */
+    var pending = null;
+
+    function clearPending(note) {
+      pending = null;
       ask.hidden = true;
-      if (wrappedIn(sel.text, "{")) { say("That part is already an either-or."); return; }
-      var whole = sel.t.trim() === sel.text;
-      if (whole && choicesIn(sel.t) >= 2) { say("That is already an either-or: the whole answer is a choice."); return; }
-      if (choicesIn(sel.text) >= 2) { put(sel, "{" + sel.text + "}", "Made an either-or."); return; }
-      askSecond(sel);
+      ask.textContent = "";
+      row.mark(null);
+      if (note != null) say(note);
     }
 
-    // An either-or needs a second choice before it can be one.
-    function askSecond(sel) {
+    function quote(p) { return "“" + p.text + "”"; }
+
+    function showPending() {
+      row.mark(pending.side, pending.parts);
       ask.textContent = "";
-      var lead = document.createElement("span");
-      lead.textContent = "An either-or needs two choices: " + sel.text + " /";
-      var field = document.createElement("input");
-      field.placeholder = "second choice";
-      field.maxLength = 60;
-      var go = document.createElement("button");
-      go.type = "button";
-      go.className = "btn btn-sm btn-primary";
-      go.textContent = "Make either-or";
+      var msg = document.createElement("span");
+      if (pending.link != null) {
+        msg.textContent = "Highlight the part to add, then press Either-or.";
+      } else if (pending.parts.length === 1) {
+        msg.textContent = "Part 1: " + quote(pending.parts[0]) + ". Now highlight the second part and press Either-or again.";
+      } else {
+        msg.textContent = "Parts: " + pending.parts.map(quote).join(", ") +
+          ". Highlight another and press Either-or again, or press Done.";
+      }
+      ask.appendChild(msg);
+      if (pending.link == null && pending.parts.length >= 2) {
+        var done = document.createElement("button");
+        done.type = "button";
+        done.className = "btn btn-sm btn-primary";
+        done.textContent = "Done";
+        done.addEventListener("mousedown", function (e) { e.preventDefault(); });
+        done.addEventListener("click", finishPending);
+        ask.appendChild(done);
+      }
       var no = document.createElement("button");
       no.type = "button";
       no.className = "btn btn-sm";
       no.textContent = "Cancel";
-      var done = function () { ask.hidden = true; ask.textContent = ""; };
-      var take = function () {
-        var v = field.value.trim();
-        if (!v) { field.focus(); say("Type the second choice, or cancel.", true); return; }
-        if (row.boxes[sel.side].input.value !== sel.t) { done(); say("The word changed meanwhile; select the part again.", true); return; }
-        done();
-        put(sel, "{" + sel.text + "/" + v + "}", "Made an either-or.");
-      };
-      go.addEventListener("click", take);
-      no.addEventListener("click", function () { done(); say(HINT); });
-      field.addEventListener("keydown", function (e) {
-        e.stopPropagation();
-        if (e.key === "Enter") { e.preventDefault(); take(); }
-        if (e.key === "Escape") { e.preventDefault(); done(); say(HINT); }
-      });
-      ask.appendChild(lead);
-      ask.appendChild(field);
-      ask.appendChild(go);
+      no.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      no.addEventListener("click", function () { clearPending(HINT); });
       ask.appendChild(no);
       ask.hidden = false;
       say("");
-      field.focus();
+    }
+
+    function makeEither() {
+      var sel = needSelection();
+      if (!sel) return;
+      if (pending && (pending.side !== sel.side || row.boxes[pending.side].input.value !== pending.t)) clearPending();
+
+      if (pending && pending.link != null) {                  // one more part for a linked either-or
+        if (inChoice(sel)) { say("That part is already in an either-or.", true); return; }
+        var id = pending.link;
+        clearPending();
+        put(sel, "{" + id + ":" + sel.text + "}", "Added to the either-or.");
+        return;
+      }
+
+      if (!pending) {
+        if (wrappedIn(sel.text, "{")) { say("That part is already an either-or."); return; }
+        if (sel.t.trim() === sel.text && choicesIn(sel.t) >= 2) { say("That is already an either-or: the whole answer is a choice."); return; }
+        if (inChoice(sel)) { say("That part is already in an either-or.", true); return; }
+        // Choices already written out side by side need nothing more.
+        if (choicesIn(sel.text) >= 2) { put(sel, "{" + sel.text + "}", "Made an either-or."); return; }
+        pending = { side: sel.side, t: sel.t, parts: [sel], link: null };
+        showPending();
+        return;
+      }
+
+      if (inChoice(sel)) { say("That part is already in an either-or.", true); return; }
+      if (pending.parts.some(function (p) { return sel.s < p.e && sel.e > p.s; })) {
+        say("That overlaps a part already chosen.", true);
+        return;
+      }
+      pending.parts.push(sel);
+      showPending();
+    }
+
+    function finishPending() {
+      if (!pending || pending.parts.length < 2) return;
+      var t = pending.t, sd = pending.side;
+      var ps = pending.parts.slice().sort(function (x, y) { return x.s - y.s; });
+      var together = ps.every(function (p, i) { return i === 0 || !t.slice(ps[i - 1].e, p.s).trim(); });
+      var next;
+      if (together) {
+        next = t.slice(0, ps[0].s) + "{" + ps.map(function (p) { return p.text; }).join("/") + "}" +
+          t.slice(ps[ps.length - 1].e);
+      } else {
+        var id = nextLinkId(t);
+        next = t;
+        ps.slice().reverse().forEach(function (p) {
+          next = next.slice(0, p.s) + "{" + id + ":" + p.text + "}" + next.slice(p.e);
+        });
+      }
+      clearPending();
+      row.set(sd, next);
+      say("Made an either-or.");
     }
 
     function makeRequired() {
       var sel = needSelection();
       if (!sel) return;
-      var parts = readParts(sel.t), n = sel.t.length;
-      var inChoice = parts.groups.some(function (g) {
-        var r = groupReach(g, n);
-        return sel.s < r.e && sel.e > r.s;
-      });
-      if (inChoice) { say("That is part of an either-or. Change its choices in the list below.", true); return; }
+      if (inChoice(sel)) { say("That is part of an either-or. Change it in the list below.", true); return; }
       var drop = [];
-      parts.pairs.forEach(function (pr) {
+      readParts(sel.t).pairs.forEach(function (pr) {
         if (pr.ch === "{") return;
         if (pr.o <= sel.e - 1 && pr.c >= sel.s) drop.push(pr.o, pr.c);
       });
@@ -3045,13 +3240,22 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       say("Made required.");
     }
 
-    /* ---- the either-ors, listed ---- */
+    /* ---- the list ---- */
     function editGroup(sd, gi, change) {
       var t = row.boxes[sd].input.value, g = readParts(t).groups[gi];
       if (!g) return;
       var next = change(t, g);
       if (next != null && next !== t) row.set(sd, next);
       else refresh();
+    }
+
+    // Edits as [at, how many to take out, what to put in], made from the
+    // end of the text backwards so the earlier positions stay true.
+    function splice(t, edits) {
+      edits.sort(function (x, y) { return y[0] - x[0]; }).forEach(function (ed) {
+        t = t.slice(0, ed[0]) + ed[2] + t.slice(ed[0] + ed[1]);
+      });
+      return t;
     }
 
     function rename(sd, gi, oi, value) {
@@ -3064,7 +3268,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     function remove(sd, gi, oi) {
       editGroup(sd, gi, function (t, g) {
-        if (g.filled <= 2) return null;             // never fewer than two
+        if (g.filled <= 2 || g.kind === "gender") return null;   // never fewer than two
+        if (g.kind === "link") {
+          var pt = g.parts[oi];
+          return t.slice(0, pt.o) + t.slice(pt.c + 1);
+        }
         var o = g.opts[oi];
         if (oi > 0) return t.slice(0, g.opts[oi - 1].e) + t.slice(o.e);
         return t.slice(0, o.s) + t.slice(g.opts[1].s);
@@ -3085,12 +3293,112 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       });
     }
 
+    // No longer an either-or, every word kept: a slash stays as a slash to
+    // be typed, braces and link numbers go.
+    function unchoose(sd, gi) {
+      editGroup(sd, gi, function (t, g) {
+        var edits = [];
+        if (g.kind === "link") {
+          g.parts.forEach(function (p) { edits.push([p.c, 1, ""], [p.o, p.cs - p.o, ""]); });
+        } else {
+          g.seps.forEach(function (i) { edits.push([i, 0, "\\"]); });
+          if (g.kind === "brace") edits.push([g.c, 1, ""], [g.o, 1, ""]);
+        }
+        return splice(t, edits);
+      });
+    }
+
+    // Optional no more. One with choices in it keeps them, as a required
+    // choice: (able/capable) becomes {able/capable}.
+    function unbracket(sd, at) {
+      var t = row.boxes[sd].input.value, parts = readParts(t);
+      var pr = parts.pairs.filter(function (p) { return p.o === at && p.ch !== "{"; })[0];
+      if (!pr) return refresh();
+      var hasChoices = parts.groups.some(function (g) { return g.kind === "opt" && g.o === pr.o; });
+      row.set(sd, hasChoices
+        ? splice(t, [[pr.c, 1, "}"], [pr.o, 1, "{"]])
+        : splice(t, [[pr.c, 1, ""], [pr.o, 1, ""]]));
+    }
+
+    function chipFor(sd, gi, g, oi, o) {
+      var t = row.boxes[sd].input.value;
+      var chip = document.createElement("span");
+      chip.className = "cb-chip";
+      var field = document.createElement("input");
+      field.value = t.slice(o.s, o.e);
+      field.size = Math.max(3, field.value.length + 1);
+      field.setAttribute("aria-label", "Choice " + (oi + 1));
+      field.addEventListener("input", function () { field.size = Math.max(3, field.value.length + 1); });
+      field.addEventListener("change", function () { rename(sd, gi, oi, field.value); });
+      field.addEventListener("keydown", function (e) {
+        e.stopPropagation();
+        if (e.key === "Enter") { e.preventDefault(); field.blur(); }
+      });
+      chip.appendChild(field);
+      if (g.kind !== "gender") {
+        var x = document.createElement("button");
+        x.type = "button";
+        x.textContent = "✕";
+        x.disabled = g.filled <= 2;
+        x.title = x.disabled ? "An either-or keeps at least two choices" : "Remove this choice";
+        x.setAttribute("aria-label", x.title);
+        x.addEventListener("click", function () { remove(sd, gi, oi); });
+        chip.appendChild(x);
+      }
+      return chip;
+    }
+
+    function addButton(sd, gi, g, line) {
+      var more = document.createElement("button");
+      more.type = "button";
+      more.className = "cb-more";
+      if (g.kind === "link") {
+        // A linked either-or grows by highlighting another part, as it was made.
+        more.textContent = "+ part";
+        more.addEventListener("click", function () {
+          target(sd);
+          pending = { side: sd, t: row.boxes[sd].input.value, parts: [], link: g.id };
+          showPending();
+          row.boxes[sd].input.focus({ preventScroll: true });
+        });
+        return more;
+      }
+      more.textContent = "+ choice";
+      more.addEventListener("click", function () {
+        var field = document.createElement("input");
+        field.className = "cb-new";
+        field.placeholder = "new choice";
+        field.maxLength = 60;
+        // Taking the field away blurs it, so it is only ever read once.
+        var settled = false;
+        var commit = function (keep) {
+          if (settled) return;
+          settled = true;
+          var v = field.value;
+          if (keep && v.trim()) addTo(sd, gi, v); else refresh();
+        };
+        field.addEventListener("keydown", function (e) {
+          e.stopPropagation();
+          if (e.key === "Enter") { e.preventDefault(); commit(true); }
+          if (e.key === "Escape") { e.preventDefault(); commit(false); }
+        });
+        field.addEventListener("blur", function () { commit(true); });
+        line.replaceChild(field, more);
+        field.focus({ preventScroll: true });
+      });
+      return more;
+    }
+
     function refresh() {
+      // A word edited by hand while parts were being chosen: start again.
+      if (pending && row.boxes[pending.side].input.value !== pending.t) clearPending(HINT);
       list.textContent = "";
       var any = false, several = [];
       ["a", "b"].forEach(function (sd) {
-        var groups = readParts(row.boxes[sd].input.value).groups;
+        var t = row.boxes[sd].input.value, parts = readParts(t);
+        var groups = parts.groups;
         if (groups.length > 1) several.push(columnName(sd));
+
         groups.forEach(function (g, gi) {
           any = true;
           var line = document.createElement("div");
@@ -3098,77 +3406,58 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
           var label = document.createElement("span");
           label.className = "cb-glabel " + shadeOf(g, gi);
-          label.textContent = "Either-or " + (gi + 1) + " · " + columnName(sd);
+          label.textContent = "Either-or " + (gi + 1) + (g.kind === "gender" ? " (gender)" : "") + " · " + columnName(sd);
           line.appendChild(label);
 
           g.opts.forEach(function (o, oi) {
             if (o.e === o.s) return;
-            var t = row.boxes[sd].input.value;
-            var chip = document.createElement("span");
-            chip.className = "cb-chip";
-            var field = document.createElement("input");
-            field.value = t.slice(o.s, o.e);
-            field.size = Math.max(3, field.value.length + 1);
-            field.setAttribute("aria-label", "Choice " + (oi + 1));
-            field.addEventListener("input", function () { field.size = Math.max(3, field.value.length + 1); });
-            field.addEventListener("change", function () { rename(sd, gi, oi, field.value); });
-            field.addEventListener("keydown", function (e) {
-              e.stopPropagation();
-              if (e.key === "Enter") { e.preventDefault(); field.blur(); }
-            });
-            var x = document.createElement("button");
-            x.type = "button";
-            x.textContent = "✕";
-            x.disabled = g.filled <= 2;
-            x.title = x.disabled ? "An either-or keeps at least two choices" : "Remove this choice";
-            x.setAttribute("aria-label", x.title);
-            x.addEventListener("click", function () { remove(sd, gi, oi); });
-            chip.appendChild(field);
-            chip.appendChild(x);
-            line.appendChild(chip);
+            line.appendChild(chipFor(sd, gi, g, oi, o));
           });
-
-          var more = document.createElement("button");
-          more.type = "button";
-          more.className = "cb-more";
-          more.textContent = "+ choice";
-          more.addEventListener("click", function () {
-            var field = document.createElement("input");
-            field.className = "cb-new";
-            field.placeholder = "new choice";
-            field.maxLength = 60;
-            // Taking the field away blurs it, so it is only ever read once.
-            var settled = false;
-            var commit = function (keep) {
-              if (settled) return;
-              settled = true;
-              var v = field.value;
-              if (keep && v.trim()) addTo(sd, gi, v); else refresh();
-            };
-            field.addEventListener("keydown", function (e) {
-              e.stopPropagation();
-              if (e.key === "Enter") { e.preventDefault(); commit(true); }
-              if (e.key === "Escape") { e.preventDefault(); commit(false); }
-            });
-            field.addEventListener("blur", function () { commit(true); });
-            line.replaceChild(field, more);
-            field.focus();
-          });
-          line.appendChild(more);
-
+          if (g.kind !== "gender") line.appendChild(addButton(sd, gi, g, line));
           if (!g.ok) {
             var bad = document.createElement("span");
             bad.className = "cb-bad";
             bad.textContent = "Needs at least two choices";
             line.appendChild(bad);
           }
+
+          var off = document.createElement("button");
+          off.type = "button";
+          off.className = "cb-off";
+          off.textContent = "Not an either-or";
+          off.title = "Keep the words, and stop this being a choice";
+          off.addEventListener("click", function () { unchoose(sd, gi); });
+          line.appendChild(off);
+          list.appendChild(line);
+        });
+
+        parts.pairs.forEach(function (pr) {
+          if (pr.ch === "{") return;
+          any = true;
+          var line = document.createElement("div");
+          line.className = "cb-group";
+          var label = document.createElement("span");
+          label.className = "cb-glabel cb-optlabel";
+          label.textContent = "Optional · " + columnName(sd);
+          var shown = document.createElement("span");
+          shown.className = "cb-preview";
+          shown.innerHTML = partsHTML(t.slice(pr.o, pr.c + 1));
+          var req = document.createElement("button");
+          req.type = "button";
+          req.className = "cb-off";
+          req.textContent = "Make required";
+          req.title = "Keep the words, and take the brackets away";
+          req.addEventListener("click", function () { unbracket(sd, pr.o); });
+          line.appendChild(label);
+          line.appendChild(shown);
+          line.appendChild(req);
           list.appendChild(line);
         });
       });
       if (!any) {
         var none = document.createElement("p");
         none.className = "cb-empty";
-        none.textContent = "No either-ors yet. Split choices with / , or ; or select some words and press Either-or.";
+        none.textContent = "Nothing coloured yet. Select part of a word and press Optional or Either-or.";
         list.appendChild(none);
       }
       // Only either-ors on the same side are wanted together: the other
@@ -3184,7 +3473,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     target(side);
     say(HINT);
     refresh();
-    return { el: el, refresh: refresh, target: target };
+    return { el: el, refresh: refresh, target: target, close: function () { if (pending) clearPending(); } };
   }
 
   /* The key behind the "?": what each colour means, shown in the colours
@@ -3197,15 +3486,19 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       ["(to) say", "<b>Optional</b> — purple, in ( ) or [ ]. May be left out."],
       ["to say / to tell", "<b>Either-or</b> — highlighted. Type one of the choices. A comma or semicolon works like a slash."],
       ["to {say/tell} the truth", "An either-or in the middle of an answer goes in { }."],
+      ["{1:big} dog {1:small}", "Parts with words between them are linked by a number. Keep one where it stands: “big dog” or “dog small”."],
       ["{the/a} {dog/cat}", "Several either-ors each get their own shade. One choice is wanted from each."],
       ["(to) be (able/capable)", "An either-or in brackets is optional as well."],
-      ["{say}", "Red: an either-or needs at least two choices."],
-      ["alto/a", "A slash before a gender ending is a gender form, not a choice."]
+      ["honesto/a", "A gender form is an either-or of its endings: honesto or honesta."],
+      ["trabajador(a)", "An ending that is only added is optional."],
+      ["say\\/tell", "A backslash makes the next mark plain text: this is typed with its slash."],
+      ["{say}", "Red: an either-or needs at least two choices."]
     ];
     var html = "<h4>How the colours work</h4><dl class=\"parts\">";
     rows.forEach(function (r) { html += "<dt>" + partsHTML(r[0]) + "</dt><dd>" + r[1] + "</dd>"; });
-    html += "</dl><p>Select part of a word, then press <b>Optional</b>, <b>Either-or</b> or <b>Required</b>; " +
-      "the brackets and braces are written for you. Rename or remove choices in the list under the buttons. " +
+    html += "</dl><p>Select part of a word, then press <b>Optional</b> or <b>Required</b>. " +
+      "For an <b>Either-or</b>, highlight the first choice and press Either-or, highlight the next and press it again, " +
+      "then <b>Done</b>. The list underneath edits or removes what is there. " +
       "<b>exact</b> wants the whole answer exactly as written, punctuation and all.</p>";
     box.innerHTML = html;
     return box;
@@ -3297,6 +3590,12 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
           countChip(side);
           if (bar) bar.refresh();
         });
+        // An ending that is only added is optional, and is written so once
+        // the word is left -- not while it is being typed.
+        input.addEventListener("change", function () {
+          var next = addedEndings(input.value);
+          if (next !== input.value) row.set(side, next);
+        });
         return cell;
       }
 
@@ -3308,6 +3607,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         bx.overlay.draw();
         countChip(side);
         if (bar) bar.refresh();
+      };
+
+      // Outlines the parts being chosen for an either-or, on one side.
+      row.mark = function (side, parts) {
+        ["a", "b"].forEach(function (sd) {
+          row.boxes[sd].overlay.draw(sd === side ? parts : null);
+        });
       };
 
       li.appendChild(wordBox("a"));
@@ -3399,7 +3705,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
             deck.sample = false;
             saveSoon();
           }
-          pop.remove();
+          steady(li, function () { pop.remove(); });
           document.removeEventListener("mousedown", away, true);
           drawNote();
         }
@@ -3411,8 +3717,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
           if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); finish(true); }
         });
         setTimeout(function () { document.addEventListener("mousedown", away, true); }, 0);
-        li.appendChild(pop);
-        area.focus();
+        steady(li, function () { li.appendChild(pop); });
+        area.focus({ preventScroll: true });
       }
 
       var palette = tool("palette", "Colour the parts of this word");
@@ -3424,14 +3730,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       palette.addEventListener("click", function () {
         if (SHARED) return;
         if (bar) {
-          bar.el.remove();
+          var closing = bar;
           bar = null;
+          closing.close();
+          steady(li, function () { closing.el.remove(); });
           palette.setAttribute("aria-expanded", "false");
           return;
         }
         bar = colourBar(row, lastSide);
         var pop = li.querySelector(".note-pop");
-        li.insertBefore(bar.el, pop || null);
+        steady(li, function () { li.insertBefore(bar.el, pop || null); });
         palette.setAttribute("aria-expanded", "true");
       });
 
@@ -3944,7 +4252,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var prompt = opts.dir === "ab" ? p.a : p.b;
     var target = opts.dir === "ab" ? (deck.langB || "the meaning") : (deck.langA || "the word");
     $("ask").textContent = "Translate to " + target;
-    $("word").textContent = prompt;
+    $("word").textContent = readable(prompt);
     var noteEl = $("word-note");
     if (p.note && opts.dir === "ab") { noteEl.textContent = p.note; noteEl.hidden = false; }
     else { noteEl.hidden = true; }
@@ -4007,7 +4315,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     var p = game.current;
     var accepted = acceptedFor(p);   // every reading that counts as right
-    var shown = rawAnswers(p);       // what the sheet says, for showing
+    var shown = rawAnswers(p).map(readable);   // what the sheet says, for showing
     // Running the clock out is a miss, whatever is half-typed in the box.
     // A picked tile is right or wrong outright -- there is no near miss to
     // be had when you did not spell anything.
@@ -4076,7 +4384,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     game.log.push({
       n: game.asked,
-      prompt: opts.dir === "ab" ? p.a : p.b,
+      prompt: readable(opts.dir === "ab" ? p.a : p.b),
       typed: typed,
       target: res.target,
       verdict: res.verdict,
@@ -4302,7 +4610,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         var li = document.createElement("li");
         var t = document.createElement("span");
         t.className = "m-term";
-        t.textContent = opts.dir === "ab" ? m.pair.a : m.pair.b;
+        t.textContent = readable(opts.dir === "ab" ? m.pair.a : m.pair.b);
         var a = document.createElement("span");
         a.className = "m-ans";
         a.textContent = m.target;
@@ -4798,7 +5106,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     var head = document.createElement("span");
     head.className = "eyebrow";
-    head.textContent = "Add “" + (opts.dir === "ab" ? pair.a : pair.b) + "” to";
+    head.textContent = "Add “" + readable(opts.dir === "ab" ? pair.a : pair.b) + "” to";
     box.appendChild(head);
 
     var choices = document.createElement("div");
@@ -4956,7 +5264,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // Everything the quiz would accept for this word, said once and in full.
   function fullAnswer(p) {
     var out = [];
-    rawAnswers(p).forEach(function (t) { if (out.indexOf(t) < 0) out.push(t); });
+    rawAnswers(p).map(readable).forEach(function (t) { if (out.indexOf(t) < 0) out.push(t); });
     acceptedFor(p).forEach(function (t) { if (out.indexOf(t) < 0) out.push(t); });
     return out;
   }
@@ -6503,6 +6811,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     // waiting for a second button that was easy to walk away without
     // pressing, and the page stays where it is: an announcement with the
     // way in on it, instead of being taken somewhere.
+    res.pairs.forEach(function (p) { p.a = addedEndings(p.a); p.b = addedEndings(p.b); });
     var built = {
       title: $("quiz-name").value.trim() || "Typed list",
       langA: $("new-lang-a").value.trim() || "Column A",
@@ -8891,7 +9200,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build 49f11820</p>
+<p class="build-stamp">build f11fd0ef</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
