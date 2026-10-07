@@ -59,10 +59,10 @@
   --tok-paren:#B87503;
   /* One either-or group to a shade, all of them in the amber family so
      each still reads as "either-or" first and as which one second. */
-  --either-1:#B87503;
-  --either-2:#D9480F;
-  --either-3:#8A6A1F;
-  --either-4:#D4A106;
+  --either-1:#E0A800;
+  --either-2:#F2C500;
+  --either-3:#B89A10;
+  --either-4:#E8E04A;
   --wash-strength:14%;
   --shadow:0 1px 2px rgba(20,26,43,.06),0 8px 24px -12px rgba(20,26,43,.18);
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -93,10 +93,10 @@
     --tok-answer:#3DBB8E;
     --tok-opt:#C79BF0;
     --tok-paren:#E8A72C;
-    --either-1:#E8A72C;
-    --either-2:#FF7A45;
-    --either-3:#C9A45A;
-    --either-4:#F5D04A;
+    --either-1:#F0B820;
+    --either-2:#FFD633;
+    --either-3:#D4B42A;
+    --either-4:#F2EC6A;
     --wash-strength:9%;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
   }
@@ -124,10 +124,10 @@
   --tok-answer:#3DBB8E;
   --tok-opt:#C79BF0;
   --tok-paren:#E8A72C;
-  --either-1:#E8A72C;
-  --either-2:#FF7A45;
-  --either-3:#C9A45A;
-  --either-4:#F5D04A;
+  --either-1:#F0B820;
+  --either-2:#FFD633;
+  --either-3:#D4B42A;
+  --either-4:#F2EC6A;
   --wash-strength:9%;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
 }
@@ -1373,6 +1373,15 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .cb-more:hover{border-color:var(--accent);color:var(--accent-ink)}
 .cb-bad{font-size:11.5px;color:var(--bad);font-weight:600}
 .cb-empty{font-size:12px;color:var(--faint);margin:0}
+/* A broken either-or, said above the words and beside Start quiz. */
+.eo-fix{
+  display:flex;align-items:center;gap:10px;margin:0 18px 10px;padding:8px 12px;border-radius:9px;
+  background:var(--bad-soft);color:var(--bad);font-size:13px;font-weight:600;
+  border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);
+}
+.eo-fix span{flex:1}
+.eo-fix .btn,.btn-eo-fix{border-color:var(--bad);color:var(--bad);background:var(--surface)}
+.eo-fix .btn:hover,.btn-eo-fix:hover{background:var(--bad-soft)}
 .cb-off{
   margin-left:auto;font-size:12px;padding:3px 9px;border:1px solid var(--rule);border-radius:6px;
   background:var(--surface);color:var(--muted);cursor:pointer;
@@ -1621,6 +1630,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         <button class="btn btn-ghost btn-sm" id="pick-none" type="button">Clear</button>
       </div>
       <p class="deck-note" id="deck-note" hidden></p>
+      <div class="eo-fix" id="eo-fix-bar" hidden>
+        <span id="eo-fix-text"></span>
+        <button class="btn btn-sm" id="eo-fix-go" type="button">Fix</button>
+      </div>
       <div class="pair-head" id="pair-head">
         <input class="col-name" id="lang-a" maxlength="28" autocomplete="off" spellcheck="false" placeholder="Column A" aria-label="Name of the first column">
         <span class="col-arrow" aria-hidden="true">&rarr;</span>
@@ -1705,6 +1718,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     <div class="row" style="margin-top:18px">
       <button class="btn btn-primary" id="btn-play" type="button" style="flex:1;min-width:180px">Start quiz</button>
+      <button class="btn btn-eo-fix" id="btn-eo-fix" type="button" hidden>Fix either-or</button>
       <button class="btn" id="btn-save" type="button" hidden>Keep this deck</button>
     </div>
   </section>
@@ -2942,6 +2956,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     deck.sample = false;
     $("deck-flag").hidden = true;
     saveSoon();
+    drawBroken();
   }
 
   /* Opening or closing something under a row changes how tall the list
@@ -3266,12 +3281,23 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       });
     }
 
+    /* A part may go even when only one is left after it: the either-or
+       then turns red, and the quiz waits until it has two again. A linked
+       part was highlighted out of words already there, so taking it out
+       only takes the highlight; the words stay. The last part of any
+       either-or takes the marks with it and leaves its words. */
     function remove(sd, gi, oi) {
       editGroup(sd, gi, function (t, g) {
-        if (g.filled <= 2 || g.kind === "gender") return null;   // never fewer than two
+        if (g.kind === "gender") return null;
         if (g.kind === "link") {
           var pt = g.parts[oi];
-          return t.slice(0, pt.o) + t.slice(pt.c + 1);
+          return t.slice(0, pt.o) + t.slice(pt.cs, pt.c) + t.slice(pt.c + 1);
+        }
+        if (g.filled <= 1) {
+          var keep = g.opts.filter(function (x) { return x.e > x.s; })[0];
+          var words = keep ? t.slice(keep.s, keep.e) : "";
+          if (g.kind === "brace") return t.slice(0, g.o) + words + t.slice(g.c + 1);
+          return t.slice(0, g.opts[0].s) + words + t.slice(g.opts[g.opts.length - 1].e);
         }
         var o = g.opts[oi];
         if (oi > 0) return t.slice(0, g.opts[oi - 1].e) + t.slice(o.e);
@@ -3339,8 +3365,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         var x = document.createElement("button");
         x.type = "button";
         x.textContent = "✕";
-        x.disabled = g.filled <= 2;
-        x.title = x.disabled ? "An either-or keeps at least two choices" : "Remove this choice";
+        x.title = g.kind === "link" ? "Take the highlight off this part" : "Remove this choice";
         x.setAttribute("aria-label", x.title);
         x.addEventListener("click", function () { remove(sd, gi, oi); });
         chip.appendChild(x);
@@ -3743,6 +3768,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         palette.setAttribute("aria-expanded", "true");
       });
 
+      // Gone to, palette open, when a broken either-or is being fixed.
+      li.pairRef = p;
+      li.fix = function () {
+        var sd = brokenSide(p);
+        if (sd) lastSide = sd;
+        if (!bar) palette.click(); else bar.target(lastSide);
+      };
+
       // The whole answer, exactly as written, punctuation and all.
       var lit = document.createElement("button");
       lit.type = "button";
@@ -3798,6 +3831,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       : subView ? "Start this list" : "Start quiz";
     if (opts.mode === "choice") syncChoiceLimits();
     sayColumns();
+    drawBroken();
   }
 
   /* ---------------- picking words out of a list ----------------
@@ -3942,6 +3976,60 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     clearPicks();
     renderDeck();
   });
+
+  /* ---------------- broken either-ors ----------------
+     An either-or with one part offers no choice. A quiz holding one is
+     neither played nor shared until it has two again -- from any button,
+     anywhere: every way into a round runs through startGame, which sends
+     the player here instead, to the word, with its palette open. */
+  function brokenSide(p) {
+    var out = null;
+    ["a", "b"].some(function (sd) {
+      var bad = readParts(p[sd]).groups.some(function (g) { return !g.ok; });
+      if (bad) out = sd;
+      return bad;
+    });
+    return out;
+  }
+
+  function brokenPairs(d) {
+    return (d && d.pairs || []).filter(function (p) { return !!brokenSide(p); });
+  }
+
+  function drawBroken() {
+    var n = deck ? brokenPairs(deck).length : 0;
+    var off = !n || !!SHARED;
+    $("eo-fix-bar").hidden = off;
+    $("btn-eo-fix").hidden = off;
+    if (off) return;
+    $("eo-fix-text").textContent = (n === 1 ? "1 word has" : n + " words have") +
+      " an either-or with only one part. Fix " + (n === 1 ? "it" : "them") + " to play or share this quiz.";
+    $("btn-eo-fix").textContent = n === 1 ? "Fix 1 either-or" : "Fix " + n + " either-ors";
+  }
+
+  // Each press goes on to the next broken word, round to the first again.
+  var fixedLast = null;
+  function fixBroken() {
+    var broken = brokenPairs(deck);
+    if (!broken.length) return false;
+    if (SHARED) {
+      show("deck");
+      flashDeckNote("This quiz has a word its owner needs to fix before it can be played.");
+      return true;
+    }
+    var p = broken[(broken.indexOf(fixedLast) + 1) % broken.length];
+    fixedLast = p;
+    if (subView && viewPairs().indexOf(p) < 0) { subView = null; clearPicks(); }
+    renderDeck();
+    show("deck");
+    var li = Array.prototype.filter.call($("pair-list").children, function (x) { return x.pairRef === p; })[0];
+    if (!li) return true;
+    li.fix();
+    li.scrollIntoView({ block: "center" });
+    return true;
+  }
+  $("eo-fix-go").addEventListener("click", fixBroken);
+  $("btn-eo-fix").addEventListener("click", fixBroken);
 
   function flashDeckNote(text) {
     var note = $("deck-note");
@@ -4207,6 +4295,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // It is carried so the results can offer the siblings of whatever you
   // just played, and so Play again replays the same subset.
   function startGame(pairs, subName) {
+    if (deck && brokenPairs(deck).length) { fixBroken(); return; }
     var queue = shuffle(pairs.slice());
     game = {
       subName: subName || null,
@@ -8822,6 +8911,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
      anything actually changed. */
   function publishShare(d, done) {
     var live = deckById(d.id) || d;
+    if (brokenPairs(live).length) {
+      var broke = new Error("This quiz has an either-or with only one part.");
+      if (done) done(broke);
+      return Promise.reject(broke);
+    }
     var id = shareIdFor(live);
     var text = JSON.stringify(sharePayload(live));
     var hash = shareHash(text);
@@ -8862,6 +8956,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     shareSoon = setTimeout(function () {
       savedDecks().forEach(function (d) {
         if (!d.share || !d.share.id) return;
+        if (brokenPairs(d).length) return;          // held at its last good version
         if (shareHash(JSON.stringify(sharePayload(d))) === d.share.hash) return;
         publishShare(d).catch(function () { /* reported when the panel is opened */ });
       });
@@ -8874,8 +8969,35 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     $("share-scrim").hidden = true;
   }
 
+  // A quiz with a broken either-or is not shared. A link made before it
+  // broke keeps the last version that worked.
+  function shareBlocked(d) {
+    var body = $("share-body");
+    body.textContent = "";
+    $("share-title").textContent = "Share “" + (d.title || "this quiz") + "”";
+    $("share-panel").hidden = false;
+    $("share-scrim").hidden = false;
+    var note = document.createElement("p");
+    note.className = "share-note warn";
+    note.textContent = "This quiz has an either-or with only one part, so it can't be shared until that is fixed." +
+      (d.share ? " Its link keeps showing the last version that worked." : "");
+    var go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn btn-sm btn-primary";
+    go.style.marginTop = "12px";
+    go.textContent = "Fix it";
+    go.addEventListener("click", function () {
+      closeShare();
+      if (!deck || deck.id !== d.id) loadDeck(JSON.parse(JSON.stringify(deckById(d.id) || d)));
+      fixBroken();
+    });
+    body.appendChild(note);
+    body.appendChild(go);
+  }
+
   function openShare(d) {
     if (!d) return;
+    if (brokenPairs(deckById(d.id) || d).length) { shareBlocked(d); return; }
     var body = $("share-body");
     body.textContent = "";
     $("share-title").textContent = "Share “" + (d.title || "this quiz") + "”";
@@ -9200,7 +9322,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build f11fd0ef</p>
+<p class="build-stamp">build c113fd07</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
