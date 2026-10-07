@@ -1352,6 +1352,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   margin-left:auto;width:27px;height:27px;border-radius:50%;padding:0;cursor:pointer;
   border:1px solid var(--rule);background:var(--surface);font-weight:700;font-size:13px;color:var(--muted);
 }
+.cb-hist{
+  width:27px;height:27px;border-radius:7px;padding:0;cursor:pointer;font-size:15px;line-height:1;
+  border:1px solid var(--rule);background:var(--surface);color:var(--muted);
+}
+.cb-hist.first{margin-left:auto}
+.cb-hist.first~.cb-help{margin-left:4px}
+.cb-hist:hover:not(:disabled){color:var(--ink);border-color:var(--faint)}
+.cb-hist:disabled{opacity:.35;cursor:default}
 .cb-help:hover,.cb-help[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent)}
 .cb-hint{margin:0;font-size:12px;color:var(--muted);min-height:1em}
 .cb-hint.warn{color:var(--bad)}
@@ -2943,7 +2951,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
   // A word's text changed: keep it in every list that holds it, and in
   // the choice under way if it was chosen.
-  function retext(p, side, value) {
+  function retext(p, side, value, how) {
+    record(p, side, p[side], value, how);
     var was = pairKey(p);
     p[side] = value;
     var now = pairKey(p);
@@ -2974,6 +2983,71 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     }
     if (drift) window.scrollBy(0, drift);
   }
+
+  /* ---------------- undo ----------------
+     One history for the open page: what the colour bar did, and what was
+     typed into the word boxes, in the order it happened. Ctrl+Z steps
+     back, Ctrl+Y or Ctrl+Shift+Z forward, as do the arrows in the bar.
+     Typing in one box with no pause is one step, not one per letter. */
+  var undoStack = [], redoStack = [], replaying = false;
+
+  function record(p, side, before, after, how) {
+    if (replaying || before === after || !how) return;
+    var now = Date.now(), last = undoStack[undoStack.length - 1];
+    if (how === "type" && last && last.how === "type" && last.p === p && last.side === side && now - last.at < 1200) {
+      last.after = after;
+      last.at = now;
+    } else {
+      undoStack.push({ p: p, side: side, before: before, after: after, how: how, at: now });
+      if (undoStack.length > 200) undoStack.shift();
+    }
+    redoStack = [];
+    drawUndo();
+  }
+
+  function clearHistory() { undoStack = []; redoStack = []; drawUndo(); }
+
+  function replay(text, step) {
+    if (!deck || deck.pairs.indexOf(step.p) < 0) return false;   // the word is gone
+    replaying = true;
+    var li = Array.prototype.filter.call($("pair-list").children, function (x) { return x.pairRef === step.p; })[0];
+    if (li && li.setText) li.setText(step.side, text); else retext(step.p, step.side, text);
+    replaying = false;
+    return true;
+  }
+
+  function undo() {
+    var step;
+    while ((step = undoStack.pop())) {
+      if (replay(step.before, step)) { redoStack.push(step); break; }
+    }
+    drawUndo();
+  }
+
+  function redo() {
+    var step;
+    while ((step = redoStack.pop())) {
+      if (replay(step.after, step)) { undoStack.push(step); break; }
+    }
+    drawUndo();
+  }
+
+  function drawUndo() {
+    document.querySelectorAll(".cb-undo").forEach(function (b) { b.disabled = !undoStack.length; });
+    document.querySelectorAll(".cb-redo").forEach(function (b) { b.disabled = !redoStack.length; });
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || $("scr-deck").hidden || SHARED) return;
+    var k = e.key.toLowerCase();
+    var isUndo = k === "z" && !e.shiftKey, isRedo = k === "y" || (k === "z" && e.shiftKey);
+    if (!isUndo && !isRedo) return;
+    // Other boxes -- a name, a note, a choice being renamed -- keep their own undo.
+    var a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && !a.closest(".word-cell")) return;
+    e.preventDefault();
+    if (isUndo) undo(); else redo();
+  }, true);
 
   function columnName(side) {
     return side === "a" ? (deck.langA || "Column A") : (deck.langB || "Column B");
@@ -3063,6 +3137,19 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     helpBtn.title = "How the colours work";
     helpBtn.setAttribute("aria-label", "How the colours work");
     helpBtn.setAttribute("aria-expanded", "false");
+    [["cb-undo", "\u21B6", "Undo (Ctrl+Z)", function () { undo(); }],
+     ["cb-redo", "\u21B7", "Redo (Ctrl+Y)", function () { redo(); }]].forEach(function (u, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "cb-hist " + u[0] + (i ? "" : " first");
+      b.textContent = u[1];
+      b.title = u[2];
+      b.setAttribute("aria-label", u[2]);
+      b.disabled = i ? !redoStack.length : !undoStack.length;
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      b.addEventListener("click", u[3]);
+      head.appendChild(b);
+    });
     head.appendChild(helpBtn);
 
     var hint = document.createElement("p");
@@ -3266,8 +3353,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     // Edits as [at, how many to take out, what to put in], made from the
     // end of the text backwards so the earlier positions stay true.
+    // Applied from the end backwards. At one spot, a backslash goes in first
+    // so that a brace put at the same spot lands in front of it: "}\/".
     function splice(t, edits) {
-      edits.sort(function (x, y) { return y[0] - x[0]; }).forEach(function (ed) {
+      var rank = function (ed) { return ed[2] === "\\" ? 0 : ed[1] ? 1 : 2; };
+      edits.sort(function (x, y) { return (y[0] - x[0]) || (rank(x) - rank(y)); }).forEach(function (ed) {
         t = t.slice(0, ed[0]) + ed[2] + t.slice(ed[0] + ed[1]);
       });
       return t;
@@ -3293,15 +3383,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
           var pt = g.parts[oi];
           return t.slice(0, pt.o) + t.slice(pt.cs, pt.c) + t.slice(pt.c + 1);
         }
-        if (g.filled <= 1) {
-          var keep = g.opts.filter(function (x) { return x.e > x.s; })[0];
-          var words = keep ? t.slice(keep.s, keep.e) : "";
-          if (g.kind === "brace") return t.slice(0, g.o) + words + t.slice(g.c + 1);
-          return t.slice(0, g.opts[0].s) + words + t.slice(g.opts[g.opts.length - 1].e);
-        }
-        var o = g.opts[oi];
-        if (oi > 0) return t.slice(0, g.opts[oi - 1].e) + t.slice(o.e);
-        return t.slice(0, o.s) + t.slice(g.opts[1].s);
+        if (g.filled <= 1) return unchooseText(t, g);
+        return unhighlight(t, g, oi);
       });
     }
 
@@ -3321,6 +3404,45 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     // No longer an either-or, every word kept: a slash stays as a slash to
     // be typed, braces and link numbers go.
+    /* One part out of an either-or, every word kept. The part's text stays
+       where it is as plain words to be typed, the slash beside it with it;
+       the parts left stay highlighted together. Out of the middle, the two
+       runs either side are linked: {1:the}\/a\/{1:an}. */
+    function unhighlight(t, g, oi) {
+      var opts = g.opts, keep = [];
+      opts.forEach(function (x, i) { if (i !== oi && x.e > x.s) keep.push(i); });
+      var first = keep[0], last = keep[keep.length - 1], edits = [], runs;
+      if (g.kind === "brace") edits.push([g.o, 1, ""], [g.c, 1, ""]);
+      if (oi < first || oi > last) {
+        runs = [[opts[first].s, opts[last].e]];
+        edits.push([opts[first].s, 0, "{"], [opts[last].e, 0, "}"]);
+      } else {
+        var id = nextLinkId(t);
+        var leftEnd = opts[keep.filter(function (i) { return i < oi; }).pop()].e;
+        var rightStart = opts[keep.filter(function (i) { return i > oi; })[0]].s;
+        runs = [[opts[first].s, leftEnd], [rightStart, opts[last].e]];
+        edits.push([opts[first].s, 0, "{" + id + ":"], [leftEnd, 0, "}"],
+                   [rightStart, 0, "{" + id + ":"], [opts[last].e, 0, "}"]);
+      }
+      // A slash outside what stays highlighted is plain text from now on.
+      g.seps.forEach(function (i) {
+        var inside = runs.some(function (r) { return r[0] < i && i < r[1]; });
+        if (!inside) edits.push([i, 0, "\\"]);
+      });
+      return splice(t, edits);
+    }
+
+    function unchooseText(t, g) {
+      var edits = [];
+      if (g.kind === "link") {
+        g.parts.forEach(function (p) { edits.push([p.c, 1, ""], [p.o, p.cs - p.o, ""]); });
+      } else {
+        g.seps.forEach(function (i) { edits.push([i, 0, "\\"]); });
+        if (g.kind === "brace") edits.push([g.c, 1, ""], [g.o, 1, ""]);
+      }
+      return splice(t, edits);
+    }
+
     function unchoose(sd, gi) {
       editGroup(sd, gi, function (t, g) {
         var edits = [];
@@ -3365,7 +3487,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         var x = document.createElement("button");
         x.type = "button";
         x.textContent = "✕";
-        x.title = g.kind === "link" ? "Take the highlight off this part" : "Remove this choice";
+        x.title = "Take the highlight off this part (its words stay)";
         x.setAttribute("aria-label", x.title);
         x.addEventListener("click", function () { remove(sd, gi, oi); });
         chip.appendChild(x);
@@ -3610,7 +3732,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
           if (bar) bar.target(side);
         });
         input.addEventListener("input", function () {
-          retext(p, side, input.value);
+          retext(p, side, input.value, "type");
           overlay.draw();
           countChip(side);
           if (bar) bar.refresh();
@@ -3628,7 +3750,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       row.set = function (side, text) {
         var bx = row.boxes[side];
         bx.input.value = text;
-        retext(p, side, text);
+        retext(p, side, text, "set");
         bx.overlay.draw();
         countChip(side);
         if (bar) bar.refresh();
@@ -3770,6 +3892,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
       // Gone to, palette open, when a broken either-or is being fixed.
       li.pairRef = p;
+      li.setText = function (side, text) { row.set(side, text); };
       li.fix = function () {
         var sd = brokenSide(p);
         if (sd) lastSide = sd;
@@ -4075,6 +4198,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
   function loadDeck(d) {
     unpaintDeck(d);
+    clearHistory();
     deck = d;
     subView = null;
     clearPicks();
@@ -9322,7 +9446,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build c113fd07</p>
+<p class="build-stamp">build 5308b34f</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
