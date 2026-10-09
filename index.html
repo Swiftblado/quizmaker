@@ -1267,6 +1267,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .parts .eo-bad{background:var(--bad-soft);box-shadow:0 1px 0 var(--bad)}
 /* Link numbers and backslashes are for the grader: there, but quiet. */
 .parts .t-esc{color:var(--faint)}
+/* A backslash is shown only in the word box on your own open page. */
+.parts.no-bs .t-bs,body.is-shared .paint-hl .t-bs{display:none}
 /* A part picked for an either-or that is still being made. */
 .parts .pend{outline:1.5px dashed var(--accent);outline-offset:1px}
 .group-chip{
@@ -2710,7 +2712,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       }
       for (j = p.o; j <= p.c; j++) opt[j] = true;
     });
-    for (i = 0; i < n - 1; i++) if (t.charAt(i) === "\\") { faint[i] = true; i++; }
+    var bs = [];
+    for (i = 0; i < n - 1; i++) if (t.charAt(i) === "\\") { faint[i] = bs[i] = true; i++; }
     parts.groups.forEach(function (g, k) {
       var cls = shadeOf(g, k);
       g.spans.forEach(function (sp) { for (j = sp[0]; j < sp[1]; j++) shade[j] = cls; });   // inner groups come later and win
@@ -2719,7 +2722,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     var out = "", buf = "", cur = null;
     for (i = 0; i < n; i++) {
-      var cls = (faint[i] ? "t-esc" : opt[i] ? "t-opt" : "t-req") +
+      var cls = (bs[i] ? "t-esc t-bs" : faint[i] ? "t-esc" : opt[i] ? "t-opt" : "t-req") +
         (shade[i] ? " " + shade[i] : "") + (pend[i] ? " pend" : "");
       if (cls !== cur) {
         if (buf) out += '<span class="' + cur + '">' + esc(buf) + "</span>";
@@ -3099,7 +3102,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     });
 
     var list = document.createElement("div");
-    list.className = "cb-groups parts";
+    list.className = "cb-groups parts no-bs";
     el.appendChild(list);
 
     var HINT = "Select part of a word, then say what it is.";
@@ -3166,7 +3169,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       if (note != null) say(note);
     }
 
-    function quote(p) { return "“" + p.text + "”"; }
+    function quote(p) { return "“" + readable(p.text) + "”"; }
 
     function showPending() {
       row.mark(pending.side, pending.parts);
@@ -3294,7 +3297,9 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     function rename(sd, gi, oi, value) {
       editGroup(sd, gi, function (t, g) {
-        var o = g.opts[oi], v = value.trim();
+        // The backslashes are kept out of sight here and put back on the way
+        // in: a slash or comma typed into a choice is part of its words.
+        var o = g.opts[oi], v = unescapeText(value.trim()).replace(/[\/,;–—]/g, "\\$&");
         if (!o || !v) return null;                  // emptied: put it back
         return t.slice(0, o.s) + v + t.slice(o.e);
       });
@@ -3402,7 +3407,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       var chip = document.createElement("span");
       chip.className = "cb-chip";
       var field = document.createElement("input");
-      field.value = t.slice(o.s, o.e);
+      field.value = unescapeText(t.slice(o.s, o.e));
       field.size = Math.max(3, field.value.length + 1);
       field.setAttribute("aria-label", "Choice " + (oi + 1));
       field.addEventListener("input", function () { field.size = Math.max(3, field.value.length + 1); });
@@ -3567,10 +3572,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       ["(to) be (able/capable)", "An either-or in brackets is optional as well."],
       ["honesto/a", "A gender form is an either-or of its endings: honesto or honesta."],
       ["trabajador(a)", "An ending that is only added is optional."],
-      ["say\\/tell", "A backslash makes the next mark plain text: this is typed with its slash."],
+      ["say\\/tell", "A slash or comma with a backslash in front of it in the word box is plain text: it is typed as written, not a choice. The backslash is only shown there."],
       ["{say}", "Red: an either-or needs at least two choices."]
     ];
-    var html = "<h4>How the colours work</h4><dl class=\"parts\">";
+    var html = "<h4>How the colours work</h4><dl class=\"parts no-bs\">";
     rows.forEach(function (r) { html += "<dt>" + partsHTML(r[0]) + "</dt><dd>" + r[1] + "</dd>"; });
     html += "</dl><p>Select part of a word, then press <b>Optional</b> or <b>Required</b>. " +
       "For an <b>Either-or</b>, highlight the first choice and press Either-or, highlight the next and press it again, " +
