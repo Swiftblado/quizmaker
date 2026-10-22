@@ -1490,6 +1490,74 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   .stats{gap:18px}
   .stage{padding:24px 16px 20px}
 }
+
+/* ---- the sub-list tree ----
+   Lines join each list to the one it sits in, as in a file explorer, and a
+   branch folds away. Rows carry no margin between them, or the lines would
+   break at every gap. */
+.tree{display:flex;flex-direction:column}
+.tree-row{display:flex;align-items:stretch;min-height:46px;position:relative}
+.tree-row.is-root{min-height:52px}
+.tg{flex:none;width:18px;position:relative}
+.tg.v::before,.tg.t::before,.tg.l::before{content:"";position:absolute;left:8px;top:0;bottom:0;border-left:1.5px solid var(--faint);opacity:.6}
+.tg.l::before{bottom:50%}
+.tg.t::after,.tg.l::after{content:"";position:absolute;left:8px;right:0;top:50%;border-top:1.5px solid var(--faint);opacity:.6}
+.tree-fold{flex:none;align-self:center;width:20px;height:24px;padding:0;border:0;border-radius:5px;
+  background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
+.tree-fold:hover{background:var(--accent-soft);color:var(--accent-ink)}
+.tree-fold.none{visibility:hidden}
+.tree-main{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1px;
+  margin:2px 0;padding:5px 8px;border:1px solid transparent;border-radius:8px;background:transparent;
+  font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .12s,background .12s}
+.tree-main:hover{border-color:var(--accent);background:var(--accent-soft)}
+.tree-main b{font-family:var(--serif);font-size:15px;font-weight:600;line-height:1.25;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.tree-main span{font-size:11.5px;color:var(--muted)}
+.is-root .tree-main{border-color:var(--rule);background:var(--surface-2)}
+.is-root .tree-main:hover{border-color:var(--accent);background:var(--accent-soft)}
+.tree-tools{flex:none;display:flex;align-items:center;gap:1px;padding-left:2px}
+.tree-tool{width:28px;height:28px;padding:0;display:inline-grid;place-items:center;border:0;border-radius:6px;
+  background:transparent;color:var(--faint);cursor:pointer}
+.tree-tool:hover{background:var(--accent-soft);color:var(--accent-ink)}
+.tree-tool.danger:hover{background:var(--bad-soft);color:var(--bad)}
+.tree-tools .ask-row{font-size:12px}
+.tree-row[draggable="true"] .tree-main{cursor:grab}
+.tree-row[draggable="true"] .tree-main:active{cursor:grabbing}
+.tree-row.is-dragging{opacity:.45}
+.tree-row.drop-inside .tree-main{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+.tree-row.drop-before .tree-main{box-shadow:inset 0 3px 0 -1px var(--accent)}
+.tree-row.drop-after .tree-main{box-shadow:inset 0 -3px 0 -1px var(--accent)}
+.tree-new{display:flex;padding:2px 0 6px}
+.tree-new input{flex:1;min-width:0;padding:7px 10px;border:1px solid var(--accent);border-radius:8px;
+  background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
+.tree-none{font-size:12.5px;color:var(--faint);padding:6px 0 0 20px}
+.tree-hint{font-size:11.5px;line-height:1.45;color:var(--faint);margin-top:14px}
+/* A chip on the results with its own bin beside it. */
+.sub-chip-wrap{display:inline-flex;align-items:center;gap:1px}
+.sub-chip-bin{width:26px;height:26px;padding:0;display:inline-grid;place-items:center;border:0;border-radius:6px;
+  background:transparent;color:var(--faint);cursor:pointer}
+.sub-chip-bin:hover{background:var(--bad-soft);color:var(--bad)}
+.geo-sub-card{padding:14px 0 0}
+.geo-chip.off-sub{opacity:.4}
+
+/* ---- rounds left unfinished ----
+   A button in the top bar, there only when something is waiting, with the
+   rounds listed under it. */
+.unfin{position:relative}
+.unfin-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:45;width:min(320px,86vw);
+  max-height:70vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:8px;
+  background:var(--surface);border:1px solid var(--rule);border-radius:10px;
+  box-shadow:0 16px 38px -18px rgba(20,26,43,.55)}
+.unfin-menu[hidden]{display:none}
+.unfin-head{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);padding:2px 4px}
+.unfin-row{padding:8px 10px;border:1px solid var(--rule-soft);border-radius:8px}
+.unfin-row.kept{border-color:var(--accent)}
+.unfin-row b{display:block;font-family:var(--serif);font-size:14.5px;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unfin-row span{font-size:12px;color:var(--muted)}
+.unfin-acts{display:flex;align-items:center;gap:6px;margin-top:7px}
+.unfin-acts .sp{flex:1}
+body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{display:none!important}
 </style>
 <style>
 /* The new-version nudge. It borrows the app's own tokens, which are
@@ -1544,6 +1612,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     <span class="dot" id="mast-dot"></span>
     <h1>QuizMaker</h1>
     <span class="sp"></span>
+    <div class="unfin" id="unfin" hidden>
+      <button class="btn btn-ghost btn-sm" id="unfin-btn" type="button" aria-haspopup="true" aria-expanded="false" title="Rounds you left before the end">Unfinished</button>
+      <div class="unfin-menu" id="unfin-menu" hidden></div>
+    </div>
     <button class="btn btn-ghost btn-sm" id="theme-btn" type="button" title="Switch theme">Theme</button>
   </div>
 
@@ -1632,6 +1704,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
           </div>
           <div class="title-row">
             <input class="deck-title" id="deck-title" value="Deck" aria-label="Name of this word list" placeholder="Name this list" maxlength="60">
+            <button class="btn btn-sm" id="deck-lists" type="button" title="See this quiz's sub-lists as a tree">Sub-lists</button>
             <button class="btn btn-sm icon-btn share-btn" id="deck-share" type="button" title="Make a link to this quiz" aria-label="Make a link to this quiz" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 15V3M8 7l4-4 4 4"></path></svg></button>
             <button class="btn btn-sm icon-btn danger" id="deck-trash" type="button" title="Move this quiz to the bin" aria-label="Move this quiz to the bin" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"></path></svg></button>
           </div>
@@ -1837,9 +1910,15 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   <!-- ============ A MAP QUIZ, OPENED ============ -->
   <section id="scr-geo-setup" hidden>
       <div class="card entry">
+        <div class="deck-sub-head" id="geo-sub-head" hidden>
+          <button class="btn btn-sm" id="geo-sub-back" type="button">&larr; Whole map</button>
+          <span class="sub-tag">sub-list</span>
+          <b id="geo-sub-name"></b>
+        </div>
         <label class="eyebrow" for="geo-name">Name this quiz</label>
         <div class="title-row">
           <input class="entry-name" id="geo-name" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Untitled map quiz">
+          <button class="btn btn-sm" id="geo-lists" type="button" title="See this quiz's sub-lists as a tree" hidden>Sub-lists</button>
           <button class="btn btn-sm icon-btn share-btn" id="geo-share" type="button" title="Make a link to this quiz" aria-label="Make a link to this quiz" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 15V3M8 7l4-4 4 4"></path></svg></button>
           <button class="btn btn-sm icon-btn danger" id="geo-trash" type="button" title="Move this quiz to the bin" aria-label="Move this quiz to the bin" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"></path></svg></button>
         </div>
@@ -1960,6 +2039,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
           <input id="geo-keep-name" maxlength="40" autocomplete="off" placeholder="Name a list of these">
           <button class="btn btn-sm" id="geo-keep-save" type="button">Keep them</button>
         </div>
+      </div>
+      <div class="sub-card geo-sub-card" id="geo-sub-card" hidden>
+        <div class="sub-card-head">
+          <span class="eyebrow">Sub-lists</span>
+          <span class="sub-card-note" id="geo-sub-note"></span>
+        </div>
+        <div class="sub-choices" id="geo-sub-list"></div>
       </div>
     </div>
 
@@ -2263,6 +2349,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   }
 
   function goBack() {
+    // One history, whichever back is pressed: the arrow walks the browser's.
+    if (!SHARED && navReady && navStack.length) { history.back(); return; }
     if (!$("scr-quiz").hidden) { stopClock(); show("deck"); return; }
     leaveToLists();
   }
@@ -2270,14 +2358,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   $("back-arrow").addEventListener("click", goBack);
 
   function show(name) {
+    navNote();
     if (saveTimer) saveNow();   // an edit still on its way to storage
+    // A round left before its end is kept, to be picked up again later.
+    if (name !== "quiz" && name !== "done" && vocabLive()) softSave();
+    if (name !== "geo" && geoLive()) softSave();
     if (name !== "quiz") stopClock();
     if (name !== "geo") stopGeoClock();
-    // Nothing to go back to from the lists themselves.
-    $("back-arrow").hidden = (name === "intake");
-    $("back-arrow").title = (name === "quiz" || name === "geo")
-      ? "Leave this round" : "Back to your word lists";
-    $("back-arrow").setAttribute("aria-label", $("back-arrow").title);
+    navArrowFor(name);
     // The results and the map both earn the extra width.
     document.querySelector(".wrap").classList.toggle("wide", name === "done" || name === "geo");
     document.querySelector(".wrap").classList.toggle("map", name === "geo");
@@ -2288,7 +2376,445 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     // Names can only be cut while they are on screen, so the cuts are taken
     // when the shelf reappears as well as when it is drawn.
     if (name === "intake") clampNames();
+    navSoon();
   }
+
+  /* ---------------- going back ----------------
+     Every page passed through is remembered with how far down it was
+     scrolled, and the browser's history is kept in step, so the arrow by
+     the title and the browser's own back button walk the same road. A
+     round is not a page: it sits on top of the page it was started from,
+     and backing out of it -- or out of its results -- lands there again.
+  ------------------------------------------- */
+  var navStack = [], navFwd = [], navCur = null;
+  var navReady = false, navBusy = false, navQueued = false, navSkipPop = false;
+  var navToken = Math.random().toString(36).slice(2);
+  var navIds = typeof WeakMap === "function" ? new WeakMap() : null;
+
+  function screenNow() {
+    var all = ["intake", "deck", "quiz", "done", "geo", "geo-setup"];
+    for (var i = 0; i < all.length; i++) if (!$("scr-" + all[i]).hidden) return all[i];
+    return "intake";
+  }
+
+  // A quiz not yet saved has no id, so it is told apart by the object.
+  function objKey(o) {
+    if (!o) return "";
+    if (o.id) return o.id;
+    if (!navIds) return "?";
+    if (!navIds.has(o)) navIds.set(o, uid());
+    return navIds.get(o);
+  }
+
+  // The page on screen, as something that can be drawn again; null in a round.
+  function pageEntry() {
+    var on = screenNow(), y = window.scrollY || 0;
+    if (on === "intake") {
+      return { page: "intake", folder: currentFolder, y: y,
+               tab: $("tab-geo").getAttribute("aria-selected") === "true" ? "geo" : "vocab" };
+    }
+    if (on === "deck" && deck) {
+      return { page: "deck", deck: deck, saved: isSavedDeck(deck),
+               path: subView ? subView.path.slice() : null, y: y };
+    }
+    if (on === "geo-setup") {
+      return { page: "geo-setup", id: geoEditId, path: geoSubView ? geoSubView.slice() : null, y: y,
+               draft: { title: $("geo-name").value, places: JSON.parse(JSON.stringify(geoPicked)) } };
+    }
+    return null;
+  }
+
+  function entryKey(e) {
+    if (!e) return "";
+    if (e.page === "intake") return "intake|" + (e.folder || "") + "|" + e.tab;
+    if (e.page === "deck") return "deck|" + objKey(e.deck) + "|" + pathLabel(e.path || []);
+    return "geo|" + (e.id || "new") + "|" + pathLabel(e.path || []);
+  }
+
+  // Taken a moment later, once whatever navigated has finished setting up.
+  function navSoon() {
+    if (!navReady || navBusy || navQueued || SHARED) return;
+    navQueued = true;
+    Promise.resolve().then(function () { navQueued = false; navArrive(); });
+  }
+
+  function navArrive() {
+    if (!navReady || navBusy || SHARED) return;
+    var e = pageEntry();
+    if (!e) {
+      // Into a round: the page it was started from is where back goes.
+      if (navCur) navPush(navCur);
+      navCur = null;
+    } else if (!navCur) {
+      // Out of a round. If this is the page it was started from, the round
+      // simply ends and that page is current again.
+      var top = navStack[navStack.length - 1];
+      if (top && entryKey(top) === entryKey(e)) {
+        // The browser is stepped back over the round too, quietly, or its
+        // history would hold one more entry than this does.
+        navStack.pop();
+        navSkipPop = true;
+        history.back();
+      }
+      navCur = e;
+    } else if (entryKey(navCur) !== entryKey(e)) {
+      navPush(navCur);
+      navCur = e;
+    } else {
+      navCur = e;
+    }
+    navArrowFor(screenNow());
+  }
+
+  function navPush(e) {
+    navStack.push(e);
+    navFwd = [];
+    try { history.pushState({ qm: navStack.length, t: navToken }, ""); } catch (err) { /* old browser */ }
+  }
+
+  function navArrowFor(name) {
+    var arrow = $("back-arrow");
+    arrow.hidden = name === "intake" && !navStack.length;
+    arrow.title = (name === "quiz" || name === "geo") ? "Leave this round" : "Back";
+    arrow.setAttribute("aria-label", arrow.title);
+  }
+
+  // Draw a remembered page again, and put it back where it was scrolled.
+  function navRestore(e) {
+    navBusy = true;
+    if (e.page === "deck") {
+      var d = e.saved ? deckById(e.deck.id) : e.deck;
+      if (!d || isSub(d)) {
+        // That quiz has gone since; the shelf is the nearest thing left.
+        e = { page: "intake", folder: null, tab: "vocab", y: 0 };
+      } else {
+        if (e.saved) { if (saveTimer) saveNow(); d = JSON.parse(JSON.stringify(deckById(e.deck.id))); }
+        if (deck !== d) loadDeck(d);
+        subView = e.path && subAt(deck, e.path) ? { path: e.path.slice() } : null;
+        clearPicks();
+        renderDeck();
+        show("deck");
+        showDeckShare();
+        e.deck = deck;
+      }
+    }
+    if (e.page === "geo-setup") {
+      var g = e.id && deckById(e.id);
+      if (g) editGeo(g, e.path);
+      else {
+        resetGeoBuilder();
+        if (e.draft) {
+          geoPicked = JSON.parse(JSON.stringify(e.draft.places || []));
+          $("geo-name").value = e.draft.title || "";
+        }
+        show("geo-setup");
+        renderGeoPicked();
+        loadGeo().then(renderGeoPicked, geoLoadFailed);
+      }
+    }
+    if (e.page === "intake") {
+      currentFolder = e.folder && folderById(e.folder) ? e.folder : null;
+      var onGeo = $("tab-geo").getAttribute("aria-selected") === "true";
+      if ((e.tab === "geo") !== onGeo) setTab(e.tab);
+      renderSaved();
+      show("intake");
+    }
+    navCur = e;
+    // Scrolling forces layout, so the page is measured by now. Not a frame
+    // later: a window in the background may not draw one for a long time.
+    var y = e.y || 0;
+    window.scrollTo(0, y);
+    e.y = window.scrollY || 0;
+    navBusy = false;
+    navArrowFor(screenNow());
+  }
+
+  window.addEventListener("popstate", function (ev) {
+    if (!navReady || SHARED) return;
+    try { navPop(ev); } catch (err) { navBusy = false; throw err; }   // never left stuck
+  });
+
+  function navPop(ev) {
+    if (navSkipPop) { navSkipPop = false; return; }
+    navNote();     // so going forward again comes back to the same spot
+    var st = ev.state || {};
+    if (st.t !== navToken || typeof st.qm !== "number") {
+      // An entry from before a reload: the pages it stood for are gone.
+      try { history.replaceState({ qm: navStack.length, t: navToken }, ""); } catch (err) { /* old browser */ }
+      return;
+    }
+    var want = st.qm, at;
+    if (want < navStack.length) {
+      at = navCur;
+      while (navStack.length > want) {
+        if (at) navFwd.push(at);
+        at = navStack.pop();
+      }
+      navRestore(at);
+    } else if (want > navStack.length) {
+      at = navCur;
+      var moved = false;
+      while (navStack.length < want && navFwd.length) {
+        if (at) navStack.push(at);
+        at = navFwd.pop();
+        moved = true;
+      }
+      if (navStack.length !== want) {
+        try { history.replaceState({ qm: navStack.length, t: navToken }, ""); } catch (err) { /* old browser */ }
+      }
+      if (moved && at) navRestore(at);
+    }
+  }
+
+  // How far down the page is, read as it is left -- before anything on it
+  // changes. A scroll event alone is not enough: one only comes with a
+  // painted frame, and a window in the background paints none.
+  // Once per move: the first reading is the page as it was left; later
+  // ones in the same move would read the next page, already redrawn.
+  var navNoted = false;
+  function navNote() {
+    if (navNoted || !navReady || navBusy || !navCur || screenNow() !== navCur.page) return;
+    navNoted = true;
+    navCur.y = window.scrollY || 0;
+    Promise.resolve().then(function () { navNoted = false; });
+  }
+
+  window.addEventListener("scroll", function () {
+    if (navCur && !navBusy) navCur.y = window.scrollY || 0;
+  }, { passive: true });
+
+  function navInit() {
+    navCur = pageEntry();
+    try { history.replaceState({ qm: 0, t: navToken }, ""); } catch (err) { /* old browser */ }
+    // The browser would put its own idea of the scroll back after this does.
+    try { history.scrollRestoration = "manual"; } catch (err) { /* old browser */ }
+    navReady = true;
+    navArrowFor(screenNow());
+  }
+
+  // A list moved inside its quiz: remembered pages that showed it follow it.
+  function navRepoint(d, from, to) {
+    navStack.concat(navFwd, navCur ? [navCur] : []).forEach(function (e) {
+      if (!e.path) return;
+      var same = e.page === "deck" ? (e.deck === d || (d.id && e.deck && e.deck.id === d.id))
+               : e.page === "geo-setup" ? (d.id && e.id === d.id) : false;
+      if (!same) return;
+      var p = swapPrefix(e.path, from, to);
+      if (p) e.path = p;
+    });
+  }
+
+  /* ---------------- rounds left unfinished ----------------
+     Leaving a round before its end -- back, another quiz, closing the tab
+     -- keeps it. Five are kept on their own, the oldest dropping off as a
+     sixth comes in; one marked Keep stays, however many there are, until
+     it is finished or thrown away.
+  ---------------------------------------------------------- */
+  var UNFIN_KEY = "qp:unfinished", UNFIN_CAP = 5;
+
+  function unfinishedList() { return readStore(UNFIN_KEY, []); }
+
+  function capUnfinished(list) {
+    var loose = 0;
+    return list.filter(function (r) { return r.kept || ++loose <= UNFIN_CAP; });
+  }
+
+  function writeUnfinished(list) {
+    writeStore(UNFIN_KEY, capUnfinished(list));
+    renderUnfinished();
+  }
+
+  function vocabLive() { return !!game && !game.over && !$("scr-quiz").hidden; }
+  function geoLive() { return !!geoGame && !geoGame.over && !$("scr-geo").hidden; }
+
+  function vocabRecord() {
+    if (!game.saveId) game.saveId = uid();
+    // A copy: the round on screen is left exactly as it was, in case the
+    // page is only being hidden and comes back.
+    var g = JSON.parse(JSON.stringify(game, function (k, v) { return k === "holdTimer" ? undefined : v; }));
+    if (game.live) g.elapsed += Date.now() - game.questionStart;
+    g.live = false;
+    // A word on screen and not yet answered is asked first on return.
+    if (g.current && !game.locked) g.queue.unshift(g.current);
+    g.current = null;
+    g.locked = false;
+    var saved = isSavedDeck(deck);
+    return { id: game.saveId, kind: "vocab", at: Date.now(),
+             title: deck.title || "Untitled quiz", label: game.subName || "",
+             deckId: saved ? deck.id : null,
+             deck: saved ? null : JSON.parse(JSON.stringify(deck)),
+             done: g.done, total: g.total, game: g };
+  }
+
+  function geoRecord() {
+    var g = geoGame, now = Date.now();
+    if (!g.saveId) g.saveId = uid();
+    var saved = isSavedDeck(g.deck);
+    return { id: g.saveId, kind: "geo", at: now,
+             title: g.deck.title || "Untitled map quiz", label: g.subName || "",
+             deckId: saved ? g.deck.id : null,
+             deck: saved ? null : JSON.parse(JSON.stringify(g.deck)),
+             done: Object.keys(g.results).length, total: g.order.length,
+             game: { order: g.order.slice(), i: g.i, tries: g.tries,
+                     results: JSON.parse(JSON.stringify(g.results)),
+                     right: g.right, wrong: g.wrong, first: g.first, skips: g.skips,
+                     shown: !!g.shown, drill: !!g.drill, only: g.only || null,
+                     subName: g.subName || null, subPath: g.subPath || null,
+                     spent: now - g.t0, onPlace: now - (g.placeAt || now) } };
+  }
+
+  function softSave() {
+    if (SHARED) return;
+    var rec = vocabLive() ? vocabRecord() : geoLive() ? geoRecord() : null;
+    if (!rec) return;
+    var was = null;
+    var list = unfinishedList().filter(function (r) {
+      if (r.id === rec.id) { was = r; return false; }
+      return true;
+    });
+    rec.kept = !!(was && was.kept);
+    list.unshift(rec);
+    writeUnfinished(list);
+  }
+
+  window.addEventListener("pagehide", softSave);
+
+  function dropUnfinished(id) {
+    var list = unfinishedList();
+    var left = list.filter(function (r) { return r.id !== id; });
+    if (left.length !== list.length) writeUnfinished(left);
+  }
+
+  function keepUnfinished(id) {
+    var list = unfinishedList();
+    list.forEach(function (r) { if (r.id === id) r.kept = !r.kept; });
+    writeUnfinished(list);
+  }
+
+  function resumeUnfinished(id) {
+    closeUnfinMenu();
+    softSave();      // whatever is being played now is kept as well
+    var r = unfinishedList().filter(function (x) { return x.id === id; })[0];
+    if (!r) return;
+    var d = r.deckId ? deckById(r.deckId) : r.deck;
+    if (!d) {
+      flash("The quiz that round came from is gone, so it can't be picked up again.", "info");
+      dropUnfinished(id);
+      return;
+    }
+    d = JSON.parse(JSON.stringify(d));
+    if (r.kind === "geo") {
+      startGeo(d, r.game.only, r.game.subName, r.game.subPath, r);
+      return;
+    }
+    loadDeck(d);
+    var path = r.game.subPath;
+    subView = path && subAt(deck, path) ? { path: path.slice() } : null;
+    renderDeck();
+    navArrive();     // the quiz's page is where back from this round goes
+    game = JSON.parse(JSON.stringify(r.game));
+    game.saveId = r.id;
+    game.live = false;
+    game.locked = false;
+    game.current = null;
+    game.over = false;
+    show("quiz");
+    nextWord();
+  }
+
+  function since(ms) {
+    var m = Math.floor((Date.now() - ms) / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return m + " min ago";
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + " h ago";
+    var dd = Math.floor(h / 24);
+    return dd === 1 ? "yesterday" : dd + " days ago";
+  }
+
+  function renderUnfinished() {
+    var box = $("unfin");
+    if (!box) return;
+    var list = SHARED ? [] : unfinishedList();
+    box.hidden = !list.length;
+    $("unfin-btn").textContent = "Unfinished · " + list.length + " ▾";
+    if (!list.length) { closeUnfinMenu(); return; }
+    if (!$("unfin-menu").hidden) drawUnfinMenu();
+  }
+
+  function closeUnfinMenu() {
+    var menu = $("unfin-menu");
+    if (!menu) return;
+    menu.hidden = true;
+    $("unfin-btn").setAttribute("aria-expanded", "false");
+  }
+
+  function drawUnfinMenu() {
+    var menu = $("unfin-menu");
+    menu.textContent = "";
+    var list = unfinishedList();
+    var loose = list.filter(function (r) { return !r.kept; }).length;
+    var head = document.createElement("div");
+    head.className = "unfin-head";
+    head.textContent = "Rounds you left · " + loose + " of " + UNFIN_CAP + " kept for you";
+    menu.appendChild(head);
+    list.forEach(function (r) {
+      var row = document.createElement("div");
+      row.className = "unfin-row" + (r.kept ? " kept" : "");
+      var name = document.createElement("b");
+      name.textContent = r.title + (r.label ? " › " + r.label : "");
+      name.title = name.textContent;
+      var meta = document.createElement("span");
+      meta.textContent = (r.kind === "geo" ? "Map · " : "") + r.done + "/" + r.total + " · " + since(r.at) +
+        (r.kept ? " · kept" : "");
+      var acts = document.createElement("div");
+      acts.className = "unfin-acts";
+      var go = document.createElement("button");
+      go.type = "button";
+      go.className = "btn btn-sm btn-primary";
+      go.textContent = "Resume";
+      go.addEventListener("click", function () { resumeUnfinished(r.id); });
+      var keep = document.createElement("button");
+      keep.type = "button";
+      keep.className = "btn btn-sm";
+      keep.setAttribute("aria-pressed", r.kept ? "true" : "false");
+      keep.textContent = r.kept ? "Kept" : "Keep";
+      keep.title = r.kept ? "Let this one drop off with the oldest again"
+                          : "Keep this one until you finish it, beyond the five kept for you";
+      keep.addEventListener("click", function () { keepUnfinished(r.id); });
+      var sp = document.createElement("span");
+      sp.className = "sp";
+      var x = document.createElement("button");
+      x.type = "button";
+      x.className = "btn btn-ghost btn-sm";
+      x.textContent = "✕";
+      x.title = "Throw this round away";
+      x.setAttribute("aria-label", "Throw this round away");
+      x.addEventListener("click", function () { dropUnfinished(r.id); });
+      acts.appendChild(go);
+      acts.appendChild(keep);
+      acts.appendChild(sp);
+      acts.appendChild(x);
+      row.appendChild(name);
+      row.appendChild(meta);
+      row.appendChild(acts);
+      menu.appendChild(row);
+    });
+  }
+
+  $("unfin-btn").addEventListener("click", function () {
+    var menu = $("unfin-menu");
+    if (!menu.hidden) { closeUnfinMenu(); return; }
+    drawUnfinMenu();
+    menu.hidden = false;
+    $("unfin-btn").setAttribute("aria-expanded", "true");
+  });
+  document.addEventListener("click", function (e) {
+    if (!$("unfin-menu").hidden && !$("unfin").contains(e.target)) closeUnfinMenu();
+  }, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("unfin-menu").hidden) { closeUnfinMenu(); $("unfin-btn").focus(); }
+  });
 
   /* ---------------- theme ---------------- */
   $("theme-btn").addEventListener("click", function () {
@@ -4331,7 +4857,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   }
 
   function openSubList(d, path) {
-    loadDeck(JSON.parse(JSON.stringify(d)));
+    navNote();
+    // The quiz already in hand stays in hand: one not yet saved would
+    // otherwise be swapped for a copy, and its next edit lost.
+    if (d !== deck) loadDeck(JSON.parse(JSON.stringify(d)));
     subView = { path: asPath(path) };
     clearPicks();
     renderDeck();
@@ -4350,6 +4879,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   }
 
   function loadDeck(d) {
+    navNote();
     unpaintDeck(d);
     clearHistory();
     deck = d;
@@ -4571,11 +5101,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   // subName names the sub-list being played, or null for the whole list.
   // It is carried so the results can offer the siblings of whatever you
   // just played, and so Play again replays the same subset.
-  function startGame(pairs, subName) {
+  function startGame(pairs, subPath) {
     if (deck && brokenPairs(deck).length) { fixBroken(); return; }
     var queue = shuffle(pairs.slice());
+    subPath = subPath ? asPath(subPath) : null;
     game = {
-      subName: subName || null,
+      subName: subPath ? pathLabel(subPath) : null,
+      subPath: subPath,
       source: pairs.slice(),
       queue: queue,
       total: queue.length,
@@ -4986,7 +5518,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       });
       $("btn-drill").hidden = false;
       $("btn-drill").onclick = function () {
-        startGame(finalMissed.map(function (m) { return m.pair; }), game.subName);
+        startGame(finalMissed.map(function (m) { return m.pair; }), game.subPath);
       };
 
       /* The whole round's misses, kept as a list in one go. The same rule
@@ -4997,10 +5529,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       name.value = "";
       save.disabled = false;
       save.textContent = "Keep them";
+      var keepUnder = game.subPath ? game.subPath.slice() : [];
       save.onclick = function () {
         var listName = name.value.trim() || "Worth another look";
-        var sub = findSub(deck, listName);
-        if (!sub) { sub = { name: listName, keys: [] }; subsOf(deck).push(sub); }
+        // Kept from a round of a sub-list, they go inside that list.
+        var sub = makeSubAt(deck, keepUnder.concat([listName]));
         finalMissed.forEach(function (m) {
           var k = pairKey(m.pair);
           if (sub.keys.indexOf(k) < 0) sub.keys.push(k);
@@ -5019,6 +5552,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       $("btn-drill").hidden = true;
     }
 
+    game.over = true;
+    if (game.saveId) dropUnfinished(game.saveId);
     lastLog = game.log.slice();
     renderSubCard();
     describeSort();
@@ -5218,9 +5753,11 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   });
 
   $("deck-sub-back").addEventListener("click", function () {
+    navNote();
     subView = null;
     clearPicks();
     renderDeck();
+    navSoon();
   });
 
   $("btn-play").addEventListener("click", function () {
@@ -5228,7 +5765,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     if (subView) {
       var mine = viewPairs();
       if (!mine.length) { renderDeck(); return; }
-      startGame(mine, pathLabel(subView.path));
+      startGame(mine, subView.path);
       return;
     }
     deck.pairs = deck.pairs.filter(function (p) {
@@ -5243,7 +5780,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     finish();
   });
   $("btn-again").addEventListener("click", function () {
-    startGame(game.source || deck.pairs, game.subName);
+    startGame(game.source || deck.pairs, game.subPath);
   });
   $("btn-newdeck").addEventListener("click", function () { show("intake"); });
 
@@ -5469,6 +6006,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
     var picked = {};     // existing sub-list name -> true
     var fresh = [];      // names typed here, not created until Save
+    // Playing a sub-list, a list named here is made inside it.
+    var base = game.subPath ? game.subPath.slice() : [];
 
     var head = document.createElement("span");
     head.className = "eyebrow";
@@ -5482,7 +6021,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var newRow = document.createElement("div");
     newRow.className = "sub-new";
     var input = document.createElement("input");
-    input.placeholder = "Name a new sub-list";
+    input.placeholder = base.length ? "Name a new list inside “" + base[base.length - 1] + "”" : "Name a new sub-list";
     input.maxLength = 40;
     input.autocomplete = "off";
     var addNew = document.createElement("button");
@@ -5513,7 +6052,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     function targets() {
       var paths = Object.keys(picked).map(function (k) { return picked[k]; });
       fresh.forEach(function (n) {
-        if (!paths.some(function (p) { return pathLabel(p) === n; })) paths.push([n]);
+        var p = base.concat([n]);
+        if (!paths.some(function (q) { return pathLabel(q) === pathLabel(p); })) paths.push(p);
       });
       return paths;
     }
@@ -5541,8 +6081,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         b.type = "button";
         b.className = "sub-chip is-new";
         b.setAttribute("aria-pressed", "true");
-        b.textContent = name + " · new";
-        b.title = "Do not create this list after all";
+        b.textContent = (base.length ? "↳ " : "") + name + " · new";
+        b.title = (base.length ? "Made inside “" + pathLabel(base) + "”. " : "") + "Click to not create this list after all";
         b.addEventListener("click", function () { fresh.splice(i, 1); draw(); });
         choices.appendChild(b);
       });
@@ -5561,7 +6101,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       var n = input.value.trim();
       input.value = "";
       if (!n) return;
-      if (subAt(deck, [n])) picked[n] = [n];
+      var p = base.concat([n]);
+      if (subAt(deck, p)) picked[pathLabel(p)] = p;
       else if (fresh.indexOf(n) < 0) fresh.push(n);
       draw();
     }
@@ -5645,28 +6186,39 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var subs = allSubs(deck);
     note.textContent = game && game.subName
       ? "You just played “" + game.subName + "”"
-      : (subs.length ? "Play one on its own" : "");
+      : (subs.length ? "Open one to play it" : "");
 
+    // Each opens its page -- its words and Start -- rather than a round.
     if (game && game.subName) {
       var whole = document.createElement("button");
       whole.type = "button";
       whole.className = "sub-chip";
       whole.textContent = "Whole list · " + deck.pairs.length;
-      whole.addEventListener("click", function () { startGame(deck.pairs, null); });
+      whole.title = "Open the whole list";
+      whole.addEventListener("click", openWholeDeck);
       host.appendChild(whole);
     }
 
     subs.forEach(function (node) {
-      var s = node.sub, label = pathLabel(node.path);
-      var pairs = subPairsDeep(deck, s);
+      var s = node.sub, path = node.path, label = pathLabel(path);
+      var wrap = document.createElement("span");
+      wrap.className = "sub-chip-wrap";
       var b = document.createElement("button");
       b.type = "button";
       b.className = "sub-chip" + (game && game.subName === label ? " is-current" : "");
-      b.textContent = (node.depth ? "↳ " : "") + s.name + " · " + pairs.length;
-      b.title = node.depth ? "Inside " + pathLabel(node.path.slice(0, -1)) : s.name;
-      b.disabled = pairs.length < 1;
-      b.addEventListener("click", function () { startGame(pairs, label); });
-      host.appendChild(b);
+      b.textContent = (node.depth ? "↳ " : "") + s.name + " · " + subPairsDeep(deck, s).length;
+      b.title = (node.depth ? "Inside " + pathLabel(path.slice(0, -1)) + ". " : "") + "Open this list";
+      b.addEventListener("click", function () { openSubList(deck, path); });
+      var bin = trashIcon("sub-chip-bin", "Delete “" + s.name + "”");
+      bin.addEventListener("click", function () {
+        confirmOn(bin, "Delete “" + s.name + "”?", function () {
+          trashSubList(deck, path);
+          renderSubCard();
+        });
+      });
+      wrap.appendChild(b);
+      wrap.appendChild(bin);
+      host.appendChild(wrap);
     });
 
     if (!subs.length) {
@@ -5704,6 +6256,23 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
      a dropdown wants to show, so this is a panel that scrolls.
   -------------------------------------------------------- */
   var sidePanelDeck = null;
+  var treeFolded = {};       // "<quiz>|<path>" -> true while that branch is folded
+
+  var SVG_BIN = "M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6";
+  var SVG_SHARE = "M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 15V3M8 7l4-4 4 4";
+  var SVG_PLUS = "M12 5v14M5 12h14";
+
+  function iconButton(cls, title, path) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = cls;
+    b.title = title;
+    b.setAttribute("aria-label", title);
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + path + '"></path></svg>';
+    return b;
+  }
+  function trashIcon(cls, title) { return iconButton(cls, title, SVG_BIN); }
 
   function closeSidePanel() {
     $("side-panel").hidden = true;
@@ -5711,140 +6280,454 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     sidePanelDeck = null;
   }
 
+  // The quiz the panel is about, as it stands now: the stored one when it
+  // is saved, the one in hand when it is not.
+  function panelDeck() {
+    var d = sidePanelDeck;
+    if (!d) return null;
+    return isSavedDeck(d) ? deckById(d.id) : d;
+  }
+
   function openSidePanel(d) {
+    if (saveTimer) saveNow();
     sidePanelDeck = d;
-    $("side-panel-title").textContent = d.title || "Untitled quiz";
-    var body = $("side-panel-body");
-    body.textContent = "";
-
-    function item(name, detail, enabled, run) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "side-item";
-      b.disabled = !enabled;
-      var t = document.createElement("b");
-      t.textContent = name;
-      var sub = document.createElement("span");
-      sub.textContent = detail;
-      b.appendChild(t);
-      b.appendChild(sub);
-      if (enabled) b.addEventListener("click", run);
-      body.appendChild(b);
-      return b;
-    }
-
-    function label(text) {
-      var el = document.createElement("div");
-      el.className = "side-sep";
-      el.textContent = text;
-      body.appendChild(el);
-    }
-
-    var geo = isGeo(d);
-
-    // Opening the whole thing lands where its settings are -- the deck
-    // screen for a word list, the builder for a map -- while a sub-list is
-    // a smaller thing and goes straight into a round.
-    item(geo ? "Whole map" : "Whole list",
-      (geo ? places((d.places || []).length) : words(d.pairs.length)) + " · opens the quiz", true,
-      function () {
-        closeSidePanel();
-        if (geo) editGeo(deckById(d.id) || d);
-        else loadDeck(JSON.parse(JSON.stringify(d)));
-      });
-
-    var subs = allSubs(d);
-    label(subs.length ? (subs.length === 1 ? "Sub-list" : "Sub-lists") : "Sub-lists");
-
-    if (!subs.length) {
-      var none = document.createElement("span");
-      none.className = "sub-none";
-      none.textContent = geo
-        ? "None yet. At the end of a round you can keep the places you missed as one."
-        : "None yet. While playing, “Add to list” under any answer puts that word into one.";
-      body.appendChild(none);
-    }
-
-    /* The lists as a tree: each one indented under the list it belongs to,
-       and each able to hold lists of its own. A parent counts what its
-       children hold as well, so a list that only sorts other lists is
-       still something you can play. */
-    allSubs(d).forEach(function (node) {
-      var s = node.sub, path = node.path;
-      var mine = geo ? geoSubPlacesDeep(d, s).length : subPairsDeep(d, s).length;
-      var kids = kidsOf(s).length;
-      var detail = (mine ? (geo ? places(mine) : words(mine)) : "empty") +
-        (kids ? " · " + kids + (kids === 1 ? " list inside" : " lists inside") : "") +
-        (mine ? " · drag out to shelve it" : "");
-
-      var row = item(s.name, detail, mine > 0, function () {
-        closeSidePanel();
-        if (!geo) { openSubList(d, path); return; }
-        var live = deckById(d.id) || d;
-        var ids = geoSubPlacesDeep(live, subAt(live, path) || s).map(function (p) { return p.id; });
-        if (!ids.length) { geoStatus("“" + s.name + "” has no places left in it.", true); return; }
-        startGeo(live, ids, pathLabel(path));
-      });
-      row.classList.add("side-item-nested");
-      row.style.marginLeft = (node.depth * 16) + "px";
-      if (node.depth) row.title = "Inside " + pathLabel(path.slice(0, -1));
-
-      // Somewhere to put a list inside this one.
-      var plus = document.createElement("button");
-      plus.type = "button";
-      plus.className = "side-plus";
-      plus.textContent = "+ list inside";
-      plus.addEventListener("click", function (e) {
-        e.stopPropagation();
-        var field = document.createElement("input");
-        field.className = "side-new";
-        field.placeholder = "Name a list inside “" + s.name + "”";
-        field.maxLength = 40;
-        var keep = function () {
-          var name = field.value.trim();
-          if (!name) { field.remove(); return; }
-          var live = deckById(d.id) || d;
-          makeSubAt(live, path.concat([name]));
-          if (isSavedDeck(live)) updateDeck(live.id, function (x) { makeSubAt(x, path.concat([name])); });
-          renderSaved();
-          openSidePanel(deckById(d.id) || live);
-        };
-        field.addEventListener("keydown", function (ev) {
-          ev.stopPropagation();
-          if (ev.key === "Enter") { ev.preventDefault(); keep(); }
-          if (ev.key === "Escape") { ev.preventDefault(); field.remove(); }
-        });
-        field.addEventListener("blur", keep);
-        plus.after(field);
-        field.focus();
-      });
-      plus.style.marginLeft = (node.depth * 16) + "px";
-      body.appendChild(plus);
-
-      // A sub-list can be dragged out of here and onto the shelf, where it
-      // becomes a card of its own. The scrim is stood down for the duration
-      // or it would swallow the drop.
-      if (mine) {
-        row.draggable = true;
-        row.addEventListener("dragstart", function (e) {
-          dragging = { kind: "sub-list", deckId: d.id, subName: s.name, subPath: path };
-          document.body.classList.add("dragging-sub");
-          try {
-            e.dataTransfer.effectAllowed = "copy";
-            e.dataTransfer.setData("text/plain", "sub:" + pathLabel(path));
-          } catch (err) { /* older browsers */ }
-        });
-        row.addEventListener("dragend", function () {
-          dragging = null;
-          document.body.classList.remove("dragging-sub");
-          clearDropMarks();
-        });
-      }
-    });
-
+    drawSidePanel();
     $("side-scrim").hidden = false;
     $("side-panel").hidden = false;
     $("side-panel-close").focus();
+  }
+
+  /* One change to a quiz's lists, made everywhere it is held: in storage
+     when the quiz is saved, and in the copy open on its page, so that the
+     page's next save does not write the old lists back. */
+  function treeEdit(d, fn) {
+    var saved = isSavedDeck(d);
+    if (saved) updateDeck(d.id, fn);
+    if (deck && (deck === d || (saved && deck.id === d.id))) fn(deck);
+    else if (!saved) fn(d);
+  }
+
+  // Everything that shows a quiz's lists, drawn again after one changed.
+  function refreshAfterTree() {
+    renderSaved();
+    if (deck && !$("scr-deck").hidden) {
+      if (subView && !subAt(deck, subView.path)) { subView = null; clearPicks(); }
+      renderDeck();
+    }
+    if (!$("scr-geo-setup").hidden) renderGeoPicked();
+    if (!$("scr-done").hidden && game) renderSubCard();
+    if (!$("scr-geo").hidden && geoGame && geoGame.over) renderGeoSubCard();
+    if (!$("side-panel").hidden) drawSidePanel();
+  }
+
+  function openWholeDeck() {
+    navNote();
+    subView = null;
+    clearPicks();
+    renderDeck();
+    show("deck");
+    showDeckShare();
+  }
+
+  // A row of the tree was clicked: open that list's page.
+  function openTreeList(d, path) {
+    if (isGeo(d)) {
+      if (!$("scr-geo-setup").hidden && geoEditId && geoEditId === d.id) {
+        // Already on this map's page: unsaved changes to it stay.
+        navNote();
+        geoSubView = path ? path.slice() : null;
+        renderGeoPicked();
+        window.scrollTo(0, 0);
+        navSoon();
+        return;
+      }
+      editGeo(deckById(d.id) || d, path);
+      return;
+    }
+    if (path) { openSubList(d, path); return; }
+    if (deck && (deck === d || (d.id && deck.id === d.id))) {
+      if (deck !== d && !$("scr-deck").hidden) { openWholeDeck(); return; }
+      if (deck === d) { openWholeDeck(); return; }
+    }
+    loadDeck(JSON.parse(JSON.stringify(d)));
+  }
+
+  function clearTreeMarks() {
+    Array.prototype.forEach.call(document.querySelectorAll(".tree-row.drop-before,.tree-row.drop-after,.tree-row.drop-inside"),
+      function (r) { r.classList.remove("drop-before", "drop-after", "drop-inside"); });
+  }
+
+  function drawSidePanel() {
+    var d = panelDeck();
+    if (!d) { closeSidePanel(); return; }
+    var geo = isGeo(d), saved = isSavedDeck(d);
+    var qkey = d.id || objKey(d);
+    $("side-panel-title").textContent = d.title || (geo ? "Untitled map quiz" : "Untitled quiz");
+    var body = $("side-panel-body");
+    var keepScroll = body.scrollTop;
+    body.textContent = "";
+    var tree = document.createElement("div");
+    tree.className = "tree";
+    body.appendChild(tree);
+
+    function count(s) { return geo ? geoSubPlacesDeep(d, s).length : subPairsDeep(d, s).length; }
+    function amount(n) { return geo ? places(n) : words(n); }
+    function foldKey(path) { return qkey + "|" + pathLabel(path); }
+    function startsWith(path, from) {
+      return path.length >= from.length && pathLabel(path.slice(0, from.length)) === pathLabel(from);
+    }
+
+    function makeRow(o) {
+      var r = document.createElement("div");
+      r.className = "tree-row" + (o.root ? " is-root" : "");
+      (o.guides || []).forEach(function (g) {
+        var t = document.createElement("span");
+        t.className = "tg" + (g ? " " + g : "");
+        r.appendChild(t);
+      });
+      if (!o.root) {
+        var f = document.createElement("button");
+        f.type = "button";
+        f.className = "tree-fold" + (o.kids ? "" : " none");
+        if (o.kids) {
+          f.textContent = o.folded ? "▸" : "▾";
+          f.title = o.folded ? "Show the lists inside" : "Hide the lists inside";
+          f.setAttribute("aria-expanded", String(!o.folded));
+          f.addEventListener("click", o.onFold);
+        } else {
+          f.tabIndex = -1;
+          f.setAttribute("aria-hidden", "true");
+        }
+        r.appendChild(f);
+      }
+      var m = document.createElement("button");
+      m.type = "button";
+      m.className = "tree-main";
+      var t = document.createElement("b");
+      t.textContent = o.name;
+      t.title = o.name;
+      var sp = document.createElement("span");
+      sp.textContent = o.detail;
+      m.appendChild(t);
+      m.appendChild(sp);
+      m.addEventListener("click", o.onOpen);
+      r.appendChild(m);
+      var tools = document.createElement("span");
+      tools.className = "tree-tools";
+      r.appendChild(tools);
+      r.tools = tools;
+      return r;
+    }
+
+    // Somewhere to name a list, opened under the row it goes inside.
+    function nameNewList(r, parentPath) {
+      var next = r.nextSibling;
+      if (next && next.classList && next.classList.contains("tree-new")) { next.querySelector("input").focus(); return; }
+      var box = document.createElement("div");
+      box.className = "tree-new";
+      box.style.paddingLeft = ((parentPath.length + 1) * 18 + 20) + "px";
+      var field = document.createElement("input");
+      field.maxLength = 40;
+      field.placeholder = parentPath.length
+        ? "Name a list inside “" + parentPath[parentPath.length - 1] + "”" : "Name a new list";
+      var finished = false;
+      function keep() {
+        if (finished) return;
+        finished = true;
+        var name = field.value.trim();
+        if (!name) { box.remove(); return; }
+        var path = parentPath.concat([name]);
+        if (subAt(panelDeck(), path)) {
+          flash("There is already a list called “" + name + "” there.", "info");
+          box.remove();
+          return;
+        }
+        if (parentPath.length) treeFolded[foldKey(parentPath)] = false;
+        treeEdit(d, function (x) { makeSubAt(x, path); });
+        refreshAfterTree();
+      }
+      field.addEventListener("keydown", function (ev) {
+        ev.stopPropagation();
+        if (ev.key === "Enter") { ev.preventDefault(); keep(); }
+        if (ev.key === "Escape") { ev.preventDefault(); finished = true; box.remove(); }
+      });
+      field.addEventListener("blur", keep);
+      box.appendChild(field);
+      r.after(box);
+      field.focus();
+    }
+
+    function addTools(r, path, s) {
+      var plus = iconButton("tree-tool", path ? "Make a list inside “" + s.name + "”" : "Make a new list", SVG_PLUS);
+      plus.addEventListener("click", function () { nameNewList(r, path || []); });
+      r.tools.appendChild(plus);
+      if (saved && !SHARED) {
+        var ex = iconButton("tree-tool", path ? "Make a link to just this list" : "Make a link to this quiz", SVG_SHARE);
+        ex.addEventListener("click", function () {
+          closeSidePanel();
+          openShare(deckById(d.id), path || null);
+        });
+        r.tools.appendChild(ex);
+      }
+      if (path || saved) {
+        var bin = trashIcon("tree-tool danger", path ? "Delete “" + s.name + "”" : "Move this quiz to the bin");
+        bin.addEventListener("click", function () {
+          confirmOn(bin, path ? "Delete?" : "To the bin?", function () {
+            if (path) { trashSubList(d, path); refreshAfterTree(); return; }
+            var id = d.id;
+            trashDeck(id);
+            closeSidePanel();
+            renderSaved();
+            if (deck && deck.id === id && !$("scr-deck").hidden) leaveToLists();
+            if (geoEditId === id && !$("scr-geo-setup").hidden) { geoEditId = null; setTab("geo"); show("intake"); }
+          });
+        });
+        r.tools.appendChild(bin);
+      }
+    }
+
+    function zoneOf(r, e, isRoot) {
+      if (isRoot) return "inside";
+      var b = r.getBoundingClientRect(), y = (e.clientY - b.top) / (b.height || 1);
+      return y < 0.28 ? "before" : y > 0.72 ? "after" : "inside";
+    }
+
+    /* Dragging: onto the middle of a list puts it inside, onto its top or
+       bottom edge puts it beside, onto the quiz itself takes it back to the
+       top. A list cannot go inside itself or anything inside itself. Off
+       the panel and onto the shelf, it still becomes a card there. */
+    function wireDrag(r, path) {
+      if (path) {
+        r.draggable = true;
+        r.addEventListener("dragstart", function (e) {
+          dragging = { kind: "sub-list", deckId: d.id, subName: path[path.length - 1], subPath: path, treeDeck: d };
+          document.body.classList.add("dragging-sub");
+          setTimeout(function () { r.classList.add("is-dragging"); }, 0);
+          try {
+            e.dataTransfer.effectAllowed = "copyMove";
+            e.dataTransfer.setData("text/plain", "sub:" + pathLabel(path));
+          } catch (err) { /* older browsers */ }
+        });
+        r.addEventListener("dragend", function () {
+          dragging = null;
+          document.body.classList.remove("dragging-sub");
+          r.classList.remove("is-dragging");
+          clearTreeMarks();
+          clearDropMarks();
+        });
+      }
+      function usable(e) {
+        var drag = dragging;
+        if (!drag || drag.kind !== "sub-list" || drag.treeDeck !== d) return null;
+        if (path && startsWith(path, drag.subPath)) return null;
+        return zoneOf(r, e, !path);
+      }
+      r.addEventListener("dragover", function (e) {
+        var zone = usable(e);
+        if (!zone) return;
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = "move"; } catch (err) { /* older browsers */ }
+        if (!r.classList.contains("drop-" + zone)) { clearTreeMarks(); r.classList.add("drop-" + zone); }
+      });
+      r.addEventListener("dragleave", function (e) {
+        if (!r.contains(e.relatedTarget)) r.classList.remove("drop-before", "drop-after", "drop-inside");
+      });
+      r.addEventListener("drop", function (e) {
+        var zone = usable(e);
+        if (!zone) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var from = dragging.subPath;
+        dragging = null;
+        document.body.classList.remove("dragging-sub");
+        clearTreeMarks();
+        var parent, before = null;
+        if (!path) parent = [];
+        else if (zone === "inside") { parent = path; treeFolded[foldKey(path)] = false; }
+        else {
+          parent = path.slice(0, -1);
+          var mine = path[path.length - 1];
+          if (zone === "before") before = mine;
+          else {
+            var sibs = parent.length ? kidsOf(subAt(d, parent)) : subsOf(d);
+            for (var i = 0; i < sibs.length; i++) {
+              if (sibs[i].name === mine) { before = sibs[i + 1] ? sibs[i + 1].name : null; break; }
+            }
+          }
+        }
+        moveSub(d, from, parent, before);
+      });
+    }
+
+    function walk(list, parentPath, guides) {
+      list.forEach(function (s, i) {
+        var path = parentPath.concat([s.name]);
+        var last = i === list.length - 1;
+        var kids = kidsOf(s);
+        var folded = !!treeFolded[foldKey(path)];
+        var n = count(s);
+        var r = makeRow({
+          name: s.name,
+          detail: (n ? amount(n) : "empty") +
+            (kids.length ? " · " + kids.length + (kids.length === 1 ? " list inside" : " lists inside") : "") +
+            (s.share ? " · shared" : ""),
+          guides: guides.concat([last ? "l" : "t"]),
+          kids: kids.length,
+          folded: folded,
+          onFold: function () { treeFolded[foldKey(path)] = !folded; drawSidePanel(); },
+          onOpen: function () { closeSidePanel(); openTreeList(d, path); }
+        });
+        if (parentPath.length) r.title = "Inside " + pathLabel(parentPath);
+        addTools(r, path, s);
+        wireDrag(r, path);
+        tree.appendChild(r);
+        if (kids.length && !folded) walk(kids, path, guides.concat([last ? "" : "v"]));
+      });
+    }
+
+    // The quiz itself is the root of its own tree.
+    var total = geo ? (d.places || []).length : (d.pairs || []).length;
+    var root = makeRow({
+      root: true,
+      name: geo ? "Whole map" : "Whole list",
+      detail: amount(total) + " · opens the quiz",
+      onOpen: function () { closeSidePanel(); openTreeList(d, null); }
+    });
+    addTools(root, null, null);
+    wireDrag(root, null);
+    tree.appendChild(root);
+
+    var subs = subsOf(d);
+    if (!subs.length) {
+      var none = document.createElement("div");
+      none.className = "tree-none";
+      none.textContent = geo
+        ? "No sub-lists yet. At the end of a round you can keep the places you missed as one, or make one with +."
+        : "No sub-lists yet. Make one with +, or while playing, “Add to list” under any answer.";
+      tree.appendChild(none);
+    }
+    walk(subs, [], []);
+
+    if (subs.length) {
+      var hint = document.createElement("p");
+      hint.className = "tree-hint";
+      hint.textContent = "Drag a list onto another to put it inside, onto the top or bottom edge of one to put it beside it, or onto “" +
+        (geo ? "Whole map" : "Whole list") + "” to bring it back to the top." +
+        (saved && !$("scr-intake").hidden ? " Drag one out onto the main page to shelve it there." : "");
+      body.appendChild(hint);
+    }
+    body.scrollTop = keepScroll;
+  }
+
+  /* Moving a list within its quiz: into another list, beside one, or back
+     to the top. It takes its words, its lists and its link with it, and
+     whatever pointed at it by its old path -- a card on the shelf, the page
+     on screen, the way back -- is pointed at the new one. */
+  function moveSub(d, from, parent, before) {
+    var live = isSavedDeck(d) ? deckById(d.id) : d;
+    var name = from[from.length - 1];
+    var dest = parent.length ? subAt(live, parent) : null;
+    if (parent.length && !dest) return;
+    var destList = dest ? kidsOf(dest) : subsOf(live);
+    var samePlace = pathLabel(parent) === pathLabel(from.slice(0, -1));
+    if (!samePlace && destList.some(function (x) { return x.name === name; })) {
+      flash("There is already a list called “" + name + "” there.", "info");
+      return;
+    }
+    if (samePlace && before === name) return;
+    treeEdit(d, function (x) {
+      var home = subHome(x, from), moved = null;
+      if (!home) return;
+      for (var i = 0; i < home.length; i++) if (home[i].name === name) { moved = home.splice(i, 1)[0]; break; }
+      if (!moved) return;
+      var into = parent.length ? subAt(x, parent) : null;
+      var list = into ? kidsOf(into) : subsOf(x);
+      var at = list.length;
+      if (before) for (var j = 0; j < list.length; j++) if (list[j].name === before) { at = j; break; }
+      list.splice(at, 0, moved);
+    });
+    var to = parent.concat([name]);
+    if (pathLabel(to) !== pathLabel(from)) repointSub(d, from, to);
+    refreshAfterTree();
+  }
+
+  function swapPrefix(path, from, to) {
+    if (!path || path.length < from.length) return null;
+    if (pathLabel(path.slice(0, from.length)) !== pathLabel(from)) return null;
+    return to.concat(path.slice(from.length));
+  }
+
+  function repointSub(d, from, to) {
+    if (d.id) {
+      var list = savedDecks(), changed = false;
+      list.forEach(function (x) {
+        if (!isSub(x) || x.ofDeck !== d.id) return;
+        var p = swapPrefix(x.subPath || [x.subName], from, to);
+        if (p) { x.subPath = p; x.subName = p[p.length - 1]; changed = true; }
+      });
+      if (changed) writeDecks(list);
+    }
+    var mine = deck && (deck === d || (d.id && deck.id === d.id));
+    if (mine && subView) {
+      var v = swapPrefix(subView.path, from, to);
+      if (v) subView.path = v;
+    }
+    if (mine && game && game.subPath) {
+      var gp = swapPrefix(game.subPath, from, to);
+      if (gp) { game.subPath = gp; game.subName = pathLabel(gp); }
+    }
+    if (geoSubView && d.id && geoEditId === d.id) {
+      var gv = swapPrefix(geoSubView, from, to);
+      if (gv) geoSubView = gv;
+    }
+    navRepoint(d, from, to);
+  }
+
+  /* A sub-list thrown away goes to the bin with everything inside it, and
+     remembers its quiz and where in it it sat, so Restore can put it back.
+     A quiz never saved has no bin to speak of: its list just goes. */
+  function trashSubList(d, path) {
+    var saved = isSavedDeck(d);
+    var live = saved ? deckById(d.id) : d;
+    var sub = live && subAt(live, path);
+    if (!sub) return;
+    var copy = JSON.parse(JSON.stringify(sub));
+    stopSubShares(live, copy);      // links die with the list, as with a quiz
+    if (saved) toTrash("sublist", { deckId: d.id, deckTitle: live.title || "", path: asPath(path), sub: copy });
+    treeEdit(d, function (x) { dropSubAt(x, path); });
+    var mine = deck && (deck === d || (d.id && deck.id === d.id));
+    if (mine && subView && swapPrefix(subView.path, path, path)) {
+      subView = null;
+      clearPicks();
+      if (!$("scr-deck").hidden) renderDeck();
+    }
+    if (geoSubView && d.id && geoEditId === d.id && swapPrefix(geoSubView, path, path)) geoSubView = null;
+    renderSaved();
+  }
+
+  function stopSubShares(owner, sub) {
+    (function walk(n) {
+      if (n.share) {
+        unpublishShare({ share: n.share, title: (owner.title || "a quiz") + " › " + n.name });
+        delete n.share;
+      }
+      kidsOf(n).forEach(walk);
+    })(sub);
+  }
+
+  // Back where it was, or beside a list that has taken its name since.
+  function putSubBack(p) {
+    var d = deckById(p.deckId);
+    if (!d) return;
+    var parent = p.path.slice(0, -1);
+    treeEdit(d, function (x) {
+      var home = parent.length ? kidsOf(makeSubAt(x, parent)) : subsOf(x);
+      var put = JSON.parse(JSON.stringify(p.sub));
+      var name = put.name, n = 2;
+      while (home.some(function (h) { return h.name === name; })) name = put.name + " (" + (n++) + ")";
+      put.name = name;
+      home.push(put);
+    });
   }
 
   $("side-panel-close").addEventListener("click", closeSidePanel);
@@ -5981,7 +6864,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
   var currentFolder = null;   // the folder being looked inside; null is the top
 
-  function openFolder(id) { currentFolder = id; renderSaved(); }
+  // A folder opened mid-drag is a spring, not somewhere you went.
+  function openFolder(id) { navNote(); currentFolder = id; renderSaved(); if (!dragging) navSoon(); }
 
   $("btn-back-folder").addEventListener("click", function () {
     var f = currentFolder && folderById(currentFolder);
@@ -6026,6 +6910,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     if (!d) return;
     // The link dies with the quiz: a thing off the shelf is not shared.
     if (d.share) unpublishShare(d);
+    if (!isSub(d)) subsOf(d).forEach(function (sb) { stopSubShares(d, sb); });
     toTrash(isSub(d) ? "sub" : "quiz", JSON.parse(JSON.stringify(d)));
     writeDecks(savedDecks().filter(function (x) { return x.id !== id; }));
   }
@@ -6051,7 +6936,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       return true;
     });
     if (!item) return;
+    if (item.kind === "sublist" && !deckById(item.payload.deckId)) {
+      flash("The quiz that list belonged to is gone, so there is nowhere to put it back.", "info");
+      return;
+    }
     saveTrash(list);
+    if (item.kind === "sublist") {
+      putSubBack(item.payload);
+      refreshAfterTree();
+      return;
+    }
     if (item.kind === "folder") {
       var folders = foldersList();
       folders.push(item.payload);
@@ -6499,11 +7393,15 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       var name = document.createElement("b");
       name.textContent = t.kind === "folder"
         ? (t.payload.name || "Untitled folder")
+        : t.kind === "sublist"
+          ? (t.payload.sub.name || "Sub-list")
         : t.kind === "sub"
           ? (t.payload.subName || "Sub-list")
           : (t.payload.title || "Untitled quiz");
       var meta = document.createElement("span");
-      meta.textContent = (t.kind === "folder" ? "Folder" : t.kind === "sub" ? "Sub-list" : "Quiz") +
+      meta.textContent = (t.kind === "folder" ? "Folder"
+        : t.kind === "sublist" ? "Sub-list of “" + (t.payload.deckTitle || "a quiz") + "”"
+        : t.kind === "sub" ? "Sub-list" : "Quiz") +
         " · deleted " + ago(t.deletedAt);
       what.appendChild(name);
       what.appendChild(meta);
@@ -6930,7 +7828,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       if (!live) return;
       if (isGeo(live.deck)) {
         startGeo(live.deck, geoSubPlacesDeep(live.deck, live.sub).map(function (p) { return p.id; }),
-                 pathLabel(live.path));
+                 pathLabel(live.path), live.path);
         return;
       }
       openSubList(live.deck, live.path);
@@ -8195,14 +9093,59 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     return (d.places || []).filter(function (p) { return want[p.id]; });
   }
 
-  function addGeoSub(d, name, ids) {
+  function addGeoSub(d, path, ids) {
     updateDeck(d.id, function (x) {
-      x.subs = x.subs || [];
-      var at = null;
-      x.subs.forEach(function (sb) { if (sb.name === name) at = sb; });
-      if (!at) { at = { name: name, keys: [] }; x.subs.push(at); }
+      var at = makeSubAt(x, asPath(path));
       ids.forEach(function (id) { if (at.keys.indexOf(id) < 0) at.keys.push(id); });
     });
+  }
+
+  // The map's lists under its results: each opens its page, each can go.
+  function renderGeoSubCard() {
+    var g = geoGame, box = $("geo-sub-card"), host = $("geo-sub-list");
+    host.textContent = "";
+    var live = g && !SHARED && isSavedDeck(g.deck) ? deckById(g.deck.id) : null;
+    box.hidden = !live;
+    if (!live) return;
+    var subs = allSubs(live);
+    $("geo-sub-note").textContent = g.subName ? "You just played “" + g.subName + "”"
+      : subs.length ? "Open one to play it" : "";
+    if (g.subName) {
+      var whole = document.createElement("button");
+      whole.type = "button";
+      whole.className = "sub-chip";
+      whole.textContent = "Whole map · " + places((live.places || []).length);
+      whole.title = "Open the whole map";
+      whole.addEventListener("click", function () { editGeo(deckById(live.id) || live); });
+      host.appendChild(whole);
+    }
+    subs.forEach(function (node) {
+      var sb = node.sub, path = node.path;
+      var wrap = document.createElement("span");
+      wrap.className = "sub-chip-wrap";
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "sub-chip" + (g.subName === pathLabel(path) ? " is-current" : "");
+      b.textContent = (node.depth ? "↳ " : "") + sb.name + " · " + geoSubPlacesDeep(live, sb).length;
+      b.title = (node.depth ? "Inside " + pathLabel(path.slice(0, -1)) + ". " : "") + "Open this list";
+      b.addEventListener("click", function () { editGeo(deckById(live.id) || live, path); });
+      var bin = trashIcon("sub-chip-bin", "Delete “" + sb.name + "”");
+      bin.addEventListener("click", function () {
+        confirmOn(bin, "Delete “" + sb.name + "”?", function () {
+          trashSubList(deckById(live.id), path);
+          renderGeoSubCard();
+        });
+      });
+      wrap.appendChild(b);
+      wrap.appendChild(bin);
+      host.appendChild(wrap);
+    });
+    if (!subs.length) {
+      var none = document.createElement("span");
+      none.className = "sub-none";
+      none.textContent = "No sub-lists yet. Name the places you missed above to keep them as one.";
+      host.appendChild(none);
+    }
   }
   function places(n) { return n + (n === 1 ? " place" : " places"); }
   function geoHas(id) { return geoPicked.some(function (p) { return p.id === id; }); }
@@ -8303,6 +9246,18 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function renderGeoPicked() {
     var host = $("geo-chips");
     host.textContent = "";
+    // On a sub-list's page the places outside it are dimmed, and Start
+    // plays the list alone.
+    var subIds = null;
+    if (geoSubView) {
+      var owner = geoEditId && deckById(geoEditId), within = owner && subAt(owner, geoSubView);
+      if (within) {
+        subIds = {};
+        subKeysDeep(within).forEach(function (k) { subIds[k] = true; });
+      } else geoSubView = null;
+    }
+    $("geo-sub-head").hidden = !geoSubView;
+    if (geoSubView) $("geo-sub-name").textContent = pathLabel(geoSubView);
     var decoyCount = geoPicked.filter(function (p) { return p.decoy; }).length;
     $("geo-count").textContent = geoPicked.length
       ? places(geoPicked.length - decoyCount) + (decoyCount ? " · " + decoyCount + " decoy" + (decoyCount === 1 ? "" : "s") : "")
@@ -8316,7 +9271,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     }
     geoPicked.forEach(function (p) {
       var chip = document.createElement("span");
-      chip.className = "geo-chip" + (p.decoy ? " decoy" : "");
+      chip.className = "geo-chip" + (p.decoy ? " decoy" : "") + (subIds && !subIds[p.id] ? " off-sub" : "");
       var n = document.createElement("span");
       n.textContent = p.n + " ";
       var k = document.createElement("small");
@@ -8350,8 +9305,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     });
 
     var play = $("geo-play");
-    play.disabled = geoPicked.length < 2;
-    play.textContent = geoPicked.length < 2 ? "Add two places to start" : "Start quiz";
+    if (subIds) {
+      var inList = geoPicked.filter(function (p) { return subIds[p.id] && !p.decoy; }).length;
+      play.disabled = inList < 1;
+      play.textContent = inList ? "Start this list · " + places(inList) : "This list is empty";
+    } else {
+      play.disabled = geoPicked.length < 2;
+      play.textContent = geoPicked.length < 2 ? "Add two places to start" : "Start quiz";
+    }
 
     // The preview is the quiz's own map, so a search that found the wrong
     // Georgia is caught before the round, not during it.
@@ -8376,6 +9337,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function resetGeoBuilder() {
     geoPicked = [];
     geoEditId = null;
+    geoSubView = null;
+    $("geo-share").hidden = $("geo-trash").hidden = $("geo-lists").hidden = true;
     $("geo-name").value = "";
     $("geo-q").value = "";
     osmHits = null;
@@ -8384,9 +9347,13 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     renderGeoPicked();
   }
 
-  function editGeo(d) {
+  var geoSubView = null;    // the path of the map's sub-list on screen, or null
+
+  function editGeo(d, path) {
+    navNote();
     show("geo-setup");
     geoEditId = d.id || null;
+    geoSubView = path && subAt(d, path) ? asPath(path) : null;
     geoPicked = JSON.parse(JSON.stringify(d.places || []));
     $("geo-name").value = d.title || "";
     $("geo-q").value = "";
@@ -8394,7 +9361,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     renderGeoResults();
     loadGeo().then(renderGeoPicked, geoLoadFailed);
     renderGeoPicked();
-    $("geo-share").hidden = $("geo-trash").hidden =
+    $("geo-share").hidden = $("geo-trash").hidden = $("geo-lists").hidden =
       !!SHARED || !(geoEditId && deckById(geoEditId));
     window.scrollTo(0, 0);
   }
@@ -8435,8 +9402,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     show("intake");
   });
 
+  $("geo-sub-back").addEventListener("click", function () {
+    navNote();
+    geoSubView = null;
+    renderGeoPicked();
+    navSoon();
+  });
+
   $("geo-play").addEventListener("click", function () {
-    if (geoPicked.length < 2) return;
+    var subPath = geoSubView;
+    if (geoPicked.length < 2 && !subPath) return;
     var title = $("geo-name").value.trim() || "Untitled map quiz";
     var picked = JSON.parse(JSON.stringify(geoPicked));
     var d;
@@ -8449,8 +9424,15 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       list.unshift(d);
       if (!writeDecks(list)) { setTab("geo"); geoStatus("Your browser has no room left, so that was not saved. Delete something, or empty the trash, and try again.", true); return; }
     }
+    // Back from the round comes to this map's page, saved now.
+    if (navCur && navCur.page === "geo-setup") { navCur.id = d.id; navCur.path = subPath; }
     resetGeoBuilder();
     renderSaved();
+    var within = subPath && subAt(d, subPath);
+    if (within) {
+      var ids = geoSubPlacesDeep(d, within).map(function (p) { return p.id; });
+      if (ids.length) { startGeo(d, ids, pathLabel(subPath), subPath); return; }
+    }
     startGeo(d);
   });
 
@@ -8544,6 +9526,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       b.tabIndex = t[1] ? 0 : -1;
     });
     writeStore("qp:tab", geo ? "geo" : "vocab");
+    navSoon();
     if (geo) {
       if (!GEO) geoStatus("Loading the world map…");
       loadGeo().then(function () {
@@ -8575,7 +9558,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   function geoBestKey(d) { return "qp:geobest:" + (d.id || d.title); }
 
   // only: ids to play, for drilling the misses; the whole quiz otherwise.
-  function startGeo(d, only, subName) {
+  // resume: a round left unfinished, picked up where it was.
+  function startGeo(d, only, subName, subPath, resume) {
     loadGeo().then(function () {
       var all = (d.places || []).filter(function (p) { return placeShape(p); });
       var inPlay = only ? all.filter(function (p) { return only.indexOf(p.id) >= 0; }) : all;
@@ -8602,18 +9586,38 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       geoGame = { deck: d, order: shuffle(asked.map(function (p) { return p.id; })),
                   names: names, i: 0, tries: 0, results: {}, right: 0, wrong: 0, first: 0,
                   t0: Date.now(), placeAt: Date.now(), over: false, drill: !!only,
-                  skips: 0, shown: false, subName: subName || null };
+                  skips: 0, shown: false, subName: subName || null,
+                  subPath: subPath ? asPath(subPath) : null, only: only ? only.slice() : null };
+      if (resume) {
+        var was = resume.game, now = Date.now();
+        geoGame.order = (was.order || []).filter(function (id) { return names[id]; });
+        ["i", "tries", "right", "wrong", "first", "skips"].forEach(function (k) { geoGame[k] = was[k] || 0; });
+        geoGame.i = Math.min(geoGame.i, geoGame.order.length);
+        geoGame.results = was.results || {};
+        geoGame.shown = !!was.shown;
+        geoGame.drill = !!was.drill;
+        geoGame.t0 = now - (was.spent || 0);
+        geoGame.saveId = resume.id;
+        Object.keys(geoGame.results).forEach(function (id) {
+          if (names[id]) geoMap.mark(id, geoGame.results[id]);
+        });
+      }
       $("geo-done").hidden = true;
       $("geo-again").hidden = $("geo-drill").hidden = $("geo-edit").hidden = true;
       $("geo-quit").hidden = false;
       $("geo-ask").hidden = false;
       $("geo-skip").hidden = false;
       askPlace();
+      if (resume) {
+        geoGame.placeAt = Date.now() - (resume.game.onPlace || 0);
+        if (geoGame.shown && geoGame.i < geoGame.order.length) geoMap.flash(geoGame.order[geoGame.i], "is-blink", 2000);
+      }
       stopGeoClock();
       // A countdown wants a finer tick than a clock that only counts seconds.
       geoTicker = setInterval(geoHud, 250);
       applyGeoLimit();
       geoHud();
+      if (resume && geoGame.i >= geoGame.order.length) finishGeo();
     }, function () {
       setTab("geo");
       geoLoadFailed();
@@ -8841,6 +9845,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     if (!g || g.over) return;
     g.over = true;
     g.t1 = Date.now();
+    if (g.saveId) dropUnfinished(g.saveId);
     stopGeoClock();
     geoHud();
     if (g.timedOut) $("geo-clock").textContent = "0:00 left";
@@ -8899,6 +9904,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     $("geo-again").hidden = false;
     $("geo-drill").hidden = !missed.length;
     $("geo-edit").hidden = !isSavedDeck(g.deck);
+    renderGeoSubCard();
     $("geo-done").scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
@@ -8908,8 +9914,10 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     var live = deckById(g.deck.id);
     if (!live) return;
     var name = $("geo-keep-name").value.trim() || "Worth another look";
-    addGeoSub(live, name, g.missed.slice());
+    // Kept from a round of a sub-list, they go inside that list.
+    addGeoSub(live, (g.subPath || []).concat([name]), g.missed.slice());
     renderSaved();
+    renderGeoSubCard();
     this.textContent = "Kept in “" + name + "”";
     this.disabled = true;
   });
@@ -9080,14 +10088,31 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
   // What a shared quiz carries: enough to open it and play it, and nothing
   // about the shelf it came from.
-  function sharePayload(d) {
+  // Lists inside a shared one go with it, without the links of their own.
+  function cleanSubs(list) {
+    return JSON.parse(JSON.stringify(list || []), function (k, v) { return k === "share" ? undefined : v; });
+  }
+
+  function sharePayload(d, path) {
+    if (path) {
+      // Just one list: a quiz of its words, named after the quiz it is from.
+      var sb = subAt(d, path);
+      if (!sb) return null;
+      var title = (d.title || (isGeo(d) ? "Untitled map quiz" : "Untitled quiz")) + " › " + sb.name;
+      if (isGeo(d)) {
+        return { v: 1, kind: "geo", title: title, places: geoSubPlacesDeep(d, sb),
+                 subs: cleanSubs(kidsOf(sb)), color: d.color || null };
+      }
+      return { v: 1, kind: "vocab", title: title, langA: d.langA || "", langB: d.langB || "",
+               pairs: subPairsDeep(d, sb), subs: cleanSubs(kidsOf(sb)), color: d.color || null };
+    }
     if (isGeo(d)) {
       return { v: 1, kind: "geo", title: d.title || "Untitled map quiz",
-               places: d.places || [], subs: d.subs || [], color: d.color || null };
+               places: d.places || [], subs: cleanSubs(d.subs), color: d.color || null };
     }
     return { v: 1, kind: "vocab", title: d.title || "Untitled quiz",
              langA: d.langA || "", langB: d.langB || "", pairs: d.pairs || [],
-             subs: d.subs || [], color: d.color || null };
+             subs: cleanSubs(d.subs), color: d.color || null };
   }
 
   // Enough to tell one version of a quiz from the next, so that shuffling
@@ -9186,22 +10211,29 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
   /* Publishing: the quiz as it stands goes into the repository, and what was
      published is remembered on the quiz, so the next change knows whether
      anything actually changed. */
-  function publishShare(d, done) {
+  // path: one sub-list of the quiz, shared on its own; none for the quiz.
+  function publishShare(d, done, path) {
     var live = deckById(d.id) || d;
-    if (brokenPairs(live).length) {
-      var broke = new Error("This quiz has an either-or with only one part.");
+    var target = path ? subAt(live, path) : live;
+    if (brokenPairs(live).length || !target) {
+      var broke = new Error(target ? "This quiz has an either-or with only one part." : "That list is gone.");
       if (done) done(broke);
       return Promise.reject(broke);
     }
-    var id = shareIdFor(live);
-    var text = JSON.stringify(sharePayload(live));
+    var id = shareIdFor(target);
+    var payload = sharePayload(live, path);
+    var text = JSON.stringify(payload);
     var hash = shareHash(text);
-    var sha = live.share && live.share.sha;
-    return ghPut(sharedPath(id), text, sha, "Share “" + (live.title || "a quiz") + "”")
+    var sha = target.share && target.share.sha;
+    return ghPut(sharedPath(id), text, sha, "Share “" + payload.title + "”")
       .then(function (res) {
-        updateDeck(live.id, function (x) {
-          x.share = { id: id, sha: res.content && res.content.sha, hash: hash, at: Date.now() };
-        });
+        var mark = function (x) {
+          var t = path ? subAt(x, path) : x;
+          if (t) t.share = { id: id, sha: res.content && res.content.sha, hash: hash, at: Date.now() };
+        };
+        updateDeck(live.id, mark);
+        // The copy open on the quiz's page too, or its next save drops the link.
+        if (deck && deck.id === live.id) mark(deck);
         renderSaved();
         if (done) done(null, id);
         return id;
@@ -9232,10 +10264,18 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     clearTimeout(shareSoon);
     shareSoon = setTimeout(function () {
       savedDecks().forEach(function (d) {
-        if (!d.share || !d.share.id) return;
+        if (isSub(d)) return;
         if (brokenPairs(d).length) return;          // held at its last good version
-        if (shareHash(JSON.stringify(sharePayload(d))) === d.share.hash) return;
-        publishShare(d).catch(function () { /* reported when the panel is opened */ });
+        if (d.share && d.share.id && shareHash(JSON.stringify(sharePayload(d))) !== d.share.hash) {
+          publishShare(d).catch(function () { /* reported when the panel is opened */ });
+        }
+        // Sub-lists shared on their own follow their words the same way.
+        allSubs(d).forEach(function (node) {
+          var sb = node.sub;
+          if (!sb.share || !sb.share.id) return;
+          if (shareHash(JSON.stringify(sharePayload(d, node.path))) === sb.share.hash) return;
+          publishShare(d, null, node.path).catch(function () { /* reported when the panel is opened */ });
+        });
       });
     }, 1200);
   }
@@ -9272,20 +10312,23 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     body.appendChild(go);
   }
 
-  function openShare(d) {
+  function openShare(d, path) {
     if (!d) return;
+    path = path || null;
     if (brokenPairs(deckById(d.id) || d).length) { shareBlocked(d); return; }
+    var target = path ? subAt(d, path) : d;
+    if (!target) return;
     var body = $("share-body");
     body.textContent = "";
-    $("share-title").textContent = "Share “" + (d.title || "this quiz") + "”";
+    $("share-title").textContent = "Share “" + (path ? (d.title || "this quiz") + " › " + target.name : (d.title || "this quiz")) + "”";
     $("share-panel").hidden = false;
     $("share-scrim").hidden = false;
 
-    if (!ghToken()) { askForToken(d, body); return; }
+    if (!ghToken()) { askForToken(d, body, path); return; }
 
     var note = document.createElement("p");
     note.className = "share-note";
-    note.textContent = d.share ? "Bringing the link up to date…" : "Making the link…";
+    note.textContent = target.share ? "Bringing the link up to date…" : "Making the link…";
     body.appendChild(note);
 
     publishShare(d, function (err, id) {
@@ -9299,18 +10342,18 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
         again.className = "btn btn-sm";
         again.style.marginTop = "12px";
         again.textContent = "Use a different token";
-        again.addEventListener("click", function () { setGhToken(""); openShare(d); });
+        again.addEventListener("click", function () { setGhToken(""); openShare(d, path); });
         body.appendChild(again);
         return;
       }
       body.textContent = "";
-      showLink(body, d, id);
-    });
+      showLink(body, d, id, path);
+    }, path);
   }
 
-  function showLink(body, d, id) {
+  function showLink(body, d, id, path) {
     var p = document.createElement("p");
-    p.textContent = "Anyone with this link can open and play this quiz. They cannot change it, and they are never behind: edit the quiz here and the link follows, about half a minute later.";
+    p.textContent = (path ? "Anyone with this link can open and play this list on its own." : "Anyone with this link can open and play this quiz.") + " They cannot change it, and they are never behind: edit the quiz here and the link follows, about half a minute later.";
     body.appendChild(p);
 
     var row = document.createElement("div");
@@ -9362,6 +10405,16 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     stop.addEventListener("click", function () {
       confirmOn(stop, "Kill the link?", function () {
         var live = deckById(d.id) || d;
+        if (path) {
+          var sb = subAt(live, path);
+          if (sb && sb.share) unpublishShare({ share: sb.share, title: (live.title || "a quiz") + " › " + sb.name });
+          var unmark = function (x) { var t = subAt(x, path); if (t) delete t.share; };
+          updateDeck(d.id, unmark);
+          if (deck && deck.id === d.id) unmark(deck);
+          renderSaved();
+          closeShare();
+          return;
+        }
         unpublishShare(live);
         updateDeck(d.id, function (x) { delete x.share; });
         renderSaved();
@@ -9371,7 +10424,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     body.appendChild(stop);
   }
 
-  function askForToken(d, body) {
+  function askForToken(d, body, path) {
     var p = document.createElement("p");
     p.textContent = "A shared quiz is a file in this site's own repository, so this browser needs permission to write there. Paste a GitHub token once: it stays in this browser and never goes into the site, which is why no one else can publish or change your quizzes.";
     body.appendChild(p);
@@ -9424,7 +10477,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       var said = body.querySelector(".token-trouble");
       if (said) said.remove();
       checkToken().then(function () {
-        openShare(d);
+        openShare(d, path);
       }, function (err) {
         setGhToken("");
         go.disabled = false;
@@ -9465,6 +10518,15 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
     return wrap;
   }
 
+  $("deck-lists").addEventListener("click", function () {
+    if (!deck) return;
+    if (saveTimer) saveNow();
+    openSidePanel(isSavedDeck(deck) ? deckById(deck.id) : deck);
+  });
+  $("geo-lists").addEventListener("click", function () {
+    var d = geoEditId && deckById(geoEditId);
+    if (d) openSidePanel(d);
+  });
   $("deck-share").addEventListener("click", function () {
     if (deck && isSavedDeck(deck)) openShare(deckById(deck.id));
   });
@@ -9584,6 +10646,8 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
       loadDeck(JSON.parse(JSON.stringify(SAMPLE)));
       show("intake");
     }
+    renderUnfinished();
+    navInit();
   }
 
   if (window.claude && window.claude.hot) {
@@ -9599,7 +10663,7 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 
 })();
 </script>
-<p class="build-stamp">build 55835949</p>
+<p class="build-stamp">build 95b0c819</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
