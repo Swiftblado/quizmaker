@@ -1558,7 +1558,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .unfin-acts{display:flex;align-items:center;gap:6px;margin-top:7px}
 .unfin-acts .sp{flex:1}
 body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{display:none!important}
+.save-note{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:60;
+  width:max-content;max-width:min(92vw,480px);padding:10px 16px;border-radius:10px;
+  font-size:14px;font-weight:600;line-height:1.4;text-align:center;cursor:pointer;
+  background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok);box-shadow:var(--shadow)}
+.save-note.bad{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
 </style>
+
+<div class="save-note" id="save-note" role="status" aria-live="polite" hidden></div>
 <style>
 /* The new-version nudge. It borrows the app's own tokens, which are
    defined by the stylesheet above, and falls back to literals so it still
@@ -1733,7 +1740,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       <div class="deck-foot">
         <button class="btn btn-sm" id="btn-add" type="button">Add a word</button>
         <span class="sp" style="flex:1"></span>
-        <button class="btn btn-sm" id="btn-back" type="button">&larr; Back to word lists</button>
+        <button class="btn btn-sm" id="btn-back" type="button">&larr; Back</button>
       </div>
     </div>
 
@@ -1992,7 +1999,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       </div>
     <div class="row" style="margin-top:18px">
       <button class="btn btn-primary" id="geo-play" type="button" style="flex:1;min-width:180px" disabled>Start quiz</button>
-      <button class="btn btn-sm" id="geo-back" type="button">&larr; Back to your quizzes</button>
+      <button class="btn btn-sm" id="geo-back" type="button">&larr; Back</button>
     </div>
   </section>
 
@@ -2349,9 +2356,11 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   }
 
   function goBack() {
-    // One history, whichever back is pressed: the arrow walks the browser's.
-    if (!SHARED && navReady && navStack.length) { history.back(); return; }
+    // The app's own back buttons go to set places (see navBack); the
+    // browser's back button walks its history.
+    if (!SHARED && navReady) { navBack(); return; }
     if (!$("scr-quiz").hidden) { stopClock(); show("deck"); return; }
+    if (!$("scr-geo-setup").hidden) setTab("geo");
     leaveToLists();
   }
 
@@ -2361,8 +2370,8 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     navNote();
     if (saveTimer) saveNow();   // an edit still on its way to storage
     // A round left before its end is kept, to be picked up again later.
-    if (name !== "quiz" && name !== "done" && vocabLive()) softSave();
-    if (name !== "geo" && geoLive()) softSave();
+    if (name !== "quiz" && name !== "done" && vocabLive()) saveNote(softSave());
+    if (name !== "geo" && geoLive()) saveNote(softSave());
     if (name !== "quiz") stopClock();
     if (name !== "geo") stopGeoClock();
     navArrowFor(name);
@@ -2386,7 +2395,28 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
      round is not a page: it sits on top of the page it was started from,
      and backing out of it -- or out of its results -- lands there again.
   ------------------------------------------- */
+  /* The arrow by the title and the Back buttons on the pages do not walk
+     that history: each goes to a set place, so they can never land on
+     something unrelated or on the page already showing.
+       a round, or its results -> the top of the page of the list played;
+       a quiz's page            -> wherever it was opened from: the shelf,
+                                   with the quiz in the middle of the screen
+                                   (and its sub-list tree open again, if
+                                   that is how it was opened), or the page
+                                   or results it was opened from, as left;
+       the shelf, in a folder   -> the folder it sits in.
+     Every page remembers that place as it is arrived at, in .back. */
   var navStack = [], navFwd = [], navCur = null;
+  var navNextBack;            // set by navGo: the .back of the page it draws
+  var navViaTree = null;      // the quiz whose tree the next page is opened from
+  var navRoundHome = null;    // the page the round on screen was started from
+  var navRoundKind = "vocab";
+  var shelfClickId = null;    // the card on the shelf last clicked
+
+  document.addEventListener("click", function (ev) {
+    var c = ev.target && ev.target.closest ? ev.target.closest("#scr-intake .quiz-card[data-id]") : null;
+    shelfClickId = c ? c.dataset.id : null;
+  }, true);
   var navReady = false, navBusy = false, navQueued = false, navSkipPop = false;
   var navToken = Math.random().toString(36).slice(2);
   var navIds = typeof WeakMap === "function" ? new WeakMap() : null;
@@ -2440,12 +2470,21 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
 
   function navArrive() {
     if (!navReady || navBusy || SHARED) return;
-    var e = pageEntry();
+    var e = pageEntry(), back = navNextBack, tree = navViaTree;
+    navNextBack = undefined;
+    navViaTree = null;
     if (!e) {
       // Into a round: the page it was started from is where back goes.
-      if (navCur) navPush(navCur);
+      if (navCur) {
+        navRoundHome = navCur.page === "intake" ? spotOf(navCur, {}) : navCur;
+        navPush(navCur);
+      }
       navCur = null;
+      navRoundKind = screenNow() === "geo" ? "geo" : "vocab";
     } else if (!navCur) {
+      e.back = back !== undefined ? back
+             : navRoundHome && entryKey(navRoundHome) === entryKey(e) ? navRoundHome.back
+             : roundLeft(e);
       // Out of a round. If this is the page it was started from, the round
       // simply ends and that page is current again.
       var top = navStack[navStack.length - 1];
@@ -2458,12 +2497,128 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       }
       navCur = e;
     } else if (entryKey(navCur) !== entryKey(e)) {
+      e.back = back !== undefined ? back : spotOf(navCur, e, tree);
       navPush(navCur);
       navCur = e;
     } else {
+      e.back = navCur.back;
       navCur = e;
     }
     navArrowFor(screenNow());
+  }
+
+  function pageDeckId(e) {
+    return !e ? null : e.page === "deck" ? (e.deck && e.deck.id) || null : e.page === "geo-setup" ? e.id || null : null;
+  }
+
+  // The page being left, as a place to come back to.
+  function spotOf(from, e, tree) {
+    var s = {};
+    for (var k in from) s[k] = from[k];
+    if (s.page === "intake") {
+      s.focus = shelfClickId || pageDeckId(e);
+      s.back = null;      // nothing goes back from the shelf but up a folder
+    }
+    s.tree = tree || null;
+    return s;
+  }
+
+  // The shelf, with a quiz's card to put in the middle of the screen.
+  function shelfSpot(e) {
+    var id = pageDeckId(e), d = id && deckById(id);
+    return { page: "intake", folder: d ? folderOf(d) : null, focus: id, y: 0, back: null,
+             tab: e && e.page === "geo-setup" ? "geo" : "vocab" };
+  }
+
+  // A round left for some other page than its own: back there is its
+  // results, while they are still the ones on screen.
+  function roundLeft(e) {
+    var live = navRoundKind === "geo" ? geoGame : game;
+    if (live && live.over) return { page: "done", kind: navRoundKind, game: live, deck: deck, home: navRoundHome };
+    return shelfSpot(e);
+  }
+
+  // Back from a round: the top of the page of the list that was played.
+  function roundHomeSpot() {
+    var h = navRoundHome, want;
+    if (screenNow() === "geo" && geoGame) {
+      want = { page: "geo-setup", id: geoGame.deck.id || null, draft: null,
+               path: geoGame.subPath ? geoGame.subPath.slice() : null };
+    } else if (deck) {
+      want = { page: "deck", deck: deck, saved: isSavedDeck(deck),
+               path: game && game.subPath ? game.subPath.slice() : null };
+    } else {
+      return h || shelfSpot(null);
+    }
+    if (h && entryKey(h) === entryKey(want)) {
+      var s = spotOf(h, want, null);
+      s.y = 0;
+      return s;
+    }
+    want.y = 0;
+    if (h && h.page === "intake") {
+      want.back = spotOf(h, want, null);
+      want.back.focus = h.focus || pageDeckId(want);
+    } else {
+      want.back = shelfSpot(want);
+    }
+    return want;
+  }
+
+  function centreCard(id) {
+    var all = document.querySelectorAll("#scr-intake .quiz-card[data-id]");
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.dataset.id !== id || !el.offsetParent) continue;
+      var r = el.getBoundingClientRect();
+      window.scrollTo(0, Math.max(0, (window.scrollY || 0) + r.top + r.height / 2 - window.innerHeight / 2));
+      return true;
+    }
+    return false;
+  }
+
+  // Where the app's own back buttons go.
+  function navBack() {
+    var on = screenNow();
+    if (on === "intake") {
+      var f = currentFolder && folderById(currentFolder);
+      if (f) openFolder(parentOf(f));
+      return;
+    }
+    if (on === "quiz" || on === "done" || on === "geo") { navGo(roundHomeSpot()); return; }
+    navGo((navCur && navCur.back) || shelfSpot(navCur));
+  }
+
+  // Go to a remembered place, as a step forward in the browser's history.
+  function navGo(t) {
+    navNote();
+    // A tree left open belongs to the page being left; one comes back
+    // only with a page that was opened from it.
+    if (!$("side-panel").hidden) closeSidePanel();
+    if (t.page === "done") {
+      var live = t.kind === "geo" ? geoGame : game;
+      if (!live || live !== t.game || !live.over || (t.kind !== "geo" && deck !== t.deck)) {
+        // Another round has been played since: its own page instead.
+        var h = t.home ? spotOf(t.home, t.home, null) : shelfSpot(null);
+        h.y = 0;
+        navGo(h);
+        return;
+      }
+      navBusy = true;
+      show(t.kind === "geo" ? "geo" : "done");
+      if (t.kind === "geo" && geoMap) geoMap.fit();
+      navBusy = false;
+      if (navCur) navPush(navCur);
+      navCur = null;
+      navRoundHome = t.home;
+      navRoundKind = t.kind;
+      navArrowFor(screenNow());
+      return;
+    }
+    var back = t.back;
+    navDraw(t);
+    navNextBack = back === undefined ? null : back;
+    navArrive();
   }
 
   function navPush(e) {
@@ -2474,13 +2629,21 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
 
   function navArrowFor(name) {
     var arrow = $("back-arrow");
-    arrow.hidden = name === "intake" && !navStack.length;
-    arrow.title = (name === "quiz" || name === "geo") ? "Leave this round" : "Back";
+    arrow.hidden = name === "intake" && (SHARED ? !navStack.length : !currentFolder);
+    arrow.title = (name === "quiz" || (name === "geo" && !(geoGame && geoGame.over))) ? "Leave this round"
+                : name === "intake" ? "Up a folder" : "Back";
     arrow.setAttribute("aria-label", arrow.title);
   }
 
   // Draw a remembered page again, and put it back where it was scrolled.
   function navRestore(e) {
+    if (!$("side-panel").hidden) closeSidePanel();
+    e = navDraw(e);
+    navCur = e;
+    navArrowFor(screenNow());
+  }
+
+  function navDraw(e) {
     navBusy = true;
     if (e.page === "deck") {
       var d = e.saved ? deckById(e.deck.id) : e.deck;
@@ -2519,14 +2682,18 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       renderSaved();
       show("intake");
     }
-    navCur = e;
     // Scrolling forces layout, so the page is measured by now. Not a frame
     // later: a window in the background may not draw one for a long time.
     var y = e.y || 0;
     window.scrollTo(0, y);
+    if (e.page === "intake" && e.focus) centreCard(e.focus);
     e.y = window.scrollY || 0;
+    if (e.tree) {
+      var td = isSavedDeck(e.tree) ? deckById(e.tree.id) : (deck === e.tree ? deck : null);
+      if (td) openSidePanel(td);
+    }
     navBusy = false;
-    navArrowFor(screenNow());
+    return e;
   }
 
   window.addEventListener("popstate", function (ev) {
@@ -2549,6 +2716,12 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       while (navStack.length > want) {
         if (at) navFwd.push(at);
         at = navStack.pop();
+      }
+      if (navCur && at && navStack.length && entryKey(at) === entryKey(navCur)) {
+        // The same page again would only scroll it: one more step back.
+        navFwd = [];
+        history.back();
+        return;
       }
       navRestore(at);
     } else if (want > navStack.length) {
@@ -2606,11 +2779,12 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
 
   /* ---------------- rounds left unfinished ----------------
      Leaving a round before its end -- back, another quiz, closing the tab
-     -- keeps it. Five are kept on their own, the oldest dropping off as a
-     sixth comes in; one marked Keep stays, however many there are, until
+     -- keeps it, and so does every answer, in case the tab is closed
+     with no chance to. Ten are kept on their own, the oldest dropping
+     off as an eleventh comes in; one marked Keep stays, however many there are, until
      it is finished or thrown away.
   ---------------------------------------------------------- */
-  var UNFIN_KEY = "qp:unfinished", UNFIN_CAP = 5;
+  var UNFIN_KEY = "qp:unfinished", UNFIN_CAP = 10;
 
   function unfinishedList() { return readStore(UNFIN_KEY, []); }
 
@@ -2620,8 +2794,9 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   }
 
   function writeUnfinished(list) {
-    writeStore(UNFIN_KEY, capUnfinished(list));
+    var ok = writeStore(UNFIN_KEY, capUnfinished(list));
     renderUnfinished();
+    return ok;
   }
 
   function vocabLive() { return !!game && !game.over && !$("scr-quiz").hidden; }
@@ -2663,10 +2838,11 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
                      spent: now - g.t0, onPlace: now - (g.placeAt || now) } };
   }
 
+  // -> true saved, false refused (storage full or off), null nothing to save.
   function softSave() {
-    if (SHARED) return;
+    if (SHARED) return null;
     var rec = vocabLive() ? vocabRecord() : geoLive() ? geoRecord() : null;
-    if (!rec) return;
+    if (!rec) return null;
     var was = null;
     var list = unfinishedList().filter(function (r) {
       if (r.id === rec.id) { was = r; return false; }
@@ -2674,8 +2850,28 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     });
     rec.kept = !!(was && was.kept);
     list.unshift(rec);
-    writeUnfinished(list);
+    return writeUnfinished(list);
   }
+
+  // Quiet unless it fails, and then said once a round.
+  function saveAsYouGo() {
+    var g = vocabLive() ? game : geoLive() ? geoGame : null;
+    if (!g) return;
+    if (softSave() === false && !g.saveWarned) { g.saveWarned = true; saveNote(false); }
+  }
+
+  var saveNoteTimer = null;
+  function saveNote(ok) {
+    if (ok == null) return;
+    var el = $("save-note");
+    el.className = "save-note" + (ok ? "" : " bad");
+    el.textContent = ok ? "Round saved. Pick it up again from Unfinished, at the top."
+      : "This round couldn't be saved: your browser's storage is full or switched off. Empty the trash or delete something, then try again.";
+    el.hidden = false;
+    clearTimeout(saveNoteTimer);
+    saveNoteTimer = setTimeout(function () { el.hidden = true; }, ok ? 3500 : 9000);
+  }
+  $("save-note").addEventListener("click", function () { this.hidden = true; });
 
   window.addEventListener("pagehide", softSave);
 
@@ -2693,7 +2889,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
 
   function resumeUnfinished(id) {
     closeUnfinMenu();
-    softSave();      // whatever is being played now is kept as well
+    saveNote(softSave());      // whatever is being played now is kept as well
     var r = unfinishedList().filter(function (x) { return x.id === id; })[0];
     if (!r) return;
     var d = r.deckId ? deckById(r.deckId) : r.deck;
@@ -2780,7 +2976,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       keep.setAttribute("aria-pressed", r.kept ? "true" : "false");
       keep.textContent = r.kept ? "Kept" : "Keep";
       keep.title = r.kept ? "Let this one drop off with the oldest again"
-                          : "Keep this one until you finish it, beyond the five kept for you";
+                          : "Keep this one until you finish it, beyond the ten kept for you";
       keep.addEventListener("click", function () { keepUnfinished(r.id); });
       var sp = document.createElement("span");
       sp.className = "sp";
@@ -4897,7 +5093,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     var last = $("pair-a-" + (deck.pairs.length - 1));
     if (last) last.focus();
   });
-  $("btn-back").addEventListener("click", leaveToLists);
+  $("btn-back").addEventListener("click", goBack);
 
   /* Naming a column. The names were always shown -- in the heading, and in
      the line that says which way round a round goes -- and never asked
@@ -5293,6 +5489,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     game.done++;
     $("hud-score").textContent = game.score;
     $("track-fill").style.width = (game.done / game.total * 100) + "%";
+    saveAsYouGo();
 
     var foot = $("stage-foot");
     foot.textContent = "";
@@ -6331,6 +6528,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
 
   // A row of the tree was clicked: open that list's page.
   function openTreeList(d, path) {
+    navViaTree = d;     // back from the page opened comes to the tree again
     if (isGeo(d)) {
       if (!$("scr-geo-setup").hidden && geoEditId && geoEditId === d.id) {
         // Already on this map's page: unsaved changes to it stay.
@@ -6865,7 +7063,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   var currentFolder = null;   // the folder being looked inside; null is the top
 
   // A folder opened mid-drag is a spring, not somewhere you went.
-  function openFolder(id) { navNote(); currentFolder = id; renderSaved(); if (!dragging) navSoon(); }
+  function openFolder(id) { navNote(); currentFolder = id; renderSaved(); navArrowFor(screenNow()); if (!dragging) navSoon(); }
 
   $("btn-back-folder").addEventListener("click", function () {
     var f = currentFolder && folderById(currentFolder);
@@ -9397,10 +9595,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     $("geo-q").focus();
   });
 
-  $("geo-back").addEventListener("click", function () {
-    setTab("geo");
-    show("intake");
-  });
+  $("geo-back").addEventListener("click", goBack);
 
   $("geo-sub-back").addEventListener("click", function () {
     navNote();
@@ -9794,6 +9989,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     g.skips++;
     g.tries = 0;          // the next run at it starts clean
     geoHud();
+    saveAsYouGo();
   }
 
   $("geo-skip").addEventListener("click", skipGeo);
@@ -9804,7 +10000,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     g.tries = 0;
     g.shown = false;
     if (g.i >= g.order.length) { askPlace(); finishGeo(); }
-    else { askPlace(); geoHud(); }
+    else { askPlace(); geoHud(); saveAsYouGo(); }
   }
 
   /* Starting on a place: its own clock begins, and in typing mode it is
@@ -10663,7 +10859,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
 
 })();
 </script>
-<p class="build-stamp">build 95b0c819</p>
+<p class="build-stamp">build 8c9d9414</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
