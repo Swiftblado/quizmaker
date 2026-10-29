@@ -1498,12 +1498,14 @@ body.is-shared .entry-name{pointer-events:none;background:transparent;border-col
 .tree{display:flex;flex-direction:column}
 .tree-row{display:flex;align-items:stretch;min-height:46px;position:relative}
 .tree-row.is-root{min-height:52px}
-.tg{flex:none;width:18px;position:relative}
-.tg.v::before,.tg.t::before,.tg.l::before{content:"";position:absolute;left:8px;top:0;bottom:0;border-left:1.5px solid var(--faint);opacity:.6}
-.tg.l::before{bottom:50%}
-.tg.t::after,.tg.l::after{content:"";position:absolute;left:8px;right:0;top:50%;border-top:1.5px solid var(--faint);opacity:.6}
-.tree-fold{flex:none;align-self:center;width:20px;height:24px;padding:0;border:0;border-radius:5px;
-  background:transparent;color:var(--muted);font-size:11px;cursor:pointer}
+/* One soft rail down the left of everything inside a list, under that
+   list's chevron; no elbows. */
+.tg{flex:none;width:22px;position:relative}
+.tg::before{content:"";position:absolute;left:10px;top:0;bottom:0;width:2px;border-radius:1px;background:var(--rule)}
+.tree-fold{flex:none;align-self:center;display:grid;place-items:center;width:22px;height:26px;padding:0;
+  border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.tree-fold svg{transition:transform .15s ease}
+.tree-fold[aria-expanded="true"] svg{transform:rotate(90deg)}
 .tree-fold:hover{background:var(--accent-soft);color:var(--accent-ink)}
 .tree-fold.none{visibility:hidden}
 .tree-main{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1px;
@@ -2398,7 +2400,10 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   /* The arrow by the title and the Back buttons on the pages do not walk
      that history: each goes to a set place, so they can never land on
      something unrelated or on the page already showing.
-       a round, or its results -> the top of the page of the list played;
+       a round, or its results -> the top of the page of the list played,
+                                   when it was started there; otherwise
+                                   wherever it was started from, as left
+                                   (the shelf, Unfinished, Play again...);
        a quiz's page            -> wherever it was opened from: the shelf,
                                    with the quiz in the middle of the screen
                                    (and its sub-list tree open again, if
@@ -2411,6 +2416,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   var navViaTree = null;      // the quiz whose tree the next page is opened from
   var navRoundHome = null;    // the page the round on screen was started from
   var navRoundKind = "vocab";
+  var navRoundFrom = null;    // where a resumed round was picked up from
   var shelfClickId = null;    // the card on the shelf last clicked
 
   document.addEventListener("click", function (ev) {
@@ -2475,13 +2481,15 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     navViaTree = null;
     if (!e) {
       // Into a round: the page it was started from is where back goes.
-      if (navCur) {
-        navRoundHome = navCur.page === "intake" ? spotOf(navCur, {}) : navCur;
-        navPush(navCur);
-      }
+      // Played again from its results, it keeps the place it had.
+      if (navRoundFrom) navRoundHome = navRoundFrom;
+      else if (navCur) navRoundHome = navCur.page === "intake" ? spotOf(navCur, {}) : navCur;
+      navRoundFrom = null;
+      if (navCur) navPush(navCur);
       navCur = null;
       navRoundKind = screenNow() === "geo" ? "geo" : "vocab";
     } else if (!navCur) {
+      navRoundFrom = null;
       e.back = back !== undefined ? back
              : navRoundHome && entryKey(navRoundHome) === entryKey(e) ? navRoundHome.back
              : roundLeft(e);
@@ -2538,7 +2546,17 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     return shelfSpot(e);
   }
 
-  // Back from a round: the top of the page of the list that was played.
+  // Where you are now, as a place to come back to.
+  function hereSpot() {
+    navNote();
+    if (navCur) return spotOf(navCur, {}, null);
+    var live = navRoundKind === "geo" ? geoGame : game;
+    if (live && live.over) return { page: "done", kind: navRoundKind, game: live, deck: deck, home: navRoundHome };
+    return navRoundHome;
+  }
+
+  // Back from a round: the top of the page of the list that was played, if
+  // it was started there; wherever it was started from, if not.
   function roundHomeSpot() {
     var h = navRoundHome, want;
     if (screenNow() === "geo" && geoGame) {
@@ -2550,18 +2568,19 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     } else {
       return h || shelfSpot(null);
     }
-    if (h && entryKey(h) === entryKey(want)) {
+    if (h && h.page !== "done" && entryKey(h) === entryKey(want)) {
       var s = spotOf(h, want, null);
       s.y = 0;
       return s;
     }
-    want.y = 0;
-    if (h && h.page === "intake") {
-      want.back = spotOf(h, want, null);
-      want.back.focus = h.focus || pageDeckId(want);
-    } else {
-      want.back = shelfSpot(want);
+    if (h) {
+      var c = {};
+      for (var k in h) c[k] = h[k];
+      c.tree = null;
+      return c;
     }
+    want.y = 0;
+    want.back = shelfSpot(want);
     return want;
   }
 
@@ -2899,7 +2918,9 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       return;
     }
     d = JSON.parse(JSON.stringify(d));
+    var from = hereSpot();     // back from the round comes here
     if (r.kind === "geo") {
+      navRoundFrom = from;
       startGeo(d, r.game.only, r.game.subName, r.game.subPath, r);
       return;
     }
@@ -2907,7 +2928,8 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     var path = r.game.subPath;
     subView = path && subAt(deck, path) ? { path: path.slice() } : null;
     renderDeck();
-    navArrive();     // the quiz's page is where back from this round goes
+    navArrive();
+    navRoundFrom = from;
     game = JSON.parse(JSON.stringify(r.game));
     game.saveId = r.id;
     game.live = false;
@@ -6578,9 +6600,10 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     function makeRow(o) {
       var r = document.createElement("div");
       r.className = "tree-row" + (o.root ? " is-root" : "");
-      (o.guides || []).forEach(function (g) {
+      // A rail for each list this one is inside; the top level needs none.
+      (o.guides || []).slice(1).forEach(function () {
         var t = document.createElement("span");
-        t.className = "tg" + (g ? " " + g : "");
+        t.className = "tg";
         r.appendChild(t);
       });
       if (!o.root) {
@@ -6588,7 +6611,8 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
         f.type = "button";
         f.className = "tree-fold" + (o.kids ? "" : " none");
         if (o.kids) {
-          f.textContent = o.folded ? "▸" : "▾";
+          f.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" ' +
+            'stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>';
           f.title = o.folded ? "Show the lists inside" : "Hide the lists inside";
           f.setAttribute("aria-expanded", String(!o.folded));
           f.addEventListener("click", o.onFold);
@@ -6623,7 +6647,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       if (next && next.classList && next.classList.contains("tree-new")) { next.querySelector("input").focus(); return; }
       var box = document.createElement("div");
       box.className = "tree-new";
-      box.style.paddingLeft = ((parentPath.length + 1) * 18 + 20) + "px";
+      box.style.paddingLeft = (parentPath.length * 22 + 22) + "px";
       var field = document.createElement("input");
       field.maxLength = 40;
       field.placeholder = parentPath.length
@@ -10859,7 +10883,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
 
 })();
 </script>
-<p class="build-stamp">build 8c9d9414</p>
+<p class="build-stamp">build 7f65b0b5</p>
 
 <div class="update-nudge" id="update-nudge" role="status" hidden>
   <span>A new version is ready.</span>
