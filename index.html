@@ -1536,6 +1536,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   font-size:14px;font-weight:600;line-height:1.4;text-align:center;cursor:pointer;
   background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok);box-shadow:var(--shadow)}
 .save-note.bad{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.save-note .btn{margin:8px auto 0;display:block}
 </style>
 
 <div class="save-note" id="save-note" role="status" aria-live="polite" hidden></div>
@@ -2301,8 +2302,8 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     navNote();
     if (saveTimer) saveNow();   // an edit still on its way to storage
     // A round left before its end is kept, to be picked up again later.
-    if (name !== "quiz" && name !== "done" && vocabLive()) saveNote(softSave());
-    if (name !== "geo" && geoLive()) saveNote(softSave());
+    if (name !== "quiz" && name !== "done" && vocabLive()) { saveNote(softSave()); clearAway(); }
+    if (name !== "geo" && geoLive()) { saveNote(softSave()); clearAway(); }
     if (name !== "quiz") stopClock();
     if (name !== "geo") stopGeoClock();
     navArrowFor(name);
@@ -2798,7 +2799,26 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     });
     rec.kept = !!(was && was.kept);
     list.unshift(rec);
-    return writeUnfinished(list);
+    var ok = writeUnfinished(list);
+    // Marked as the round in hand. Left the usual way, the mark goes with
+    // it; still there when the site is next opened, the site was closed
+    // in the middle of it.
+    writeStore(AWAY_KEY, { id: rec.id, ok: ok, title: rec.title, label: rec.label });
+    return ok;
+  }
+
+  var AWAY_KEY = "qp:away";
+  function clearAway() { try { localStorage.removeItem(AWAY_KEY); } catch (e) { /* storage off */ } }
+
+  // Opened again after being closed mid-round: say whether it was kept.
+  function welcomeBack() {
+    if (SHARED) return;
+    var a = readStore(AWAY_KEY, null);
+    if (!a) return;
+    clearAway();
+    var rec = unfinishedList().filter(function (r) { return r.id === a.id; })[0];
+    if (rec) saveNote(true, rec);
+    else if (a.ok === false) saveNote(false, a);
   }
 
   // Quiet unless it fails, and then said once a round.
@@ -2809,15 +2829,28 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   }
 
   var saveNoteTimer = null;
-  function saveNote(ok) {
+  // away: the round the site was closed in the middle of, when it is opened again.
+  function saveNote(ok, away) {
     if (ok == null) return;
     var el = $("save-note");
     el.className = "save-note" + (ok ? "" : " bad");
-    el.textContent = ok ? "Round saved. Pick it up again from Unfinished, at the top."
+    var name = away ? "“" + away.title + "”" + (away.label ? " (" + away.label + ")" : "") : "";
+    el.textContent = away
+      ? (ok ? "Welcome back. Your round of " + name + " was saved when you left, " + away.done + " of " + away.total + " done."
+            : "Welcome back. Your last round of " + name + " couldn't be saved when you left: your browser's storage is full or switched off.")
+      : ok ? "Round saved. Pick it up again from Unfinished, at the top."
       : "This round couldn't be saved: your browser's storage is full or switched off. Empty the trash or delete something, then try again.";
+    if (away && ok) {
+      var go = document.createElement("button");
+      go.type = "button";
+      go.className = "btn btn-sm btn-primary";
+      go.textContent = "Resume it";
+      go.addEventListener("click", function () { resumeUnfinished(away.id); });
+      el.appendChild(go);
+    }
     el.hidden = false;
     clearTimeout(saveNoteTimer);
-    saveNoteTimer = setTimeout(function () { el.hidden = true; }, ok ? 3500 : 9000);
+    saveNoteTimer = setTimeout(function () { el.hidden = true; }, away ? 12000 : ok ? 3500 : 9000);
   }
   $("save-note").addEventListener("click", function () { this.hidden = true; });
 
@@ -4478,6 +4511,8 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   }
 
   function renderDeck() {
+    var nLists = allSubs(deck).length;
+    $("deck-lists").textContent = "Sub-lists" + (nLists ? " · " + nLists : "");
     $("deck-title").value = deck.title || "";
     $("lang-a").value = deck.langA || "";
     $("lang-b").value = deck.langB || "";
@@ -5701,6 +5736,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     }
 
     game.over = true;
+    clearAway();
     if (game.saveId) dropUnfinished(game.saveId);
     lastLog = game.log.slice();
     renderSubCard();
@@ -6717,10 +6753,11 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
         var kids = kidsOf(s);
         var folded = !!treeFolded[foldKey(path)];
         var n = count(s);
+        var inside = allSubs(d, kids).length;
         var r = makeRow({
           name: s.name,
           detail: (n ? amount(n) : "empty") +
-            (kids.length ? " · " + kids.length + (kids.length === 1 ? " list inside" : " lists inside") : "") +
+            (inside ? " · " + inside + (inside === 1 ? " list inside" : " lists inside") : "") +
             (s.share ? " · shared" : ""),
           guides: guides.concat([last ? "l" : "t"]),
           kids: kids.length,
@@ -7893,7 +7930,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       }
     });
 
-    var subs = (d.subs || []).length;
+    var subs = allSubs(d).length;      // the lists inside lists count too
     var meta = document.createElement("div");
     meta.className = "deck-meta";
     var bits = [words(d.pairs.length)];
@@ -9395,6 +9432,8 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
   }
 
   function renderGeoPicked() {
+    var gd = geoEditId && deckById(geoEditId), nLists = gd ? allSubs(gd).length : 0;
+    $("geo-lists").textContent = "Sub-lists" + (nLists ? " · " + nLists : "");
     var host = $("geo-chips");
     host.textContent = "";
     // On a sub-list's page the places outside it are dimmed, and Start
@@ -9995,6 +10034,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
     g.over = true;
     g.t1 = Date.now();
     if (g.saveId) dropUnfinished(g.saveId);
+    clearAway();
     stopGeoClock();
     geoHud();
     if (g.timedOut) $("geo-clock").textContent = "0:00 left";
@@ -10151,7 +10191,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       }
     });
 
-    var subs = (d.subs || []).length;
+    var subs = allSubs(d).length;
     var meta = document.createElement("div");
     meta.className = "deck-meta";
     var kinds = {};
@@ -10796,6 +10836,7 @@ body.is-shared .unfin,body.is-shared #deck-lists,body.is-shared #geo-lists{displ
       show("intake");
     }
     renderUnfinished();
+    welcomeBack();
     navInit();
   }
 
